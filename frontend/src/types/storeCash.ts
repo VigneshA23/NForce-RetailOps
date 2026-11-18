@@ -56,25 +56,84 @@ export interface DailyCashEntry extends CashAmounts {
   // The latest correction, for "Corrected by [name]"; null if never corrected.
   correctedByName: string | null;
   correctedAt: string | null;
+  // Who made that correction: shown as "Corrected by employee [name]".
+  correctedByRole: CashActorRole | null;
+  // Flagged wins while a flag is open.
+  status: CashEntryStatus;
+  // The open flag, or null.
+  flag: CashFlag | null;
+  // The latest flag once closed (e.g. fixed by the employee), or null.
+  resolvedFlag: CashFlag | null;
+  // Employee responses only (null for admins): may this employee edit right now?
+  canEdit: boolean | null;
+  // Owner/Admin and Super Admin responses only; null for employees.
+  dailyExpectedCash?: number | null;
+  expectedCashOnHand?: number | null;
 }
 
-// Mirrors the backend's ExpectedCashResponse (RTS-295): the store's live
-// expected cash, derived from its latest saved entry. When `available` is
-// false every amount and asOfDate is null -- never a fake zero.
-export interface ExpectedCash {
-  storeId: number;
-  available: boolean;
-  message: string | null;
-  // YYYY-MM-DD business date of the entry the figure comes from.
-  asOfDate: string | null;
-  // ISO timestamp of when that entry was last saved (first save or a later
-  // correction) -- when the count was entered into the system.
-  lastUpdatedAt: string | null;
-  expectedCashOnHand: number | null;
-  cashRemaining: number | null;
-  variance: number | null;
-  openingDrawerCash: number | null;
-  cashRemoved: number | null;
-  cashExpenses: number | null;
-  otherAdjustments: number | null;
+export type CashActorRole = 'EMPLOYEE' | 'OWNER_ADMIN' | 'SUPER_ADMIN';
+export type CashEntryStatus = 'Entered' | 'Corrected' | 'Flagged';
+
+export interface CashFlag {
+  id: number;
+  comment: string;
+  flaggedByName: string | null;
+  flaggedByRole: CashActorRole | null;
+  flaggedAt: string;
+  commentUpdatedAt: string | null;
+  resolvedByName: string | null;
+  resolvedAt: string | null;
+  // REMOVED, CORRECTED or EMPLOYEE_FIXED; null while open.
+  resolution: 'REMOVED' | 'CORRECTED' | 'EMPLOYEE_FIXED' | null;
+  // The employee's optional note when they fixed it.
+  resolutionNote: string | null;
 }
+
+// Expected cash on hand as of a date: the server's running sum of each day's
+// expected cash. Never computed in the browser.
+export interface ExpectedCashAsOf {
+  storeId: number;
+  asOf: string;
+  expectedCashOnHand: number;
+}
+
+export type CashHistoryEventType =
+  | 'CREATED'
+  | 'EMPLOYEE_EDIT'
+  | 'ADMIN_CORRECTION'
+  | 'FLAGGED'
+  | 'FLAG_EDITED'
+  | 'FLAG_RESOLVED'
+  | 'FLAG_REMOVED';
+
+export interface CashFigures {
+  openingDrawerCash: number;
+  cashExpenses: number;
+  cashRemoved: number;
+  cashRemaining: number;
+  otherAdjustments: number;
+}
+
+export interface CashHistoryEvent {
+  entryId: number;
+  businessDate: string;
+  type: CashHistoryEventType;
+  // Null = unknown (an entry from before the creator was recorded).
+  actorName: string | null;
+  actorRole: CashActorRole | null;
+  at: string;
+  previous: CashFigures | null;
+  current: CashFigures | null;
+  comment: string | null;
+}
+
+export interface CashHistory {
+  storeId: number;
+  from: string;
+  to: string;
+  events: CashHistoryEvent[];
+}
+
+export type CashHistoryStatusFilter = 'ALL' | 'OPEN' | 'RESOLVED';
+
+

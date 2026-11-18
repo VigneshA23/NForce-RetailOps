@@ -6,7 +6,8 @@ import * as storeCashApi from '../api/storeCash';
 import { ApiError } from '../api/client';
 import { nfToast } from '../utils/toast';
 import { isTouchDevice } from '../utils/autoFocus';
-import type { DailyCashEntry, ExpectedCash } from '../types/storeCash';
+import * as meCashApi from '../api/meCash';
+import type { DailyCashEntry } from '../types/storeCash';
 
 vi.mock('../utils/autoFocus', () => ({ isTouchDevice: vi.fn(() => false) }));
 vi.mock('../api/storeCash', () => ({
@@ -14,8 +15,18 @@ vi.mock('../api/storeCash', () => ({
   saveDailyCashEntry: vi.fn(),
   getSuperAdminDailyCashEntry: vi.fn(),
   saveSuperAdminDailyCashEntry: vi.fn(),
-  getExpectedCash: vi.fn(),
-  getSuperAdminExpectedCash: vi.fn(),
+  getExpectedCashAsOf: vi.fn(),
+  getSuperAdminExpectedCashAsOf: vi.fn(),
+  getCashHistory: vi.fn().mockResolvedValue({ storeId: 7, from: '', to: '', events: [] }),
+  getSuperAdminCashHistory: vi.fn().mockResolvedValue({ storeId: 7, from: '', to: '', events: [] }),
+  flagCashEntry: vi.fn(),
+  editCashFlag: vi.fn(),
+  removeCashFlag: vi.fn(),
+}));
+vi.mock('../api/meCash', () => ({
+  getMyCashEntry: vi.fn(),
+  saveMyCashEntry: vi.fn(),
+  getMyCashHistory: vi.fn().mockResolvedValue({ storeId: 7, from: '', to: '', events: [] }),
 }));
 vi.mock('../api/storeCashTarget', () => ({
   getCashTarget: vi.fn().mockResolvedValue({ storeId: 7, targetAmount: 250, updatedByUserId: null, updatedBySuperAdminId: null, updatedAt: '2026-11-01T00:00:00Z' }),
@@ -54,18 +65,27 @@ function entry(overrides: Partial<DailyCashEntry> = {}): DailyCashEntry {
     history: [],
     correctedByName: null,
     correctedAt: null,
+    correctedByRole: null,
+    status: 'Entered',
+    flag: null,
+    resolvedFlag: null,
+    canEdit: null,
     ...overrides,
   };
 }
 
-function expected(overrides: Partial<ExpectedCash> = {}): ExpectedCash {
-  return {
-    storeId: 7, available: false, message: 'No cash entries have been recorded for this store yet', asOfDate: null, lastUpdatedAt: null,
-    expectedCashOnHand: null, cashRemaining: null, variance: null, openingDrawerCash: null,
-    cashRemoved: null, cashExpenses: null, otherAdjustments: null,
-    ...overrides,
-  };
-}
+const FLAG = {
+  id: 4,
+  comment: 'Cash removed looks too high for a Tuesday',
+  flaggedByName: 'Olive Owner',
+  flaggedByRole: 'OWNER_ADMIN' as const,
+  flaggedAt: '2026-11-09T19:00:00Z',
+  commentUpdatedAt: null,
+  resolvedByName: null,
+  resolvedAt: null,
+  resolution: null,
+  resolutionNote: null,
+};
 
 function todayIso(): string {
   const now = new Date();
@@ -86,7 +106,9 @@ async function fillAll(user: ReturnType<typeof userEvent.setup>, value = '10') {
 beforeEach(() => {
   vi.mocked(storeCashApi.getDailyCashEntry).mockReset().mockResolvedValue(null);
   vi.mocked(storeCashApi.saveDailyCashEntry).mockReset();
-  vi.mocked(storeCashApi.getExpectedCash).mockReset().mockResolvedValue(expected());
+  vi.mocked(storeCashApi.getExpectedCashAsOf).mockReset().mockResolvedValue({ storeId: 7, asOf: todayIso(), expectedCashOnHand: 0 });
+  vi.mocked(meCashApi.getMyCashEntry).mockReset().mockResolvedValue(null);
+  vi.mocked(meCashApi.saveMyCashEntry).mockReset();
   vi.mocked(isTouchDevice).mockReturnValue(false);
   vi.mocked(nfToast.success).mockReset();
   vi.mocked(nfToast.error).mockReset();
@@ -116,7 +138,7 @@ describe('DailyCash', () => {
 
     expect(screen.queryByLabelText('Help for Business date')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Help for Expected Cash on Hand')).not.toBeInTheDocument();
-    const formula = screen.getByText('Expected Cash = Opening Cash − Cash Expenses − Cash Removed ± Other Adjustments');
+    const formula = screen.getByText(/Daily expected cash = Cash remaining ± Other adjustments/);
     expect(formula).toHaveClass('daily-cash-page__formula-banner');
     const savedStatus = screen.getByText('No entry saved for this date yet');
     const toolbar = savedStatus.closest('.daily-cash-page__toolbar');
@@ -377,54 +399,148 @@ describe('DailyCash', () => {
     expect(storeCashApi.getDailyCashEntry).not.toHaveBeenCalled();
     // No store, no Expected Cash on Hand card.
     expect(screen.queryByText('Expected Cash on Hand')).not.toBeInTheDocument();
-    expect(storeCashApi.getExpectedCash).not.toHaveBeenCalled();
+    expect(storeCashApi.getExpectedCashAsOf).not.toHaveBeenCalled();
   });
 
-  // ---- Expected Cash on Hand (RTS-296) ----------------------------------------
+  // ---- Expected Cash on Hand as of the viewed date (RTS-554) --------------------
 
-  it('shows "No data yet" for a store with no cash entries, never $0.00', async () => {
+  it('shows the server\'s running total as of the viewed date, even with no entry that day', async () => {
+    vi.mocked(storeCashApi.getExpectedCashAsOf).mockResolvedValue({ storeId: 7, asOf: todayIso(), expectedCashOnHand: 1234.5 });
     render(<DailyCash storeId={7} storesLoading={false} />);
 
-    expect(await screen.findByText('No data yet')).toBeInTheDocument();
+    expect(await screen.findByText('$1,234.50')).toBeInTheDocument();
     expect(screen.getByText('Expected Cash on Hand')).toBeInTheDocument();
-    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.getByText('No entry saved for this date yet')).toBeInTheDocument();
+    expect(storeCashApi.getExpectedCashAsOf).toHaveBeenCalledWith(todayIso(), expect.anything());
   });
 
   it('refreshes Expected Cash on Hand from the server after a successful save', async () => {
     const user = userEvent.setup();
-    vi.mocked(storeCashApi.getExpectedCash)
-      .mockResolvedValueOnce(expected())
-      .mockResolvedValueOnce(expected({ available: true, message: null, asOfDate: todayIso(), expectedCashOnHand: 540 }));
+    vi.mocked(storeCashApi.getExpectedCashAsOf)
+      .mockResolvedValueOnce({ storeId: 7, asOf: todayIso(), expectedCashOnHand: 0 })
+      .mockResolvedValueOnce({ storeId: 7, asOf: todayIso(), expectedCashOnHand: 540 });
     vi.mocked(storeCashApi.saveDailyCashEntry).mockImplementation(async (request) => entry({ ...request }));
     render(<DailyCash storeId={7} storesLoading={false} />);
-    expect(await screen.findByText('No data yet')).toBeInTheDocument();
+    await screen.findByText('$0.00');
 
     await fillAll(user);
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
     expect(await screen.findByText('$540.00')).toBeInTheDocument();
-    expect(screen.queryByText('No data yet')).not.toBeInTheDocument();
-    expect(storeCashApi.getExpectedCash).toHaveBeenCalledTimes(2);
+    expect(storeCashApi.getExpectedCashAsOf).toHaveBeenCalledTimes(2);
   });
 
   it('does not refetch Expected Cash on Hand when the save fails', async () => {
     const user = userEvent.setup();
     vi.mocked(storeCashApi.saveDailyCashEntry).mockRejectedValue(new Error('Store not found'));
     render(<DailyCash storeId={7} storesLoading={false} />);
-    await screen.findByText('No data yet');
+    await screen.findByText('$0.00');
 
     await fillAll(user);
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
     expect(await screen.findByText('Not saved: Store not found')).toBeInTheDocument();
-    expect(storeCashApi.getExpectedCash).toHaveBeenCalledTimes(1);
+    expect(storeCashApi.getExpectedCashAsOf).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the entry form usable when Expected Cash on Hand cannot be loaded', async () => {
-    vi.mocked(storeCashApi.getExpectedCash).mockRejectedValue(new Error('Network down'));
+    vi.mocked(storeCashApi.getExpectedCashAsOf).mockRejectedValue(new Error('Network down'));
     render(<DailyCash storeId={7} storesLoading={false} />);
 
     expect(await screen.findByText('Unavailable')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Save Entry' })).toBeEnabled();
+  });
+
+  // ---- Flags (RTS-556) ----------------------------------------------------------
+
+  it('shows an open flag with its comment, who flagged it and when, and lets the owner edit or remove it', async () => {
+    vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry({ status: 'Flagged', flag: FLAG }));
+    render(<DailyCash storeId={7} storesLoading={false} />);
+
+    expect(await screen.findByText(/Cash removed looks too high for a Tuesday/)).toBeInTheDocument();
+    expect(screen.getByText('Flagged')).toBeInTheDocument();
+    expect(screen.getByText(/Flagged by Olive Owner/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit flag comment' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove flag' })).toBeInTheDocument();
+  });
+
+  it('requires at least five words to flag an entry, then flags it', async () => {
+    const user = userEvent.setup();
+    vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry());
+    vi.mocked(storeCashApi.flagCashEntry).mockResolvedValue(entry({ status: 'Flagged', flag: FLAG }));
+    render(<DailyCash storeId={7} storesLoading={false} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Flag entry' }));
+    await user.type(screen.getByLabelText(/Flag comment/), 'too short');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Flag entry' }));
+    expect(await screen.findByText('Please give at least 5 words of context.')).toBeInTheDocument();
+    expect(storeCashApi.flagCashEntry).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByLabelText(/Flag comment/));
+    await user.type(screen.getByLabelText(/Flag comment/), 'Cash removed looks too high for a Tuesday');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Flag entry' }));
+
+    expect(storeCashApi.flagCashEntry).toHaveBeenCalledWith(1, 'Cash removed looks too high for a Tuesday');
+    expect(await screen.findByText(/Flagged by Olive Owner/)).toBeInTheDocument();
+  });
+
+  it('shows "Resolved" once the employee has fixed a flagged entry, and offers to flag again', async () => {
+    vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry({
+      status: 'Corrected',
+      correctedByName: 'Sam Employee',
+      correctedByRole: 'EMPLOYEE',
+      correctedAt: '2026-11-09T20:00:00Z',
+      resolvedFlag: { ...FLAG, resolvedByName: 'Sam Employee', resolvedAt: '2026-11-09T20:00:00Z', resolution: 'EMPLOYEE_FIXED', resolutionNote: 'Recounted' },
+    }));
+    render(<DailyCash storeId={7} storesLoading={false} />);
+
+    expect(await screen.findByText(/Resolved: corrected by employee Sam Employee/)).toBeInTheDocument();
+    expect(screen.getByText(/Corrected by employee Sam Employee/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Flag again' })).toBeInTheDocument();
+  });
+
+  // ---- Employee view (RTS-557) --------------------------------------------------
+
+  it('lets an employee record today without a reason, and never shows expected cash or the target', async () => {
+    const user = userEvent.setup();
+    vi.mocked(meCashApi.saveMyCashEntry).mockImplementation(async (_storeId, request) => entry({ ...request, canEdit: true }));
+    render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
+
+    expect(await screen.findByRole('button', { name: 'Save Entry' })).toBeEnabled();
+    expect(screen.queryByText('Expected Cash on Hand')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cash target')).not.toBeInTheDocument();
+    expect(storeCashApi.getExpectedCashAsOf).not.toHaveBeenCalled();
+
+    await fillAll(user);
+    await user.click(screen.getByRole('button', { name: 'Save Entry' }));
+    expect(meCashApi.saveMyCashEntry).toHaveBeenCalledWith(7, expect.objectContaining({ openingDrawerCash: 10 }));
+  });
+
+  it('shows a flagged entry read-only to an employee who did not enter it', async () => {
+    vi.mocked(meCashApi.getMyCashEntry).mockResolvedValue(entry({ status: 'Flagged', flag: FLAG, canEdit: false }));
+    render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
+
+    expect(await screen.findByText(/Only they can correct it/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Update Entry|Save & resolve flag/ })).not.toBeInTheDocument();
+    expect(field('Cash removed')).toBeDisabled();
+  });
+
+  it('lets the entering employee fix a flagged entry with an optional note, which resolves it', async () => {
+    const user = userEvent.setup();
+    vi.mocked(meCashApi.getMyCashEntry).mockResolvedValue(entry({ status: 'Flagged', flag: FLAG, canEdit: true }));
+    vi.mocked(meCashApi.saveMyCashEntry).mockImplementation(async (_storeId, request) =>
+      entry({ ...request, status: 'Corrected', canEdit: true }));
+    render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
+
+    expect(await screen.findByText(/Cash removed looks too high for a Tuesday/)).toBeInTheDocument();
+    await user.clear(field('Cash removed'));
+    await user.type(field('Cash removed'), '450');
+    await user.type(screen.getByRole('textbox', { name: /Note \(optional\)/ }), 'Recounted the drawer');
+    await user.click(screen.getByRole('button', { name: 'Save & resolve flag' }));
+
+    expect(meCashApi.saveMyCashEntry).toHaveBeenCalledWith(7, expect.objectContaining({
+      cashRemoved: 450,
+      correctionReason: 'Recounted the drawer',
+    }));
   });
 });

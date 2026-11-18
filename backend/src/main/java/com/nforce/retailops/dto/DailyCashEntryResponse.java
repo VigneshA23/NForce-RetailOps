@@ -39,7 +39,20 @@ public record DailyCashEntryResponse(
     // The latest direct correction, for the "Corrected by [name]" line; null
     // while the entry has never been corrected.
     String correctedByName,
-    OffsetDateTime correctedAt
+    OffsetDateTime correctedAt,
+    // OWNER_ADMIN, SUPER_ADMIN or EMPLOYEE: who made the latest correction,
+    // so the page can say "Corrected by employee [name]".
+    String correctedByRole,
+    // Entered, Corrected or Flagged. Flagged wins while a flag is open.
+    String status,
+    // The open flag, or null.
+    Flag flag,
+    // The most recent flag once it has been closed, or null; shows
+    // "Resolved" after the employee fixes the entry.
+    Flag resolvedFlag,
+    // Employee view only (null elsewhere): may this employee edit the entry
+    // right now? Today's unflagged entry, or a flagged entry they entered.
+    Boolean canEdit
 ) {
     // The employee view: the same entry without any expected-cash figure
     // (those are for Owner/Admin and Super Admin only).
@@ -47,7 +60,33 @@ public record DailyCashEntryResponse(
         return new DailyCashEntryResponse(
             id, storeId, businessDate, openingDrawerCash, cashExpenses, cashRemoved, cashRemaining,
             otherAdjustments, null, null, enteredByUserId, enteredBySuperAdminId, enteredByName, enteredAt,
-            updatedByUserId, updatedBySuperAdminId, updatedByName, updatedAt, history, correctedByName, correctedAt);
+            updatedByUserId, updatedBySuperAdminId, updatedByName, updatedAt, history, correctedByName, correctedAt,
+            correctedByRole, status, flag, resolvedFlag, canEdit);
+    }
+
+    public DailyCashEntryResponse withCanEdit(boolean editable) {
+        return new DailyCashEntryResponse(
+            id, storeId, businessDate, openingDrawerCash, cashExpenses, cashRemoved, cashRemaining,
+            otherAdjustments, dailyExpectedCash, expectedCashOnHand, enteredByUserId, enteredBySuperAdminId,
+            enteredByName, enteredAt, updatedByUserId, updatedBySuperAdminId, updatedByName, updatedAt, history,
+            correctedByName, correctedAt, correctedByRole, status, flag, resolvedFlag, editable);
+    }
+
+    // A flag as the page shows it. The resolved* fields are null while open.
+    public record Flag(
+        Long id,
+        String comment,
+        String flaggedByName,
+        String flaggedByRole,
+        OffsetDateTime flaggedAt,
+        OffsetDateTime commentUpdatedAt,
+        String resolvedByName,
+        OffsetDateTime resolvedAt,
+        // REMOVED, CORRECTED or EMPLOYEE_FIXED; null while open.
+        String resolution,
+        // The employee's optional note when they fixed it.
+        String resolutionNote
+    ) {
     }
 
     // One correction of the entry, oldest first: the old values, and (from

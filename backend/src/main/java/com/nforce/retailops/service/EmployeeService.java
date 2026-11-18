@@ -131,8 +131,15 @@ public class EmployeeService {
                 employeesById.put(storeEmployee.getId(), storeEmployee);
             }
         }
+        // Employees this owner created who are not assigned to any store yet
+        // would otherwise be unreachable. An employee who IS assigned somewhere
+        // belongs to that store's list only: listing them here too showed other
+        // stores' staff (RTS-559) -- e.g. after a store moved to a new admin who
+        // had created employees elsewhere.
         for (StoreEmployee storeEmployee : storeEmployeeRepository.findByCreatedByOwnerIdFetchEmployee(ownerId)) {
-            employeesById.putIfAbsent(storeEmployee.getId(), storeEmployee);
+            if (storeEmployee.getStores().isEmpty()) {
+                employeesById.putIfAbsent(storeEmployee.getId(), storeEmployee);
+            }
         }
 
         List<StoreEmployee> employees = employeesById.values().stream()

@@ -1,8 +1,10 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.CashHistoryResponse;
 import com.nforce.retailops.dto.DailyCashEntryRequest;
 import com.nforce.retailops.dto.DailyCashEntryResponse;
 import com.nforce.retailops.security.AppUserDetails;
+import com.nforce.retailops.service.CashHistoryService;
 import com.nforce.retailops.service.DailyCashEntryService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,9 +24,11 @@ import java.time.LocalDate;
 public class MeCashController {
 
     private final DailyCashEntryService service;
+    private final CashHistoryService historyService;
 
-    public MeCashController(DailyCashEntryService service) {
+    public MeCashController(DailyCashEntryService service, CashHistoryService historyService) {
         this.service = service;
+        this.historyService = historyService;
     }
 
     // Create-or-update today's entry; 200 either way, 403 for any other date.
@@ -35,6 +39,19 @@ public class MeCashController {
         @Valid @RequestBody DailyCashEntryRequest request
     ) {
         return ResponseEntity.ok(service.saveForEmployee(principal.getUser().getId(), storeId, request));
+    }
+
+    // History of the entries this employee entered (never anyone else's).
+    @GetMapping("/history")
+    public ResponseEntity<CashHistoryResponse> history(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @RequestParam Long storeId,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+        @RequestParam(required = false) String status
+    ) {
+        return ResponseEntity.ok(
+            historyService.forEmployee(principal.getUser().getId(), storeId, from, to, status));
     }
 
     // 404 when no entry exists for the date (default today).

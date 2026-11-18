@@ -44,6 +44,8 @@ export const EMPLOYEE_NOTIFICATION_ROUTES: Record<string, EmployeeNotificationTa
   '/audit': 'audits',
   '/issues': 'issues',
   '/stock-check': 'stock-check',
+  // A cash entry the admin flagged: '/cash?date=YYYY-MM-DD' opens Daily Cash on that day.
+  '/cash': 'cash',
 };
 
 export const SUPER_ADMIN_NOTIFICATION_ROUTES: Record<string, SuperAdminNotificationTarget> = {

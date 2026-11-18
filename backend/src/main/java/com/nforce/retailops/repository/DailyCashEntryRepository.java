@@ -64,5 +64,9 @@ public interface DailyCashEntryRepository extends JpaRepository<DailyCashEntry, 
         @Param("from") LocalDate from,
         @Param("to") LocalDate to);
 
+    // Entries for one store inside an inclusive date range, newest day first.
+    List<DailyCashEntry> findByStoreIdAndBusinessDateBetweenOrderByBusinessDateDescIdDesc(
+        Long storeId, LocalDate from, LocalDate to);
+
     boolean existsByStoreIdAndBusinessDateLessThanEqual(Long storeId, LocalDate asOf);
 }

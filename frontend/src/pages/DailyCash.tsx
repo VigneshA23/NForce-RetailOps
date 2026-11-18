@@ -1,17 +1,29 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import {
+  getCashHistory,
   getDailyCashEntry,
+  getSuperAdminCashHistory,
   getSuperAdminDailyCashEntry,
   saveDailyCashEntry,
   saveSuperAdminDailyCashEntry,
 } from '../api/storeCash';
+import { getMyCashEntry, getMyCashHistory, saveMyCashEntry } from '../api/meCash';
 import { ApiError } from '../api/client';
-import type { CashAmountField, CashAmounts, DailyCashCorrection, DailyCashEntry, DailyCashEntryRequest } from '../types/storeCash';
+import type {
+  CashAmountField,
+  CashAmounts,
+  CashHistoryStatusFilter,
+  DailyCashCorrection,
+  DailyCashEntry,
+  DailyCashEntryRequest,
+} from '../types/storeCash';
 import FormField from '../components/FormField';
 import PopoverDateField from '../components/PopoverDateField';
 import ButtonDots from '../components/ButtonDots';
-import ExpectedCashStat from '../components/ExpectedCashStat';
+import ExpectedCashOnHandStat from '../components/ExpectedCashOnHandStat';
 import CashTargetStat from '../components/CashTargetStat';
+import CashEntryFlagSection from '../components/CashEntryFlagSection';
+import CashHistoryPanel from '../components/CashHistoryPanel';
 import { formatAmount, formatCurrency } from '../utils/currency';
 import { parseAmount, validateAmount } from '../utils/amountInput';
 import { nfToast } from '../utils/toast';
@@ -23,21 +35,30 @@ interface DailyCashProps {
   storeId: number | null;
   storesLoading: boolean;
   // 'owner': the server resolves the caller's own store (storeId is only used
-  // to know one exists). 'super-admin': storeId is sent explicitly.
-  scope?: 'owner' | 'super-admin';
+  // to know one exists). 'super-admin': storeId is sent explicitly. 'employee':
+  // storeId is the store they work at; they never see expected cash or the
+  // cash target, and may only change today's entry (or one flagged for them).
+  scope?: 'owner' | 'super-admin' | 'employee';
+  // A notification click asks for a specific date; `id` changes on every click
+  // so the same date can be requested again.
+  dateSeed?: { date: string; id: number } | null;
   // Super Admin's store picker, shown beside the date.
   storeSelector?: ReactNode;
   // Shown in place of the form when storeId is null and stores have loaded.
   noStoreMessage?: string;
 }
 
-function loadEntry(scope: 'owner' | 'super-admin', storeId: number, date: string, signal: AbortSignal) {
+type Scope = 'owner' | 'super-admin' | 'employee';
+
+function loadEntry(scope: Scope, storeId: number, date: string, signal: AbortSignal) {
+  if (scope === 'employee') return getMyCashEntry(storeId, date, signal);
   return scope === 'super-admin'
     ? getSuperAdminDailyCashEntry(storeId, date, signal)
     : getDailyCashEntry(date, signal);
 }
 
-function saveEntry(scope: 'owner' | 'super-admin', storeId: number, request: DailyCashEntryRequest) {
+function saveEntry(scope: Scope, storeId: number, request: DailyCashEntryRequest) {
+  if (scope === 'employee') return saveMyCashEntry(storeId, request);
   return scope === 'super-admin'
     ? saveSuperAdminDailyCashEntry(storeId, request)
     : saveDailyCashEntry(request);
@@ -61,8 +82,9 @@ const FIELDS: FieldSpec[] = [
   { key: 'otherAdjustments', label: 'Other adjustments', description: 'A cash increase or decrease not captured by the other fields. Use a negative amount for cash taken out.', signed: true, hint: 'Use a minus sign for money taken out. Enter 0 if none.' },
 ];
 
+// Shown to Owner/Admin and Super Admin only (employees never see expected cash).
 const EXPECTED_CASH_FORMULA =
-  'Expected Cash = Opening Cash − Cash Expenses − Cash Removed ± Other Adjustments';
+  "Daily expected cash = Cash remaining ± Other adjustments. Expected Cash on Hand adds up every day's figure.";
 
 type Values = Record<CashAmountField, string>;
 type Errors = Partial<Record<CashAmountField, string>>;
@@ -179,6 +201,7 @@ function DailyCash({
   storeId,
   storesLoading,
   scope = 'owner',
+  dateSeed = null,
   storeSelector,
   noStoreMessage = 'No store is assigned to your account yet, so there is nowhere to record cash.',
 }: DailyCashProps) {
@@ -197,6 +220,23 @@ function DailyCash({
   const [reasonError, setReasonError] = useState<string | undefined>(undefined);
   // Bumped after each successful save so Expected Cash on Hand refetches.
   const [expectedRefreshKey, setExpectedRefreshKey] = useState(0);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // A notification asked for a specific day (the flagged entry's date).
+  useEffect(() => {
+    if (dateSeed?.date) setBusinessDate(dateSeed.date);
+  }, [dateSeed]);
+
+  const loadHistory = useCallback(
+    (from: string, to: string, status: CashHistoryStatusFilter, signal: AbortSignal) => {
+      if (storeId === null) return Promise.reject(new Error('No store selected'));
+      if (scope === 'employee') return getMyCashHistory(storeId, from, to, status, signal);
+      return scope === 'super-admin'
+        ? getSuperAdminCashHistory(storeId, from, to, status, signal)
+        : getCashHistory(from, to, status, signal);
+    },
+    [scope, storeId],
+  );
 
   useEffect(() => {
     if (storeId === null || !businessDate) return;
@@ -254,7 +294,8 @@ function DailyCash({
     setErrors(nextErrors);
     // A changed figure on a day that is already saved is a correction.
     const isCorrection = entry !== null && Object.keys(nextErrors).length === 0 && figuresChanged(entry, values);
-    const nextReasonError = isCorrection && !reason.trim() ? REASON_REQUIRED : undefined;
+    // Employees are never asked for a reason: theirs is an optional note.
+    const nextReasonError = isCorrection && scope !== 'employee' && !reason.trim() ? REASON_REQUIRED : undefined;
     setReasonError(nextReasonError);
     if (Object.keys(nextErrors).length > 0 || nextReasonError || storeId === null || isFutureDate(businessDate)) return;
 
@@ -266,7 +307,9 @@ function DailyCash({
       const saved = await saveEntry(scope, storeId, {
         businessDate,
         ...amounts,
-        ...(isCorrection ? { correctionReason: reason.trim() } : {}),
+        ...((isCorrection || (scope === 'employee' && entry?.flag)) && reason.trim()
+          ? { correctionReason: reason.trim() }
+          : {}),
       });
       setEntry(saved);
       setExpectedRefreshKey((key) => key + 1);
@@ -274,7 +317,9 @@ function DailyCash({
       setSubmitAttempted(false);
       setReason('');
       nfToast.success(
-        isCorrection
+        entry?.flag && scope === 'employee'
+          ? `Cash entry for ${formatDateLabel(businessDate)} corrected. The flag is resolved.`
+          : isCorrection
           ? `Cash entry for ${formatDateLabel(businessDate)} corrected.`
           : `Cash entry for ${formatDateLabel(businessDate)} saved.`,
       );
@@ -318,13 +363,28 @@ function DailyCash({
 
   const errorCount = Object.values(errors).filter(Boolean).length;
   const dateIsFuture = isFutureDate(businessDate);
+  const isEmployee = scope === 'employee';
+  // An employee may only change today's entry, or one flagged for them (the
+  // server says which via canEdit). Anything else is shown read-only.
+  const readOnly = isEmployee && !isLoading && (entry ? entry.canEdit === false : businessDate !== todayKey());
+
+  function applyEntry(next: DailyCashEntry) {
+    setEntry(next);
+    setValues(valuesFrom(next));
+    setExpectedRefreshKey((key) => key + 1);
+  }
 
   return (
     <div className="daily-cash-page">
-      {storeId !== null && (
+      {storeId !== null && !isEmployee && (
         <div className="daily-cash-page__expected">
-          <ExpectedCashStat scope={scope} storeId={storeId} refreshKey={expectedRefreshKey} />
-          <CashTargetStat scope={scope} storeId={storeId} />
+          <ExpectedCashOnHandStat
+            scope={scope as 'owner' | 'super-admin'}
+            storeId={storeId}
+            date={dateIsFuture ? todayKey() : businessDate}
+            refreshKey={expectedRefreshKey}
+          />
+          <CashTargetStat scope={scope as 'owner' | 'super-admin'} storeId={storeId} />
         </div>
       )}
       <section className="card daily-cash-page__card" aria-label="Daily cash entry">
@@ -346,7 +406,7 @@ function DailyCash({
                     ? null
                     : entry
                       ? entry.correctedByName && entry.correctedAt
-                        ? `Corrected by ${entry.correctedByName} · ${formatSavedAt(entry.correctedAt)}`
+                        ? `Corrected by ${entry.correctedByRole === 'EMPLOYEE' ? 'employee ' : ''}${entry.correctedByName} · ${formatSavedAt(entry.correctedAt)}`
                         : `Saved · last updated ${formatSavedAt(entry.updatedAt)}`
                       : 'No entry saved for this date yet'}
               </p>
@@ -359,10 +419,24 @@ function DailyCash({
           </div>
         </div>
 
-        {storeId !== null && (
+        {storeId !== null && !isEmployee && (
           <div className="daily-cash-page__formula-banner">
             {EXPECTED_CASH_FORMULA}
           </div>
+        )}
+
+        {storeId !== null && !isLoading && !loadError && !dateIsFuture && entry && (
+          <CashEntryFlagSection entry={entry} canManage={scope === 'owner'} onEntryChange={applyEntry} />
+        )}
+
+        {readOnly && !loadError && !dateIsFuture && (
+          <p className="daily-cash-page__status" role="note">
+            {entry
+              ? entry.flag
+                ? 'This entry was flagged for the employee who entered it. Only they can correct it.'
+                : 'You can only change today\'s entry. This day is read-only.'
+              : 'No entry was saved for this day, and employees can only record today.'}
+          </p>
         )}
 
         {storeId === null ? (
@@ -378,7 +452,7 @@ function DailyCash({
           </div>
         ) : (
           <form className="daily-cash-page__form" onSubmit={handleSubmit} noValidate>
-            <fieldset className="daily-cash-page__fieldset" disabled={isLoading || isSaving}>
+            <fieldset className="daily-cash-page__fieldset" disabled={isLoading || isSaving || readOnly}>
               <div className="daily-cash-page__grid">
                 {FIELDS.map((field) => {
                   const id = `daily-cash-${field.key}`;
@@ -413,12 +487,16 @@ function DailyCash({
                 })}
               </div>
 
-              {entry && (
+              {entry && !readOnly && (
                 <div className="daily-cash-page__reason">
                   <FormField
-                    label="Reason for correction"
+                    label={isEmployee ? 'Note (optional)' : 'Reason for correction'}
                     htmlFor="daily-cash-correction-reason"
-                    description="Required if you change any figure on a saved day. Kept with the entry's history."
+                    description={isEmployee
+                      ? (entry.flag
+                        ? 'Add a note for the admin about what you fixed. Saving resolves the flag.'
+                        : "Add a note about this change if you like. It's kept with the entry's history.")
+                      : "Required if you change any figure on a saved day. Kept with the entry's history."}
                     error={reasonError}
                   >
                     <textarea
@@ -448,11 +526,21 @@ function DailyCash({
                   Fix {errorCount === 1 ? 'the highlighted field' : `the ${errorCount} highlighted fields`} to save.
                 </span>
               )}
-              <button type="submit" className="btn btn--primary" disabled={isLoading || isSaving || dateIsFuture}>
-                {isSaving ? <ButtonDots label="Saving" /> : entry ? 'Update Entry' : 'Save Entry'}
+              {!readOnly && (
+                <button type="submit" className="btn btn--primary" disabled={isLoading || isSaving || dateIsFuture}>
+                  {isSaving
+                    ? <ButtonDots label="Saving" />
+                    : entry?.flag && isEmployee ? 'Save & resolve flag' : entry ? 'Update Entry' : 'Save Entry'}
+                </button>
+              )}
+              <button type="button" className="btn btn--secondary" onClick={() => setShowHistory((open) => !open)}>
+                {showHistory ? 'Hide history' : 'View history'}
               </button>
             </div>
             {entry && <CorrectionHistory history={entry.history} />}
+            {showHistory && (
+              <CashHistoryPanel load={loadHistory} reloadKey={`${storeId}-${expectedRefreshKey}`} />
+            )}
           </form>
         )}
       </section>

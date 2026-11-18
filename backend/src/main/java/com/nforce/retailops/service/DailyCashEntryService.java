@@ -4,7 +4,12 @@ import com.nforce.retailops.dto.DailyCashEntryRequest;
 import com.nforce.retailops.dto.DailyCashEntryResponse;
 import com.nforce.retailops.dto.ExpectedCashRangeResponse;
 import com.nforce.retailops.entity.DailyCashEntry;
+import com.nforce.retailops.dto.ExpectedCashAsOfResponse;
 import com.nforce.retailops.entity.DailyCashEntryCorrection;
+import com.nforce.retailops.entity.DailyCashEntryFlag;
+import com.nforce.retailops.entity.DailyCashEntryFlagAction;
+import com.nforce.retailops.entity.DailyCashEntryFlagHistory;
+import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.SuperAdmin;
@@ -15,6 +20,8 @@ import com.nforce.retailops.exception.DailyCashEntryNotFoundException;
 import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.DailyCashEntryCorrectionRepository;
+import com.nforce.retailops.repository.DailyCashEntryFlagHistoryRepository;
+import com.nforce.retailops.repository.DailyCashEntryFlagRepository;
 import com.nforce.retailops.repository.DailyCashEntryRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -28,6 +35,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 // Daily cash entry (five fields). Owner/Admin writes to their own active store; an
 // employee to a store they work at (today only, no reason asked); Super Admin
@@ -48,6 +56,9 @@ public class DailyCashEntryService {
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final SuperAdminRepository superAdminRepository;
+    private final CashFlagService flagService;
+    private final DailyCashEntryFlagRepository flagRepository;
+    private final DailyCashEntryFlagHistoryRepository flagHistoryRepository;
 
     public DailyCashEntryService(
         DailyCashEntryRepository entryRepository,
@@ -56,7 +67,10 @@ public class DailyCashEntryService {
         StoreEmployeeRepository storeEmployeeRepository,
         StoreRepository storeRepository,
         UserRepository userRepository,
-        SuperAdminRepository superAdminRepository
+        SuperAdminRepository superAdminRepository,
+        CashFlagService flagService,
+        DailyCashEntryFlagRepository flagRepository,
+        DailyCashEntryFlagHistoryRepository flagHistoryRepository
     ) {
         this.entryRepository = entryRepository;
         this.correctionRepository = correctionRepository;
@@ -65,6 +79,9 @@ public class DailyCashEntryService {
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
         this.superAdminRepository = superAdminRepository;
+        this.flagService = flagService;
+        this.flagRepository = flagRepository;
+        this.flagHistoryRepository = flagHistoryRepository;
     }
 
     // ---- Owner/Admin: own store -------------------------------------------
@@ -72,7 +89,7 @@ public class DailyCashEntryService {
     @Transactional
     public DailyCashEntryResponse save(Long ownerId, DailyCashEntryRequest request) {
         Store store = requireActiveStoreOwner(ownerId).getStore();
-        return saveEntry(store, userRepository.getReferenceById(ownerId), null, request, true);
+        return saveEntry(store, userRepository.getReferenceById(ownerId), null, request, true, false);
     }
 
     @Transactional(readOnly = true)
@@ -86,13 +103,36 @@ public class DailyCashEntryService {
         return sumRange(storeId, from, to);
     }
 
+    // Expected cash on hand as of a date (sum of daily expected cash from the
+    // store's first entry up to and including it), whether or not that day has
+    // an entry of its own.
+    @Transactional(readOnly = true)
+    public ExpectedCashAsOfResponse getExpectedAsOf(Long ownerId, LocalDate date) {
+        Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
+        return asOf(storeId, date);
+    }
+
+    @Transactional(readOnly = true)
+    public ExpectedCashAsOfResponse getExpectedAsOfForSuperAdmin(Long storeId, LocalDate date) {
+        if (!storeRepository.existsById(storeId)) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        return asOf(storeId, date);
+    }
+
+    private ExpectedCashAsOfResponse asOf(Long storeId, LocalDate date) {
+        LocalDate day = date != null ? date : LocalDate.now();
+        BigDecimal sum = entryRepository.sumExpectedCashOnHandUpTo(storeId, day);
+        return new ExpectedCashAsOfResponse(storeId, day, sum == null ? BigDecimal.ZERO : sum);
+    }
+
     // ---- Super Admin: any store, chosen explicitly ------------------------
 
     @Transactional
     public DailyCashEntryResponse saveForSuperAdmin(Long superAdminId, Long storeId, DailyCashEntryRequest request) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return saveEntry(store, null, superAdminRepository.getReferenceById(superAdminId), request, true);
+        return saveEntry(store, null, superAdminRepository.getReferenceById(superAdminId), request, true, false);
     }
 
     @Transactional(readOnly = true)
@@ -104,22 +144,43 @@ public class DailyCashEntryService {
 
     // ---- Employee: any store they are assigned to, today only --------------
 
-    // Any store employee may record today's entry or edit it. Every edit lands
-    // in the audit trail with who made it and when. (Flagged entries and
-    // "only the creator may edit" are later stories.) Unlike a direct correction
-    // by an Owner/Admin or Super Admin, an employee is not asked for a reason.
+    // Any store employee may record today's entry or edit it while it is not
+    // flagged (every edit lands in the audit trail with who and when, and no
+    // reason is asked, only an optional note). Once an Owner/Admin or Super
+    // Admin flags it, only the employee in entered_by may change it, on
+    // whatever date it was flagged; everyone else gets a 403. Saving it clears
+    // the flag ("Resolved") and records the fix in history.
     @Transactional
     public DailyCashEntryResponse saveForEmployee(Long employeeId, Long storeId, DailyCashEntryRequest request) {
         Store store = requireAssignedStore(employeeId, storeId);
-        if (request.businessDate() != null && !request.businessDate().equals(LocalDate.now())) {
+        LocalDate date = request.businessDate() != null ? request.businessDate() : LocalDate.now();
+        DailyCashEntry existing = entryRepository.findByStoreIdAndBusinessDate(store.getId(), date).orElse(null);
+        boolean flagged = existing != null && flagService.openFlag(existing.getId()).isPresent();
+        if (flagged) {
+            if (!isEnteredBy(existing, employeeId)) {
+                throw new DailyCashEntryNotEditableException(
+                    "This entry was flagged for the employee who entered it. Only they can correct it.");
+            }
+        } else if (!date.equals(LocalDate.now())) {
             throw new DailyCashEntryNotEditableException("Employees can only record cash for today");
         }
-        return saveEntry(store, userRepository.getReferenceById(employeeId), null, request, false).forEmployee();
+        return saveEntry(store, userRepository.getReferenceById(employeeId), null, request, false, true)
+            .forEmployee().withCanEdit(true);
     }
 
     @Transactional(readOnly = true)
     public DailyCashEntryResponse getForEmployee(Long employeeId, Long storeId, LocalDate date) {
-        return getEntry(requireAssignedStore(employeeId, storeId).getId(), date).forEmployee();
+        Long id = requireAssignedStore(employeeId, storeId).getId();
+        LocalDate businessDate = date != null ? date : LocalDate.now();
+        DailyCashEntry entry = entryRepository.findByStoreIdAndBusinessDate(id, businessDate)
+            .orElseThrow(() -> new DailyCashEntryNotFoundException("No cash entry for " + businessDate));
+        boolean flagged = flagService.openFlag(entry.getId()).isPresent();
+        boolean editable = flagged ? isEnteredBy(entry, employeeId) : businessDate.equals(LocalDate.now());
+        return toResponse(entry).forEmployee().withCanEdit(editable);
+    }
+
+    private static boolean isEnteredBy(DailyCashEntry entry, Long userId) {
+        return entry.getEnteredByUser() != null && entry.getEnteredByUser().getId().equals(userId);
     }
 
     // Masked as "not found" when the store isn't one the employee works at.
@@ -143,8 +204,10 @@ public class DailyCashEntryService {
 
     // Exactly one of user / superAdmin is non-null.
     private DailyCashEntryResponse saveEntry(
-        Store store, User user, SuperAdmin superAdmin, DailyCashEntryRequest request, boolean reasonRequired
+        Store store, User user, SuperAdmin superAdmin, DailyCashEntryRequest request, boolean reasonRequired,
+        boolean byEmployee
     ) {
+        CashActor actor = new CashActor(user, superAdmin);
         store = storeRepository.lockByStoreId(store.getId())
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         LocalDate date = request.businessDate() != null ? request.businessDate() : LocalDate.now();
@@ -163,10 +226,16 @@ public class DailyCashEntryService {
             entry.setEnteredBySuperAdmin(superAdmin);
             entry.setEnteredAt(now);
         } else {
-            if (sameFigures(entry, request)) {
-                return toResponse(entry); // nothing to correct, no audit row
-            }
             reason = request.correctionReason() == null ? "" : request.correctionReason().trim();
+            if (sameFigures(entry, request)) {
+                // Nothing to correct, so no audit row. The entering employee
+                // may still confirm a flagged entry as right.
+                if (byEmployee) {
+                    flagService.resolveOnCorrection(entry, actor, CashFlagService.RESOLUTION_EMPLOYEE_FIXED,
+                        reason.isEmpty() ? null : reason, now);
+                }
+                return toResponse(entry);
+            }
             if (reason.isEmpty() && reasonRequired) {
                 throw new CorrectionReasonRequiredException("A reason is required to correct this entry");
             }
@@ -188,8 +257,13 @@ public class DailyCashEntryService {
         entry.setUpdatedAt(now);
         entry = entryRepository.save(entry);
         if (correction != null) {
-            correction.recordCorrection(entry, reason == null || reason.isEmpty() ? null : reason);
+            String note = reason == null || reason.isEmpty() ? null : reason;
+            correction.recordCorrection(entry, note);
             correctionRepository.save(correction);
+            // Correcting a flagged entry resolves its flag, whoever corrects it.
+            flagService.resolveOnCorrection(entry, actor,
+                byEmployee ? CashFlagService.RESOLUTION_EMPLOYEE_FIXED : CashFlagService.RESOLUTION_CORRECTED,
+                note, now);
         }
         return toResponse(entry);
     }
@@ -265,6 +339,11 @@ public class DailyCashEntryService {
                 c.getNewOtherAdjustments()))
             .toList();
         DailyCashEntryResponse.Correction latest = history.isEmpty() ? null : history.get(history.size() - 1);
+        List<DailyCashEntryCorrection> corrections = correctionRepository
+            .findByEntryIdOrderByCorrectedAtAscIdAsc(e.getId());
+        DailyCashEntryCorrection latestCorrection =
+            corrections.isEmpty() ? null : corrections.get(corrections.size() - 1);
+        Optional<DailyCashEntryFlag> openFlag = flagService.openFlag(e.getId());
         BigDecimal expectedOnHand = entryRepository.sumExpectedCashOnHandUpTo(
             e.getStore().getId(), e.getBusinessDate());
         return new DailyCashEntryResponse(
@@ -288,6 +367,47 @@ public class DailyCashEntryService {
             e.getUpdatedAt(),
             history,
             latest == null ? null : latest.correctedByName(),
-            latest == null ? null : latest.correctedAt());
+            latest == null ? null : latest.correctedAt(),
+            latestCorrection == null ? null : roleOf(latestCorrection.getCorrectedByUser(),
+                latestCorrection.getCorrectedBySuperAdmin()),
+            openFlag.isPresent() ? "Flagged" : history.isEmpty() ? "Entered" : "Corrected",
+            openFlag.map(this::flagDto).orElse(null),
+            openFlag.isPresent() ? null : lastResolvedFlag(e.getId()),
+            null);
+    }
+
+    private DailyCashEntryResponse.Flag lastResolvedFlag(Long entryId) {
+        List<DailyCashEntryFlag> flags = flagRepository.findByEntryIdInOrderByFlaggedAtAscIdAsc(java.util.Collections.singletonList(entryId));
+        if (flags.isEmpty()) return null;
+        return flagDto(flags.get(flags.size() - 1));
+    }
+
+    private DailyCashEntryResponse.Flag flagDto(DailyCashEntryFlag f) {
+        String note = null;
+        if (f.getResolvedAt() != null && CashFlagService.RESOLUTION_EMPLOYEE_FIXED.equals(f.getResolution())) {
+            note = flagHistoryRepository.findByEntryIdOrderByRecordedAtAscIdAsc(f.getEntry().getId()).stream()
+                .filter(h -> h.getFlag() != null && h.getFlag().getId().equals(f.getId())
+                    && h.getAction() == DailyCashEntryFlagAction.RESOLVED)
+                .map(DailyCashEntryFlagHistory::getNewComment)
+                .filter(c -> c != null)
+                .findFirst().orElse(null);
+        }
+        return new DailyCashEntryResponse.Flag(
+            f.getId(), f.getComment(),
+            name(f.getFlaggedByUser(), f.getFlaggedBySuperAdmin()),
+            roleOf(f.getFlaggedByUser(), f.getFlaggedBySuperAdmin()),
+            f.getFlaggedAt(), f.getCommentUpdatedAt(),
+            name(f.getResolvedByUser(), f.getResolvedBySuperAdmin()),
+            f.getResolvedAt(), f.getResolution(), note);
+    }
+
+    // OWNER_ADMIN / SUPER_ADMIN / EMPLOYEE.
+    static String roleOf(User user, SuperAdmin superAdmin) {
+        if (superAdmin != null) return "SUPER_ADMIN";
+        if (user == null) return null;
+        for (Role r : user.getRoles()) {
+            if ("OWNER_ADMIN".equals(r.getName())) return "OWNER_ADMIN";
+        }
+        return "EMPLOYEE";
     }
 }

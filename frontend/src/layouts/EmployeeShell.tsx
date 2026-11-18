@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Boxes, CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
+import { Banknote, Boxes, CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
@@ -13,6 +13,7 @@ import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
 import EmployeeIssues from '../pages/EmployeeIssues'
 import EmployeeStockCheck from '../pages/EmployeeStockCheck'
+import DailyCash from '../pages/DailyCash'
 import MissingTasks from '../pages/MissingTasks'
 import Notifications from '../pages/Notifications'
 import Profile from '../pages/Profile'
@@ -49,6 +50,8 @@ const NAV_ITEMS: EmployeeNavItem[] = [
   // bar at 375px: ~93px per tab at font-size 10px, well clear of the ~60px
   // that made "Daily Checklist" truncate across five owner tabs.
   { key: 'stock-check', label: 'Stock Check', icon: Boxes },
+  // Any store employee records today's cash here; a flagged entry opens on its date.
+  { key: 'cash', label: 'Daily Cash', icon: Banknote },
 ]
 
 const BOTTOM_NAV_ITEMS: EmployeeNavItem[] = NAV_ITEMS
@@ -60,6 +63,7 @@ const EMPLOYEE_PAGE_TITLES: Record<EmployeeNavTabKey, string> = {
   // Missed Tasks keeps its own in-page title, so the header shows none.
   missing: '',
   'stock-check': 'Stock Check',
+  cash: 'Daily Cash',
 }
 
 type Overlay = 'profile' | 'help' | 'notifications' | null
@@ -125,6 +129,8 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   // '/checklist?taskId=123&date=2026-09-20' -- see NotificationService.java's
   // employeeTaskLinkPath. Query string only, never a path segment, so it's
   // independent of the '/checklist' vs '/audit' -> tab lookup above.
+  const [cashDateSeed, setCashDateSeed] = useState<{ date: string; id: number } | null>(null)
+
   function parseTaskLinkQuery(path: string): { taskId?: number; date?: string } {
     const queryString = path.split('?')[1]
     if (!queryString) return {}
@@ -148,11 +154,12 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       setFocusIssueId({ issueId: context.relatedIssueId, ts: Date.now() })
     }
     if (target === 'stock-check') setStockCheckRefresh(Date.now())
+    if (target === 'cash' && date) setCashDateSeed({ date, id: Date.now() })
     setActiveTab(target)
     setOverlay(null)
   }
 
-  const ALL_EMPLOYEE_TABS: EmployeeNavTabKey[] = ['today', 'audits', 'issues', 'missing', 'stock-check']
+  const ALL_EMPLOYEE_TABS: EmployeeNavTabKey[] = ['today', 'audits', 'issues', 'missing', 'stock-check', 'cash']
 
   // Same header as the Owner/Admin shell: page title over the store name.
   // Notifications (and Missed Tasks, see EMPLOYEE_PAGE_TITLES) carry their
@@ -275,6 +282,9 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                 )}
                 {tab === 'missing' && (
                   <MissingTasks store={store} onMoved={refreshMissedCount} onBack={() => setActiveTab('today')} />
+                )}
+                {tab === 'cash' && (
+                  <DailyCash scope="employee" storeId={store.id} storesLoading={false} dateSeed={cashDateSeed} />
                 )}
                 {tab === 'stock-check' && (
                   <EmployeeStockCheck

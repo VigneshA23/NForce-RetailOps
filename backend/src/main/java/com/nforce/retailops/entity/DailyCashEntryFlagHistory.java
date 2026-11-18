@@ -34,8 +34,13 @@ public class DailyCashEntryFlagHistory {
     @Column(name = "new_comment", columnDefinition = "TEXT")
     private String newComment;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "actor_super_admin_id", nullable = false)
+    // Exactly one of actorUser / actorSuperAdmin.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_user_id")
+    private User actorUser;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_super_admin_id")
     private SuperAdmin actorSuperAdmin;
 
     @Column(name = "recorded_at", nullable = false)
@@ -49,6 +54,7 @@ public class DailyCashEntryFlagHistory {
         DailyCashEntryFlagAction action,
         String previousComment,
         String newComment,
+        User actorUser,
         SuperAdmin actor,
         OffsetDateTime at
     ) {
@@ -58,6 +64,7 @@ public class DailyCashEntryFlagHistory {
         h.action = action;
         h.previousComment = previousComment;
         h.newComment = newComment;
+        h.actorUser = actorUser;
         h.actorSuperAdmin = actor;
         h.recordedAt = at;
         return h;
@@ -69,6 +76,7 @@ public class DailyCashEntryFlagHistory {
     public DailyCashEntryFlagAction getAction() { return action; }
     public String getPreviousComment() { return previousComment; }
     public String getNewComment() { return newComment; }
+    public User getActorUser() { return actorUser; }
     public SuperAdmin getActorSuperAdmin() { return actorSuperAdmin; }
     public OffsetDateTime getRecordedAt() { return recordedAt; }
 }

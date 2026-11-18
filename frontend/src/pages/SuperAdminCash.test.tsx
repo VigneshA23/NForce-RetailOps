@@ -5,15 +5,19 @@ import SuperAdminCash from './SuperAdminCash';
 import * as storeCashApi from '../api/storeCash';
 import * as superAdminStoresApi from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
-import type { ExpectedCash } from '../types/storeCash';
 
 vi.mock('../api/storeCash', () => ({
   getDailyCashEntry: vi.fn(),
   saveDailyCashEntry: vi.fn(),
   getSuperAdminDailyCashEntry: vi.fn(),
   saveSuperAdminDailyCashEntry: vi.fn(),
-  getExpectedCash: vi.fn(),
-  getSuperAdminExpectedCash: vi.fn(),
+  getExpectedCashAsOf: vi.fn(),
+  getSuperAdminExpectedCashAsOf: vi.fn(),
+  getCashHistory: vi.fn(),
+  getSuperAdminCashHistory: vi.fn(),
+  flagCashEntry: vi.fn(),
+  editCashFlag: vi.fn(),
+  removeCashFlag: vi.fn(),
 }));
 vi.mock('../api/superAdminStores', () => ({ getAllStores: vi.fn() }));
 vi.mock('../api/storeCashTarget', () => ({
@@ -41,14 +45,6 @@ function store(storeId: number, storeName: string, storeActive = true): SuperAdm
   };
 }
 
-function noExpectedCash(storeId: number): ExpectedCash {
-  return {
-    storeId, available: false, message: 'No cash entries have been recorded for this store yet', asOfDate: null, lastUpdatedAt: null,
-    expectedCashOnHand: null, cashRemaining: null, variance: null, openingDrawerCash: null,
-    cashRemoved: null, cashExpenses: null, otherAdjustments: null,
-  };
-}
-
 beforeEach(() => {
   localStorage.clear();
   vi.mocked(superAdminStoresApi.getAllStores).mockReset().mockResolvedValue([
@@ -59,8 +55,9 @@ beforeEach(() => {
   vi.mocked(storeCashApi.getSuperAdminDailyCashEntry).mockReset().mockResolvedValue(null);
   vi.mocked(storeCashApi.saveSuperAdminDailyCashEntry).mockReset();
   vi.mocked(storeCashApi.getDailyCashEntry).mockReset();
-  vi.mocked(storeCashApi.getSuperAdminExpectedCash).mockReset().mockImplementation(async (storeId) => noExpectedCash(storeId));
-  vi.mocked(storeCashApi.getExpectedCash).mockReset();
+  vi.mocked(storeCashApi.getSuperAdminExpectedCashAsOf).mockReset()
+    .mockImplementation(async (storeId: number, date: string) => ({ storeId, asOf: date, expectedCashOnHand: 75 }));
+  vi.mocked(storeCashApi.getExpectedCashAsOf).mockReset();
 });
 
 describe('SuperAdminCash', () => {
@@ -71,6 +68,7 @@ describe('SuperAdminCash', () => {
       enteredByUserId: null, enteredBySuperAdminId: 1, enteredByName: 'Super Admin', enteredAt: '2026-11-09T18:00:00Z',
       updatedByUserId: null, updatedBySuperAdminId: 1, updatedByName: 'Super Admin', updatedAt: '2026-11-09T18:00:00Z',
       history: [], correctedByName: null, correctedAt: null,
+      correctedByRole: null, status: 'Entered', flag: null, resolvedFlag: null, canEdit: null,
     }));
     render(<SuperAdminCash />);
 
@@ -85,10 +83,10 @@ describe('SuperAdminCash', () => {
     expect(await screen.findByText('No entry saved for this date yet')).toBeInTheDocument();
     expect(storeCashApi.getSuperAdminDailyCashEntry).toHaveBeenCalledWith(2, expect.any(String), expect.anything());
     expect(storeCashApi.getDailyCashEntry).not.toHaveBeenCalled();
-    // Expected Cash on Hand (RTS-296) reads the picked store, never the owner endpoint.
-    expect(await screen.findByText('No data yet')).toBeInTheDocument();
-    expect(storeCashApi.getSuperAdminExpectedCash).toHaveBeenCalledWith(2, expect.anything());
-    expect(storeCashApi.getExpectedCash).not.toHaveBeenCalled();
+    // Expected Cash on Hand (as of the viewed date) reads the picked store, never the owner endpoint.
+    expect(await screen.findByText('$75.00')).toBeInTheDocument();
+    expect(storeCashApi.getSuperAdminExpectedCashAsOf).toHaveBeenCalledWith(2, expect.any(String), expect.anything());
+    expect(storeCashApi.getExpectedCashAsOf).not.toHaveBeenCalled();
 
     for (const label of ['Opening drawer cash', 'Cash expenses', 'Cash removed', 'Cash remaining', 'Other adjustments']) {
       await user.type(screen.getByLabelText(new RegExp(`^${label}`)), '5');
@@ -98,8 +96,8 @@ describe('SuperAdminCash', () => {
     expect(storeCashApi.saveSuperAdminDailyCashEntry).toHaveBeenCalledWith(2, expect.objectContaining({ openingDrawerCash: 5 }));
     expect(await screen.findByRole('button', { name: 'Update Entry' })).toBeInTheDocument();
     // Refetched for the same store after the save.
-    expect(storeCashApi.getSuperAdminExpectedCash).toHaveBeenLastCalledWith(2, expect.anything());
-    expect(vi.mocked(storeCashApi.getSuperAdminExpectedCash).mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(storeCashApi.getSuperAdminExpectedCashAsOf).toHaveBeenLastCalledWith(2, expect.any(String), expect.anything());
+    expect(vi.mocked(storeCashApi.getSuperAdminExpectedCashAsOf).mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it('reopens the store picked last time', async () => {

@@ -131,9 +131,10 @@ public class SuperAdminCashReviewService {
         flagRepository.findFirstByEntryIdAndResolvedAtIsNull(entryId).ifPresent(flag -> {
             flag.setResolvedBySuperAdmin(superAdmin);
             flag.setResolvedAt(now);
+            flag.setResolution("CORRECTED");
             flagRepository.save(flag);
             flagHistoryRepository.save(DailyCashEntryFlagHistory.of(
-                flag, DailyCashEntryFlagAction.RESOLVED, flag.getComment(), null, superAdmin, now));
+                flag, DailyCashEntryFlagAction.RESOLVED, flag.getComment(), null, null, superAdmin, now));
         });
 
         return get(storeId, entry.getBusinessDate());
@@ -170,14 +171,14 @@ public class SuperAdminCashReviewService {
         flag.setFlaggedAt(now);
         DailyCashEntryFlag saved = flagRepository.save(flag);
         flagHistoryRepository.save(DailyCashEntryFlagHistory.of(
-            saved, DailyCashEntryFlagAction.RAISED, null, comment, superAdmin, now));
+            saved, DailyCashEntryFlagAction.RAISED, null, comment, null, superAdmin, now));
 
         notificationService.sendForStore(
             notifiedEmployee,
             "CASH_ENTRY_FLAGGED",
             "Cash entry flagged",
             "Your cash entry for " + entry.getBusinessDate() + " has been flagged by a Super Admin: " + comment,
-            "/cash",
+            CashFlagService.linkFor(entry),
             entry.getStore());
 
         return get(storeId, entry.getBusinessDate());
@@ -203,7 +204,7 @@ public class SuperAdminCashReviewService {
         flag.setCommentUpdatedAt(now);
         flagRepository.save(flag);
         flagHistoryRepository.save(DailyCashEntryFlagHistory.of(
-            flag, DailyCashEntryFlagAction.COMMENT_EDITED, previous, comment, superAdmin, now));
+            flag, DailyCashEntryFlagAction.COMMENT_EDITED, previous, comment, null, superAdmin, now));
         return get(storeId, entry.getBusinessDate());
     }
 
@@ -217,9 +218,10 @@ public class SuperAdminCashReviewService {
         OffsetDateTime now = OffsetDateTime.now();
         flag.setResolvedBySuperAdmin(superAdmin);
         flag.setResolvedAt(now);
+        flag.setResolution("REMOVED");
         flagRepository.save(flag);
         flagHistoryRepository.save(DailyCashEntryFlagHistory.of(
-            flag, DailyCashEntryFlagAction.REMOVED, flag.getComment(), null, superAdmin, now));
+            flag, DailyCashEntryFlagAction.REMOVED, flag.getComment(), null, null, superAdmin, now));
         return get(storeId, entry.getBusinessDate());
     }
 
@@ -314,7 +316,7 @@ public class SuperAdminCashReviewService {
             openFlag.map(flag -> new SuperAdminCashReviewResponse.Flag(
                 flag.getId(),
                 flag.getComment(),
-                actorOf(null, flag.getFlaggedBySuperAdmin()),
+                actorOf(flag.getFlaggedByUser(), flag.getFlaggedBySuperAdmin()),
                 flag.getFlaggedAt(),
                 flag.getCommentUpdatedAt())).orElse(null),
             corrections.stream().map(c -> new SuperAdminCashReviewResponse.CorrectionHistoryEntry(

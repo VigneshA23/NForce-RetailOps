@@ -53,6 +53,9 @@ class DailyCashEntryServiceTest {
     @Mock UserRepository userRepository;
     @Mock StoreRepository storeRepository;
     @Mock SuperAdminRepository superAdminRepository;
+    @Mock CashFlagService flagService;
+    @Mock com.nforce.retailops.repository.DailyCashEntryFlagRepository flagRepository;
+    @Mock com.nforce.retailops.repository.DailyCashEntryFlagHistoryRepository flagHistoryRepository;
 
     DailyCashEntryService service;
     Store store;
@@ -61,7 +64,8 @@ class DailyCashEntryServiceTest {
     @BeforeEach
     void setUp() {
         service = new DailyCashEntryService(entryRepository, correctionRepository, storeOwnerRepository,
-            storeEmployeeRepository, storeRepository, userRepository, superAdminRepository);
+            storeEmployeeRepository, storeRepository, userRepository, superAdminRepository,
+            flagService, flagRepository, flagHistoryRepository);
         store = mock(Store.class);
         when(store.getId()).thenReturn(5L);
         owner = mock(User.class);

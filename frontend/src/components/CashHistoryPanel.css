@@ -1,0 +1,81 @@
+.cash-history {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cash-history__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.cash-history__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cash-history__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cash-history__item {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.cash-history__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.cash-history__type {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-surface-muted, rgba(127, 127, 127, 0.15));
+}
+
+.cash-history__type--flagged,
+.cash-history__type--flag_edited {
+  background: rgba(217, 119, 6, 0.18);
+}
+
+.cash-history__type--flag_resolved,
+.cash-history__type--flag_removed {
+  background: rgba(22, 163, 74, 0.18);
+}
+
+.cash-history__day,
+.cash-history__meta,
+.cash-history__muted {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.cash-history__figures {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.cash-history__comment {
+  margin-top: 8px;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.cash-history__error {
+  color: var(--color-danger, #b91c1c);
+  font-size: 14px;
+}

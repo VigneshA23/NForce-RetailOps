@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -372,6 +373,51 @@ class EmployeeControllerTest {
                 .content("{\"active\":true}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.active").value(true));
+    }
+
+    // RTS-559: a store moved to a new admin, who had earlier created employees
+    // that now work at a different store. Those must not show up as this
+    // store's employees just because the admin created them.
+    @Test
+    @Transactional
+    void ownerOnlySeesEmployeesOfTheirStoreNotOnesTheyCreatedForAnotherStore() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role employeeRole = role("EMPLOYEE");
+        User owner = user("scope-owner@nforce.test", ownerRole);
+        Store mine = store("Scope Mine", 8201L);
+        Store other = store("Scope Other", 8202L);
+        linkOwnerToStore(owner, mine);
+
+        StoreEmployee atMine = employeeAt("scope-mine@nforce.test", "Works At Mine", employeeRole, owner, mine);
+        StoreEmployee atOther = employeeAt("scope-other@nforce.test", "Works Elsewhere", employeeRole, owner, other);
+        StoreEmployee unassigned = employeeAt("scope-free@nforce.test", "Not Assigned Yet", employeeRole, owner, null);
+        assertThat(atMine.getId()).isNotNull();
+        assertThat(atOther.getId()).isNotNull();
+        assertThat(unassigned.getId()).isNotNull();
+
+        String token = login("scope-owner@nforce.test");
+
+        mockMvc.perform(get("/api/employees").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[*].name", hasItem("Works At Mine")))
+            .andExpect(jsonPath("$[*].name", hasItem("Not Assigned Yet")))
+            .andExpect(jsonPath("$[*].name", org.hamcrest.Matchers.not(hasItem("Works Elsewhere"))));
+    }
+
+    private StoreEmployee employeeAt(String email, String name, Role employeeRole, User createdBy, Store store) {
+        User employeeUser = user(email, employeeRole);
+        employeeUser.setFullName(name);
+        userRepository.save(employeeUser);
+        StoreEmployee storeEmployee = new StoreEmployee();
+        storeEmployee.setEmployee(employeeUser);
+        storeEmployee.setCreatedByOwner(createdBy);
+        storeEmployee.setPhone("555-0300");
+        storeEmployee.setEmployeeType("Full Time");
+        storeEmployee.setGender("Female");
+        if (store != null) {
+            storeEmployee.setStores(new java.util.HashSet<>(java.util.Set.of(store)));
+        }
+        return storeEmployeeRepository.save(storeEmployee);
     }
 
     private Store store(String name, long storeCode) {

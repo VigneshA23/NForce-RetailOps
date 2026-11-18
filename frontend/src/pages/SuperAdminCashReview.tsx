@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/client';
+import { getSuperAdminCashHistory } from '../api/storeCash';
+import CashHistoryPanel from '../components/CashHistoryPanel';
+import type { CashHistoryStatusFilter } from '../types/storeCash';
 import { getAllStores } from '../api/superAdminStores';
 import {
   correctSuperAdminCashEntry,
@@ -123,6 +126,14 @@ function SuperAdminCashReview() {
   const storeId = !storesLoading && stores.some((s) => s.storeId === selectedStoreId)
     ? selectedStoreId
     : null;
+
+  const loadHistory = useCallback(
+    (from: string, to: string, status: CashHistoryStatusFilter, signal: AbortSignal) =>
+      storeId === null
+        ? Promise.reject(new Error('No store selected'))
+        : getSuperAdminCashHistory(storeId, from, to, status, signal),
+    [storeId],
+  );
 
   // Switching stores clears the previous store's review data immediately so
   // none of its figures stay on screen while the new one loads (acceptance
@@ -439,6 +450,15 @@ function SuperAdminCashReview() {
             </>
           )}
         </>
+      )}
+
+      {storeId !== null && (
+        <section className="cash-review__history-card">
+          <CashHistoryPanel
+            load={loadHistory}
+            reloadKey={`${storeId}-${review?.entry?.id ?? 'none'}-${review?.entry?.updatedAt ?? ''}-${review?.flag?.id ?? ''}-${review?.flag?.commentUpdatedAt ?? ''}`}
+          />
+        </section>
       )}
 
       {/* Correct modal */}

@@ -296,7 +296,9 @@ class CashCalculationServiceTest {
         "DailyCashEntryCorrection.java",
         "DailyCashEntryService.java",
         "CashCalculationService.java",
-        "SuperAdminCashReviewService.java"
+        "SuperAdminCashReviewService.java",
+        // Maps entries to history figures for display; no arithmetic.
+        "CashHistoryService.java"
     );
 
     @Test
