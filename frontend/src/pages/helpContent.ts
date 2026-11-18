@@ -1,8 +1,12 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  AlertTriangle,
+  Banknote,
   BarChart3,
   Bell,
+  Boxes,
   Building2,
+  CalendarRange,
   CheckSquare,
   ClipboardList,
   Compass,
@@ -11,8 +15,11 @@ import {
   MessageSquareWarning,
   Pencil,
   RotateCcw,
+  ShoppingCart,
   Store as StoreIcon,
   Tags,
+  Target,
+  Truck,
   User as UserIcon,
   Users,
 } from 'lucide-react';
@@ -90,6 +97,26 @@ const COMMON_SECTIONS: HelpSection[] = [
     ],
   },
 ];
+
+// Shared between Owner/Admin and Super Admin: both answer a missed End of Day
+// from the same Notifications panel, and only the first answer is kept.
+const MISSED_END_OF_DAY_ADMIN_SECTION: HelpSection = {
+  id: 'admin-missed-eod',
+  title: 'Missed End of Day Counts',
+  icon: AlertTriangle,
+  description:
+    "If an item had a Start of Day count yesterday but no End of Day count, you and the store's employees are notified the next day.",
+  steps: [
+    'Open Notifications and find the missed End of Day notification.',
+    'For each item, choose Counted this item and enter the available and damaged / spoiled stock, then Save End of Day.',
+    "Or choose Couldn't count it and explain why (at least 5 words), then Submit reason.",
+  ],
+  important: [
+    'Each item is answered once — whoever responds first (you or an employee) is the answer that is kept.',
+    "Employees cannot record today's Start of Day for an item until yesterday's missed End of Day is answered.",
+    'A counted answer is saved as a normal End of Day and updates the order list.',
+  ],
+};
 
 const SUPER_ADMIN_SECTIONS: HelpSection[] = [
   {
@@ -193,6 +220,107 @@ const SUPER_ADMIN_SECTIONS: HelpSection[] = [
       'View operational statistics and trends across the platform.',
     ],
   },
+  {
+    id: 'sa-inventory',
+    title: 'Inventory Catalogue',
+    icon: Boxes,
+    description: "Manage every store's inventory items, inventory categories, and stock check history from the Inventory tab.",
+    bullets: [
+      'Items: select a store to view, filter, and export its items (CSV or PDF).',
+      'Add Item: use Select Store to add an item to one store, several stores, or All Stores.',
+      'Click an item to edit its name, category, unit, Weekday Min (Mon–Thu), Weekend Min (Fri–Sun), and preferred supplier.',
+      'Activate, deactivate, or delete an item.',
+      'Add a new unit of measurement from the Unit dropdown (Add new unit). New units are available to every store.',
+      'Categories: add, edit, activate/deactivate, and delete inventory categories.',
+      'Stock Check History: review counts across stores by date range, export to Excel or PDF, and use Correct this count to fix a Start of Day or End of Day count with a reason.',
+    ],
+    important: [
+      'Every stock count correction is recorded in the correction history with who made it and why.',
+    ],
+  },
+  {
+    id: 'sa-suppliers',
+    title: 'Suppliers',
+    icon: Truck,
+    description: 'Manage the suppliers that inventory items are ordered from.',
+    bullets: [
+      'Add Supplier with a name, contact number, location, and the store(s) it serves.',
+      'Edit, activate/deactivate, or delete a supplier.',
+      'Use Show Details to see how many items each store gets from a supplier.',
+    ],
+    important: [
+      'A supplier with order history is deactivated instead of deleted.',
+      'Owner/Admins can choose existing suppliers but cannot add new ones.',
+    ],
+  },
+  {
+    id: 'sa-orders',
+    title: 'Orders',
+    icon: ShoppingCart,
+    description: "Run any store's order list and reports from the Orders tab.",
+    bullets: [
+      'Select a store to work its Order List, Inventory Counts, and End of Day Report. These work the same way as for Owner/Admins.',
+      'Purchasing Report shows ordered and received quantities by supplier across all stores, or for one store when one is selected.',
+    ],
+  },
+  MISSED_END_OF_DAY_ADMIN_SECTION,
+  {
+    id: 'sa-daily-cash',
+    title: 'Daily Cash',
+    icon: Banknote,
+    description: "Enter or review any active store's daily cash figures.",
+    bullets: [
+      'Select a store, then a business date.',
+      'Enter or update the cash figures and save. The form works the same way as for Owner/Admins.',
+    ],
+    important: [
+      'Saving a date that already has an entry overwrites it.',
+    ],
+  },
+  {
+    id: 'sa-cash-target',
+    title: 'Cash Drawer Targets',
+    icon: Target,
+    description: 'Set how much cash a store’s drawer should hold at the start of each day.',
+    steps: [
+      'Open Stores.',
+      'Click the cash icon (Cash drawer target) on the store’s row.',
+      'Enter the new target amount and save.',
+    ],
+    important: [
+      'Targets can only be set for active stores.',
+    ],
+  },
+  {
+    id: 'sa-month-end-cash',
+    title: 'Month-End Cash',
+    icon: CalendarRange,
+    description: 'Review monthly cash totals and the closing reconciliation for one store or all stores combined.',
+    bullets: [
+      'Move between months with the Previous month / Next month arrows.',
+      'All Stores (the default) shows the combined totals of every store that recorded cash that month.',
+      'Select a store to see its totals, closing variance, and Daily Breakdown.',
+    ],
+    important: [
+      'Negative variance is a shortage; positive variance is an overage.',
+      'This page is read-only — make changes from Daily Cash.',
+    ],
+  },
+  {
+    id: 'sa-issues',
+    title: 'Issues',
+    icon: MessageSquareWarning,
+    description: 'Review issues raised by employees across every store. Open Issues from the profile menu or the Home issues tile.',
+    bullets: [
+      'Filter by status (Active, Open, Acknowledged, Resolved, All Status) and by store, or search by store, employee, or issue.',
+      'Acknowledge an Open issue, or Resolve an Open or Acknowledged issue, with an optional response.',
+      'Use Nudge owner to remind the store owner to act on an unresolved issue.',
+    ],
+    important: [
+      'Acknowledging or resolving notifies both the employee and the store owner.',
+      'You can nudge an owner about the same issue once every 24 hours.',
+    ],
+  },
 ];
 
 const OWNER_ADMIN_SECTIONS: HelpSection[] = [
@@ -287,6 +415,132 @@ const OWNER_ADMIN_SECTIONS: HelpSection[] = [
       'Owner/Admin corrections are limited to your store.',
     ],
   },
+  {
+    id: 'oa-issues',
+    title: 'Issues',
+    icon: MessageSquareWarning,
+    description: 'Review and respond to issues raised by employees at your store. Open Issues from the profile menu or the Home issues tile.',
+    bullets: [
+      'Filter by status (Active, Open, Acknowledged, Resolved, All Status) or search by employee or issue.',
+      'Acknowledge an Open issue to show it is being looked into.',
+      'Resolve an Open or Acknowledged issue.',
+      'Add an optional response (up to 500 characters) when you acknowledge or resolve.',
+    ],
+    important: [
+      'The employee who raised the issue is notified when you acknowledge or resolve it.',
+      'Resolved issues are cleared 7 days after they are resolved.',
+    ],
+  },
+  {
+    id: 'oa-inventory',
+    title: 'Inventory',
+    icon: Boxes,
+    description: "Manage your store's inventory items and minimum quantities from the Inventory tab.",
+    bullets: [
+      'Items: view each item’s status (In Stock, Low Stock, Out of Stock, Inactive), on-hand count, and supplier. Filter by category or supplier, and export to CSV or PDF.',
+      'Add Item: enter the name, category, unit, weekday and weekend minimums, and preferred supplier, then Add to Catalog.',
+      'Click an item to change its details or minimums, then Save & Sync Rules.',
+      'Activate, deactivate, or delete an item.',
+      'Suppliers: view the suppliers available to your store.',
+    ],
+    important: [
+      'The Weekday Min applies Monday–Thursday and the Weekend Min applies Friday–Sunday.',
+      'Suppliers and units are added by Super Admin. You can choose from the existing ones.',
+    ],
+  },
+  {
+    id: 'oa-stock-history',
+    title: 'Stock Check History & Corrections',
+    icon: HistoryIcon,
+    description: 'Review past Start of Day and End of Day counts for your store and correct them when needed.',
+    bullets: [
+      'Open Inventory → Stock Check History and choose a date range.',
+      'Filter by category or status (Shortage, Sufficient, Not Counted), or search by item or staff name.',
+      'Export the history to Excel or PDF.',
+      'Use the pencil (Correct this count) to change a Start of Day or End of Day count. Choose a reason and add an optional note.',
+      'A correction can also fill in a count that was never recorded.',
+    ],
+    important: [
+      'The previous values are kept, and every correction is recorded in the correction history with who made it and why.',
+    ],
+  },
+  MISSED_END_OF_DAY_ADMIN_SECTION,
+  {
+    id: 'oa-orders',
+    title: 'Orders',
+    icon: ShoppingCart,
+    description: 'Use the Order List to see what needs ordering, from which supplier, and to track deliveries.',
+    bullets: [
+      'Items short of tomorrow’s minimum after an End of Day count are added automatically as Needs ordering.',
+      'Need is the shortfall from the count. Manual is any extra quantity added. Ordered is the total placed.',
+      'Change an item’s status from its status menu: Needs ordering → Ordered → Received.',
+      'When marking Received, confirm the quantity that actually arrived. It is added to current stock.',
+      'Select several items to Mark ordered or Mark received together, or use Mark all ordered on a supplier group.',
+      'Add item to order extra stock outside the daily count.',
+      'View By supplier or as a List, and filter by category, status, or supplier.',
+    ],
+    important: [
+      'Copy (per supplier) and Copy selected items copy a plain-text order list grouped by supplier, ready to paste into WhatsApp or SMS.',
+      'If someone else has already updated an item, you are told and the list refreshes.',
+    ],
+  },
+  {
+    id: 'oa-order-reports',
+    title: 'Inventory Counts & Order Reports',
+    icon: BarChart3,
+    description: 'The Orders tab also has tabs for current stock levels and reports.',
+    bullets: [
+      'Inventory Counts: see current stock against each minimum, filter to Out of Stock, Below Minimum, or Not Updated Today, and Edit count with a reason.',
+      'End of Day Report: for any day, see Start of Day, dead stock, End of Day, usage, and order status for every item. Copy Report copies it as text.',
+      'Purchasing Report: see ordered and received quantities by supplier for a date range, and export to Excel or PDF.',
+    ],
+  },
+  {
+    id: 'oa-daily-cash',
+    title: 'Daily Cash',
+    icon: Banknote,
+    description: "Record each day's cash drawer figures for your store.",
+    steps: [
+      'Open Daily Cash and choose the business date (today by default).',
+      'Enter total cash sales, opening drawer cash, cash removed, cash remaining (your end-of-day count), cash expenses, bank deposits, and other adjustments.',
+      'Select Save Entry, or Update Entry if the date already has one.',
+    ],
+    important: [
+      'Every field is required. Enter 0 if there is nothing to record.',
+      'Only Other adjustments can be negative. Use a minus sign for money taken out.',
+      'Future dates cannot be entered. You can update a past date, which overwrites the saved figures.',
+      'Expected Cash on Hand = Opening Cash + Cash Sales − Cash Removed − Bank Deposits − Cash Expenses ± Other Adjustments. It turns amber if the last entry is 2 or more days old.',
+    ],
+  },
+  {
+    id: 'oa-cash-target',
+    title: 'Cash Target',
+    icon: Target,
+    description: 'Set the amount of cash your drawer should hold at the start of each day.',
+    bullets: [
+      'View the current target. Default means your store has not set its own yet.',
+      'Enter a new target amount and select Save Target.',
+    ],
+    important: [
+      'If a save fails, the previous target stays in effect.',
+    ],
+  },
+  {
+    id: 'oa-month-end-cash',
+    title: 'Month-End Cash',
+    icon: CalendarRange,
+    description: "Review a month's cash totals and how the closing figures reconcile.",
+    bullets: [
+      'Move between months with the Previous month / Next month arrows.',
+      'See monthly totals for cash sales, cash removed, bank deposits, cash expenses, and adjustments.',
+      'Compare Expected Cash on Hand with the Actual Cash Count on the last recorded day (Variance), and see every day’s over/short added up (Net Daily Variance).',
+      'Use the Daily Breakdown table to see each recorded day. The closing day is marked.',
+    ],
+    important: [
+      'Negative variance is a shortage; positive variance is an overage.',
+      'This page is read-only — make changes from Daily Cash.',
+    ],
+  },
 ];
 
 const EMPLOYEE_SECTIONS: HelpSection[] = [
@@ -345,8 +599,80 @@ const EMPLOYEE_SECTIONS: HelpSection[] = [
     icon: MessageSquareWarning,
     description: 'Raise and track issues for your assigned store.',
     bullets: [
-      'Raise a new issue for your assigned store.',
-      "View the issues you've raised.",
+      'Select Raise Issue, describe the issue, and select Send to Owner.',
+      "View the issues you've raised and any response from your Owner/Admin.",
+      'Track each issue’s status: Open, Acknowledged (being looked into), or Resolved.',
+    ],
+    important: [
+      'Resolved issues are cleared from your list 7 days after they are resolved.',
+    ],
+  },
+  {
+    id: 'emp-stock-check',
+    title: 'Stock Check',
+    icon: Boxes,
+    description: 'Record a Start of Day and an End of Day count for each stock item in your store.',
+    steps: [
+      'Open Stock Check → Daily Stock Entry.',
+      'Open an item and enter the Start of Day Total Stock and Damaged / Spoilage, then select Save Check.',
+      'At the end of the day, enter the End of Day count for the same item and select Save Check.',
+    ],
+    bullets: [
+      'Each item shows today’s target, the available stock, and whether more is Needed or stock is Sufficient.',
+      'Filter items by Shortage or Sufficient, or search by name.',
+      'After End of Day, the item shows how much was used and how much needs ordering for tomorrow.',
+      'Use Update Count to change a count you saved, while it is still editable.',
+    ],
+    important: [
+      'Start of Day must be saved before End of Day.',
+      'Damaged / spoilage cannot be more than total stock.',
+      'Only the person who first saved a count can edit it.',
+      'Start of Day locks once End of Day is saved or an order is based on it. End of Day locks once your admin approves it.',
+      'A count that does not match the previous count (and any stock received) may need a reason and your admin’s approval before it is saved.',
+    ],
+  },
+  {
+    id: 'emp-missed-eod',
+    title: 'Missed End of Day Counts',
+    icon: AlertTriangle,
+    description: "If an item was counted at Start of Day yesterday but not at End of Day, you'll get a notification asking about it.",
+    steps: [
+      'Open the missed End of Day notification.',
+      'For each item, choose Counted this item and enter the available and damaged / spoiled stock, then Save End of Day.',
+      "Or choose Couldn't count it and explain why (at least 5 words), then Submit reason.",
+    ],
+    important: [
+      "You cannot save today's Start of Day for an item until yesterday's missed End of Day for it is answered.",
+      'Your Owner/Admin can answer too. Only the first answer is kept.',
+    ],
+  },
+  {
+    id: 'emp-report-shortage',
+    title: 'Reporting a Shortage',
+    icon: ShoppingCart,
+    description: 'Let your Owner/Admin know during the day when an item is running short.',
+    steps: [
+      'On Stock Check, select Report Shortage.',
+      'Choose the item and enter its current stock, with an optional note.',
+      'Select Report Shortage to notify your Owner/Admin.',
+    ],
+    important: [
+      'You can report a shortage for an item only after its Start of Day is saved and before its End of Day.',
+      'The current stock you enter must be below what is expected on hand and below today’s minimum.',
+    ],
+  },
+  {
+    id: 'emp-stock-history',
+    title: 'Stock Check History',
+    icon: HistoryIcon,
+    description: 'Review past stock counts for your store.',
+    bullets: [
+      'Open Stock Check → Stock Check History and choose a date range.',
+      'Filter by Shortage, Sufficient, or Not Counted, or search by item.',
+      'Export the history to Excel or PDF.',
+    ],
+    important: [
+      'History is view-only. Ask your Owner/Admin if a past count needs correcting.',
     ],
   },
   {
