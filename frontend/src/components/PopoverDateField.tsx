@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { Calendar } from 'lucide-react';
-import { useMediaQuery } from '../hooks/useMediaQuery';
 import CalendarPopover from './CalendarPopover';
 import './PopoverDateField.css';
 
@@ -21,24 +20,18 @@ function todayKey(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+// Fixed locale so the field reads "18 Nov 2026" like the rest of the app,
+// regardless of the browser/OS locale.
 function formatDate(value: string): string {
-  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// Phones and vertical tablets get the same CalendarPopover the Daily
-// Checklist's date nav uses, rather than the OS-drawn <input type="date">
-// overlay; desktop keeps the native input exactly as it was.
+// Every viewport uses the same themed CalendarPopover the Daily Checklist's
+// date nav uses, rather than the OS-drawn <input type="date"> picker (which
+// ignores the app theme and follows the OS locale's date format).
 function PopoverDateField({ id, value, onChange, min, max, placeholder = 'Select date', clearable = false }: PopoverDateFieldProps) {
-  const useCustomPicker = useMediaQuery('(max-width: 1024px)');
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-
-  if (!useCustomPicker) {
-    return (
-      <input id={id} type="date" className="input" value={value} min={min} max={max}
-        onChange={(event) => onChange(event.target.value)} />
-    );
-  }
 
   return (
     <>

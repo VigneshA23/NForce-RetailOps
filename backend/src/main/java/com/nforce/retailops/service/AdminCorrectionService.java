@@ -21,6 +21,9 @@ import java.util.List;
 @Service
 public class AdminCorrectionService {
 
+    private static final String NO_CHANGE_MESSAGE =
+            "The corrected value is the same as the current response. Change the value, or use Flag to ask the employee to resubmit.";
+
     private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final AdminCorrectionRepository adminCorrectionRepository;
     private final StoreOwnerRepository storeOwnerRepository;
@@ -95,6 +98,9 @@ public class AdminCorrectionService {
                 if (request.correctedBooleanValue() == null) {
                     throw new InvalidTaskResponseException("A Yes/No response is required");
                 }
+                if (request.correctedBooleanValue().equals(entry.getValueBoolean())) {
+                    throw new InvalidTaskResponseException(NO_CHANGE_MESSAGE);
+                }
                 correction.setCorrectedValueBoolean(request.correctedBooleanValue());
                 entry.setValueBoolean(request.correctedBooleanValue());
                 entry.setValueNumeric(null);
@@ -112,6 +118,10 @@ public class AdminCorrectionService {
                 if (max != null && request.correctedNumericValue() > max) {
                     throw new InvalidTaskResponseException("Value must be at most " + max);
                 }
+                if (entry.getValueNumeric() != null
+                        && Double.compare(request.correctedNumericValue(), entry.getValueNumeric()) == 0) {
+                    throw new InvalidTaskResponseException(NO_CHANGE_MESSAGE);
+                }
                 correction.setCorrectedValueNumeric(request.correctedNumericValue());
                 entry.setValueNumeric(request.correctedNumericValue());
                 entry.setValueBoolean(null);
@@ -124,6 +134,10 @@ public class AdminCorrectionService {
                 Integer maxLen = entry.getTask().getTextMaxLength();
                 if (maxLen != null && request.correctedTextValue().length() > maxLen) {
                     throw new InvalidTaskResponseException("Text must be " + maxLen + " characters or fewer");
+                }
+                if (request.correctedTextValue().trim().equals(
+                        entry.getValueText() == null ? "" : entry.getValueText().trim())) {
+                    throw new InvalidTaskResponseException(NO_CHANGE_MESSAGE);
                 }
                 correction.setCorrectedValueText(request.correctedTextValue());
                 entry.setValueText(request.correctedTextValue());
