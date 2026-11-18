@@ -1,6 +1,7 @@
 import { CalendarDays } from 'lucide-react';
 import type { StoreMonthlyCashSummary } from '../types/cashSummary';
 import { formatCurrency } from '../utils/currency';
+import TableScroll from './TableScroll';
 import './DailyCashBreakdownTable.css';
 
 interface DailyCashBreakdownTableProps {
@@ -50,8 +51,10 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
         <strong>{dayLabel(closingDate)}</strong>, the last recorded day (highlighted below).
         Days with no entry are not listed.
       </p>
-      <div className="table-card daily-cash__card">
-        <div className="table-scroll">
+      {/* Not a .table-card: that class stacks rows into cards on phones. This
+          table keeps its columns on every screen and scrolls sideways instead. */}
+      <div className="daily-cash__card">
+        <TableScroll>
           <table className="data-table daily-cash__table" aria-label="Daily cash breakdown">
             <thead>
               <tr>
@@ -114,7 +117,7 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
               </tr>
             </tfoot>
           </table>
-        </div>
+        </TableScroll>
       </div>
       <p className="daily-cash__note">
         Opening drawer, expected cash and actual count are balances for each day, so they are not added up.

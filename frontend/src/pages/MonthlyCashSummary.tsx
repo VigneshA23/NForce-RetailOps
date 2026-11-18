@@ -163,6 +163,7 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
           <div className="cash-summary__store-select">
             <SearchableSelect
               id="cash-summary-store"
+              variant="toolbar"
               options={storeSelectOptions}
               selectedIds={storeSelection === NO_SELECTION || storeSelection === COMBINED_SELECTION
                 ? []

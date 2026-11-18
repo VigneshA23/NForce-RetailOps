@@ -755,6 +755,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const storeSelect = (
     <SearchableSelect
       id="super-admin-orders-store"
+      variant="toolbar"
       options={stores}
       selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
       onChange={(ids) => {

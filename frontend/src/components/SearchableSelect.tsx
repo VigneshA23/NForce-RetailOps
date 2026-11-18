@@ -32,6 +32,9 @@ interface SearchableSelectProps {
   emptyAction?: { label: string; onClick: () => void };
   allOption?: SearchableSelectAllOption;
   disabled?: boolean;
+  // 'toolbar': page-toolbar store pickers that sit beside a date navigator --
+  // painted with the navigator's card surface instead of the grey form-field fill.
+  variant?: 'field' | 'toolbar';
 }
 
 function SearchableSelect({
@@ -48,6 +51,7 @@ function SearchableSelect({
   emptyAction,
   allOption,
   disabled = false,
+  variant = 'field',
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -181,7 +185,7 @@ function SearchableSelect({
     : [];
 
   return (
-    <div className="searchable-select" ref={wrapperRef}>
+    <div className={`searchable-select${variant === 'toolbar' ? ' searchable-select--toolbar' : ''}`} ref={wrapperRef}>
       <button
         ref={triggerRef}
         type="button"

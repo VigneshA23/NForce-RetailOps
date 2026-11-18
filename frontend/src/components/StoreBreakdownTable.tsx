@@ -1,6 +1,7 @@
 import { Store } from 'lucide-react';
 import type { StoreMonthlyCashSummary } from '../types/cashSummary';
 import { formatCurrency } from '../utils/currency';
+import TableScroll from './TableScroll';
 import './DailyCashBreakdownTable.css';
 
 interface StoreBreakdownTableProps {
@@ -48,8 +49,10 @@ function StoreBreakdownTable({ stores, combined }: StoreBreakdownTableProps) {
         Expected cash on hand, Actual cash count and Variance above are the sum of each store’s figures on its own last
         recorded day (the “As of” column). Stores with no entries this month are not listed.
       </p>
-      <div className="table-card daily-cash__card">
-        <div className="table-scroll">
+      {/* Not a .table-card: that class stacks rows into cards on phones. This
+          table keeps its columns on every screen and scrolls sideways instead. */}
+      <div className="daily-cash__card">
+        <TableScroll>
           <table className="data-table daily-cash__table" aria-label="Store cash breakdown">
             <thead>
               <tr>
@@ -112,7 +115,7 @@ function StoreBreakdownTable({ stores, combined }: StoreBreakdownTableProps) {
               </tr>
             </tfoot>
           </table>
-        </div>
+        </TableScroll>
       </div>
       <p className="daily-cash__note">
         Combined adds up every store that recorded cash this month. Net daily variance adds up every day’s over/short.
