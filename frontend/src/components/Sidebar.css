@@ -16,11 +16,18 @@
   /* Scrolls on short screens rather than cutting the last items off. */
   overflow-y: auto;
   overflow-x: hidden;
+  /* Hide scrollbar chrome; scrolling still works. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   display: flex;
   flex-direction: column;
   color: var(--color-text-primary);
   z-index: var(--z-sidebar);
   transition: width 0.25s;
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebar--collapsed {
