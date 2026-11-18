@@ -15,7 +15,6 @@ import AdminIssues from '../pages/AdminIssues';
 import StoreInventory from '../pages/StoreInventory';
 import OrderDashboard from '../pages/OrderDashboard';
 import DailyCash from '../pages/DailyCash';
-import CashTarget from '../pages/CashTarget';
 import MonthlyCashSummary from '../pages/MonthlyCashSummary';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
@@ -136,7 +135,7 @@ function DashboardShell({ user, store, stores, onSwitchStore, onLogout, loggingO
     setActiveTab('orders');
   }
 
-  const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders', 'cash', 'cash-target', 'cash-summary'];
+  const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders', 'cash', 'cash-summary'];
 
   function renderTab(tab: NavTabKey) {
     switch (tab) {
@@ -206,8 +205,6 @@ function DashboardShell({ user, store, stores, onSwitchStore, onLogout, loggingO
         return <OrderDashboard storeName={storesState.stores[0]?.name} seed={orderSeed} />;
       case 'cash':
         return <DailyCash storeId={storesState.stores[0]?.id ?? null} storesLoading={storesState.isLoading} />;
-      case 'cash-target':
-        return <CashTarget storeId={storesState.stores[0]?.id ?? null} storesLoading={storesState.isLoading} />;
       case 'cash-summary':
         return <MonthlyCashSummary />;
     }
@@ -241,14 +238,13 @@ function DashboardShell({ user, store, stores, onSwitchStore, onLogout, loggingO
       onHelpClick={() => setOverlay('help')}
       onSwitchStore={canSwitchStore ? onSwitchStore : undefined}
       onIssuesClick={() => { setOverlay(null); setActiveTab('issues'); }}
-      // Inventory, Orders, Daily Cash and Cash Target are sidebar tabs on tablet and
+      // Inventory, Orders, and Daily Cash are sidebar tabs on tablet and
       // desktop, so the profile menu only offers them on mobile, where the
       // bottom bar has no room for more entries (the same escape hatch Issues
       // uses).
       onInventoryClick={isMobile ? () => { setOverlay(null); setActiveTab('inventory'); } : undefined}
       onOrdersClick={isMobile ? () => { setOverlay(null); setActiveTab('orders'); } : undefined}
       onCashClick={isMobile ? () => { setOverlay(null); setActiveTab('cash'); } : undefined}
-      onCashTargetClick={isMobile ? () => { setOverlay(null); setActiveTab('cash-target'); } : undefined}
       onCashSummaryClick={isMobile ? () => { setOverlay(null); setActiveTab('cash-summary'); } : undefined}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}

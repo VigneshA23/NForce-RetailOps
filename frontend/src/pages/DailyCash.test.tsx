@@ -17,6 +17,10 @@ vi.mock('../api/storeCash', () => ({
   getExpectedCash: vi.fn(),
   getSuperAdminExpectedCash: vi.fn(),
 }));
+vi.mock('../api/storeCashTarget', () => ({
+  getCashTarget: vi.fn().mockResolvedValue({ storeId: 7, targetAmount: 250, updatedByUserId: null, updatedBySuperAdminId: null, updatedAt: '2026-11-01T00:00:00Z' }),
+  getSuperAdminCashTarget: vi.fn().mockResolvedValue({ storeId: 7, targetAmount: 250, updatedByUserId: null, updatedBySuperAdminId: null, updatedAt: '2026-11-01T00:00:00Z' }),
+}));
 vi.mock('../utils/toast', () => ({
   nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -89,6 +93,15 @@ beforeEach(() => {
 });
 
 describe('DailyCash', () => {
+  it('shows the store cash target as a read-only value with no way to edit it', async () => {
+    render(<DailyCash storeId={7} storesLoading={false} />);
+
+    expect(await screen.findByText('$250.00')).toBeInTheDocument();
+    expect(screen.getByText('Cash target')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cash target/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/cash target/i)).not.toBeInTheDocument();
+  });
+
   it('shows hover help for each cash input and places the formula in a full-width banner below the date row', async () => {
     const user = userEvent.setup();
     render(<DailyCash storeId={7} storesLoading={false} />);

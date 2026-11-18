@@ -17,6 +17,10 @@ vi.mock('../api/storeCash', () => ({
 }));
 vi.mock('../api/superAdminStores', () => ({ getAllStores: vi.fn() }));
 vi.mock('../api/storeCashTarget', () => ({
+  getCashTarget: vi.fn().mockResolvedValue({ storeId: 7, targetAmount: 250, updatedByUserId: null, updatedBySuperAdminId: null, updatedAt: '2026-11-01T00:00:00Z' }),
+  getSuperAdminCashTarget: vi.fn().mockResolvedValue({ storeId: 7, targetAmount: 250, updatedByUserId: null, updatedBySuperAdminId: null, updatedAt: '2026-11-01T00:00:00Z' }),
+}));
+vi.mock('../utils/toast', () => ({
   nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 

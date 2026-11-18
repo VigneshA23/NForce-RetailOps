@@ -21,8 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
-// Per-store target cash-drawer amount. Owner/Admin reads/updates their own
-// active store; Super Admin any store. A store with no row yet gets one on
+// Per-store target cash-drawer amount. Owner/Admin reads their own
+// active store (read-only); Super Admin any store, edited from the store form. A store with no row yet gets one on
 // first read/write, picking up the DB column default -- so the target is
 // never missing and callers (e.g. Daily Cash Entry) never block on it.
 // Expected-cash / variance code should call getTargetAmount(storeId).
@@ -57,12 +57,6 @@ public class StoreCashTargetService {
     @Transactional
     public StoreCashTargetResponse get(Long ownerId) {
         return toResponse(findOrCreate(requireActiveStore(ownerId)));
-    }
-
-    @Transactional
-    public StoreCashTargetResponse update(Long ownerId, StoreCashTargetRequest request) {
-        Store store = requireActiveStore(ownerId);
-        return apply(store, userRepository.getReferenceById(ownerId), null, request);
     }
 
     // ---- Super Admin: any store -------------------------------------------

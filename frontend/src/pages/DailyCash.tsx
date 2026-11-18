@@ -11,6 +11,7 @@ import FormField from '../components/FormField';
 import PopoverDateField from '../components/PopoverDateField';
 import ButtonDots from '../components/ButtonDots';
 import ExpectedCashStat from '../components/ExpectedCashStat';
+import CashTargetStat from '../components/CashTargetStat';
 import { formatAmount, formatCurrency } from '../utils/currency';
 import { parseAmount, validateAmount } from '../utils/amountInput';
 import { nfToast } from '../utils/toast';
@@ -323,6 +324,7 @@ function DailyCash({
       {storeId !== null && (
         <div className="daily-cash-page__expected">
           <ExpectedCashStat scope={scope} storeId={storeId} refreshKey={expectedRefreshKey} />
+          <CashTargetStat scope={scope} storeId={storeId} />
         </div>
       )}
       <section className="card daily-cash-page__card" aria-label="Daily cash entry">

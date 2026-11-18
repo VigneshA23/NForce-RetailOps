@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Banknote, Boxes, CalendarCheck, Building2, HelpCircle, LogOut, Settings, ShoppingCart, Store, Tags, Target, User as UserIcon, Users } from 'lucide-react';
+import { AlertTriangle, Banknote, Boxes, CalendarCheck, Building2, HelpCircle, LogOut, Settings, ShoppingCart, Store, Tags, User as UserIcon, Users } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import ConfirmDialog from './ConfirmDialog';
 import './ProfileMenu.css';
@@ -21,7 +21,6 @@ interface ProfileMenuProps {
   onInventoryClick?: () => void;
   onOrdersClick?: () => void;
   onCashClick?: () => void;
-  onCashTargetClick?: () => void;
   onCashSummaryClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
@@ -37,7 +36,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onEmployeesClick, onCategoriesClick, onHelpClick, onSettingsClick, onIssuesClick, onInventoryClick, onOrdersClick, onCashClick, onCashTargetClick, onCashSummaryClick, onLogout, loggingOut = false, centeredModals = false, onSwitchStore }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onEmployeesClick, onCategoriesClick, onHelpClick, onSettingsClick, onIssuesClick, onInventoryClick, onOrdersClick, onCashClick, onCashSummaryClick, onLogout, loggingOut = false, centeredModals = false, onSwitchStore }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -224,20 +223,6 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
             >
               <Banknote size={14} />
               Daily Cash
-            </button>
-          )}
-          {onCashTargetClick && (
-            <button
-              type="button"
-              role="menuitem"
-              className="profile-menu__item"
-              onClick={() => {
-                setIsOpen(false);
-                onCashTargetClick();
-              }}
-            >
-              <Target size={14} />
-              Cash Target
             </button>
           )}
           {onCashSummaryClick && (

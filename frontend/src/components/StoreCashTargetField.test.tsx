@@ -113,7 +113,6 @@ describe('Store list cash target', () => {
         onToggleStatus={() => {}}
         onEdit={() => {}}
         onAssignOwner={() => {}}
-        onCashTarget={() => {}}
         onDelete={() => {}}
       />,
     );

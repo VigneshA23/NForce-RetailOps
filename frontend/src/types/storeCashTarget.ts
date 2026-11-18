@@ -8,7 +8,3 @@ export interface StoreCashTarget {
   updatedBySuperAdminId: number | null;
   updatedAt: string;
 }
-
-export function isDefaultTarget(target: StoreCashTarget): boolean {
-  return target.updatedByUserId === null && target.updatedBySuperAdminId === null;
-}

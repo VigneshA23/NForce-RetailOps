@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Banknote, Boxes, CalendarCheck, Building2, CheckSquare, ClipboardList, Flag, LayoutGrid, ShoppingCart, Store, Tags, Target, Users, Home } from 'lucide-react';
+import { Banknote, Boxes, CalendarCheck, Building2, CheckSquare, ClipboardList, Flag, LayoutGrid, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -11,7 +11,6 @@ export type NavTabKey =
   | 'inventory'
   | 'orders'
   | 'cash'
-  | 'cash-target'
   | 'cash-summary';
 
 export interface NavItem<Key extends string = NavTabKey> {
@@ -29,12 +28,11 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'inventory', label: 'Inventory', icon: Boxes },
   { key: 'orders', label: 'Orders', icon: ShoppingCart },
   { key: 'cash', label: 'Daily Cash', icon: Banknote },
-  { key: 'cash-target', label: 'Cash Target', icon: Target },
   { key: 'cash-summary', label: 'Month-End Cash', icon: CalendarCheck },
 ];
 
 // Mobile bottom tab bar: home, daily checklist, tasks, employees, categories.
-// Issues, Inventory, Orders, Daily Cash and Cash Target are intentionally not bottom-bar
+// Issues, Inventory, Orders and Daily Cash are intentionally not bottom-bar
 // tabs; they are reached via the profile menu (and, for Issues and Orders, a
 // Home page tile).
 // Seven tabs will not fit at phone width -- see the truncation note below.
@@ -56,7 +54,6 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   inventory: 'Inventory',
   orders: 'Orders',
   cash: 'Daily Cash Entry',
-  'cash-target': 'Cash Drawer Target',
   'cash-summary': 'Month-End Cash Summary',
 };
 

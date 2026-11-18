@@ -18,7 +18,6 @@ import {
   ShoppingCart,
   Store as StoreIcon,
   Tags,
-  Target,
   Truck,
   User as UserIcon,
   Users,
@@ -272,23 +271,10 @@ const SUPER_ADMIN_SECTIONS: HelpSection[] = [
     bullets: [
       'Select a store, then a business date.',
       'Enter or update the cash figures and save. The form works the same way as for Owner/Admins.',
+      'The selected store’s Cash target is shown read-only above the form. Change it from Stores > Edit.',
     ],
     important: [
       'Saving a date that already has an entry overwrites it.',
-    ],
-  },
-  {
-    id: 'sa-cash-target',
-    title: 'Cash Drawer Targets',
-    icon: Target,
-    description: 'Set how much cash a store’s drawer should hold at the start of each day.',
-    steps: [
-      'Open Stores.',
-      'Click the cash icon (Cash drawer target) on the store’s row.',
-      'Enter the new target amount and save.',
-    ],
-    important: [
-      'Targets can only be set for active stores.',
     ],
   },
   {
@@ -504,6 +490,7 @@ const OWNER_ADMIN_SECTIONS: HelpSection[] = [
       'Open Daily Cash and choose the business date (today by default).',
       'Enter the five fields in order: opening drawer cash, cash expenses, cash removed, cash remaining (your end-of-day count), and other adjustments.',
       'Select Save Entry, or Update Entry if the date already has one.',
+      'Your store’s Cash target is shown beside Expected Cash on Hand. It is read-only here.',
     ],
     important: [
       'Every field is required. Enter 0 if there is nothing to record.',
@@ -511,19 +498,6 @@ const OWNER_ADMIN_SECTIONS: HelpSection[] = [
       'Future dates cannot be entered. You can update a past date, which overwrites the saved figures.',
       'Expected Cash on Hand = Opening Cash − Cash Expenses − Cash Removed ± Other Adjustments. It turns amber if the last entry is 2 or more days old.',
       'The page shows who first entered each day (older entries show Unknown). Every later edit is kept in an audit trail with who made it and when.',
-    ],
-  },
-  {
-    id: 'oa-cash-target',
-    title: 'Cash Target',
-    icon: Target,
-    description: 'Set the amount of cash your drawer should hold at the start of each day.',
-    bullets: [
-      'View the current target. Default means your store has not set its own yet.',
-      'Enter a new target amount and select Save Target.',
-    ],
-    important: [
-      'If a save fails, the previous target stays in effect.',
     ],
   },
   {

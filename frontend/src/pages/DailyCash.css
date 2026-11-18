@@ -245,3 +245,22 @@
     width: 100%;
   }
 }
+
+/* Expected Cash on Hand and the read-only Cash target sit side by side. */
+.daily-cash-page__expected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  max-width: none;
+}
+
+.daily-cash-page__expected > * {
+  flex: 1 1 240px;
+  max-width: 320px;
+}
+
+@media (--mobile) {
+  .daily-cash-page__expected > * {
+    max-width: none;
+  }
+}

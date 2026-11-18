@@ -116,7 +116,7 @@ class StoreCashTargetServiceTest {
     void ownerWithoutActiveStoreIsRejected() {
         when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(java.util.List.of());
         assertThrows(StoreNotFoundException.class,
-                () -> service.update(1L, new StoreCashTargetRequest(BigDecimal.TEN)));
+                () -> service.get(1L));
         verify(changeRepository, never()).save(any());
     }
 }

@@ -9,7 +9,6 @@ import { DEFAULT_CASH_TARGET, type CreateStoreValues, type SuperAdminStore } fro
 import SuperAdminStoreTable from '../components/SuperAdminStoreTable';
 import AddStoreModal from '../components/AddStoreModal';
 import EditStoreModal from '../components/EditStoreModal';
-import CashTargetModal from '../components/CashTargetModal';
 import AssignStoreOwnerModal from '../components/AssignStoreOwnerModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
@@ -45,7 +44,6 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
 
   // Edit-store modal
   const [editTarget, setEditTarget] = useState<SuperAdminStore | null>(null);
-  const [cashTargetStore, setCashTargetStore] = useState<SuperAdminStore | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -321,7 +319,6 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
               refreshOwners();
               setAssignTarget(store);
             }}
-            onCashTarget={setCashTargetStore}
             onDelete={(store) => {
               setDeleteError(null);
               setDeleteTarget(store);
@@ -362,7 +359,6 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
         onSubmit={handleEditSubmit}
       />
 
-      <CashTargetModal store={cashTargetStore} onClose={() => setCashTargetStore(null)} />
 
       <AssignStoreOwnerModal
         store={assignTarget}
