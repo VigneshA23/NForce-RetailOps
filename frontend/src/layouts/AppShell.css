@@ -50,7 +50,14 @@
   inset: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Hide scrollbar chrome; scrolling still works. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   will-change: opacity, transform;
+}
+
+.app-shell__page::-webkit-scrollbar {
+  display: none;
 }
 
 /* Reserves room for the floating Sidebar dock (position:fixed, Sidebar.css)
