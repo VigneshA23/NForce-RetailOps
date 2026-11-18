@@ -15,6 +15,31 @@ export type CashAmounts = Record<CashAmountField, number>;
 export interface DailyCashEntryRequest extends CashAmounts {
   // YYYY-MM-DD; the server defaults to today when omitted.
   businessDate: string;
+  // Required by the server when this changes an entry that already exists.
+  correctionReason?: string;
+}
+
+// One direct correction of an entry, oldest first. The new values and reason
+// are null only on corrections saved before they were recorded.
+export interface DailyCashCorrection {
+  id: number;
+  previousTotalCashSales: number;
+  previousOpeningDrawerCash: number;
+  previousCashRemoved: number;
+  previousCashRemaining: number;
+  previousCashExpenses: number;
+  previousBankDeposits: number;
+  previousOtherAdjustments: number;
+  newTotalCashSales: number | null;
+  newOpeningDrawerCash: number | null;
+  newCashRemoved: number | null;
+  newCashRemaining: number | null;
+  newCashExpenses: number | null;
+  newBankDeposits: number | null;
+  newOtherAdjustments: number | null;
+  correctedByName: string | null;
+  correctedAt: string;
+  reason: string | null;
 }
 
 export interface DailyCashEntry extends CashAmounts {
@@ -27,8 +52,11 @@ export interface DailyCashEntry extends CashAmounts {
   updatedByUserId: number | null;
   updatedBySuperAdminId: number | null;
   updatedAt: string;
-  // Prior versions of the entry, oldest first; empty until the first re-save.
-  history: unknown[];
+  // Corrections of the entry, oldest first; empty until the first correction.
+  history: DailyCashCorrection[];
+  // The latest correction, for "Corrected by [name]"; null if never corrected.
+  correctedByName: string | null;
+  correctedAt: string | null;
 }
 
 // Mirrors the backend's ExpectedCashResponse (RTS-295): the store's live

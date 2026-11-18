@@ -142,7 +142,7 @@ class CashSaveConcurrencyTest {
                 () -> storeCashTargetService.getForSuperAdmin(fixture.storeId())));
 
         assertThat(responses).extracting(StoreCashTargetResponse::targetAmount)
-                .containsExactly(new BigDecimal("150.00"), new BigDecimal("150.00"));
+                .containsExactly(new BigDecimal("100.00"), new BigDecimal("100.00"));
         assertThat(targetRepository.findByStoreId(fixture.storeId())).isPresent();
         assertThat(changeRowsFor(fixture.storeId())).isEmpty();
     }
@@ -153,7 +153,7 @@ class CashSaveConcurrencyTest {
 
         TargetChange firstChange = changes.get(0);
         TargetChange secondChange = changes.get(1);
-        assertThat(firstChange.previousAmount()).isEqualByComparingTo("150.00");
+        assertThat(firstChange.previousAmount()).isEqualByComparingTo("100.00");
         assertThat(firstChange.newAmount()).isIn(
                 new BigDecimal(first).setScale(2), new BigDecimal(second).setScale(2));
         assertThat(secondChange.previousAmount()).isEqualByComparingTo(firstChange.newAmount());
@@ -193,7 +193,7 @@ class CashSaveConcurrencyTest {
     private static DailyCashEntryRequest cashRequest(LocalDate date, String totalCashSales) {
         return new DailyCashEntryRequest(date, new BigDecimal(totalCashSales), new BigDecimal("100"),
                 new BigDecimal("10"), new BigDecimal("90"), new BigDecimal("5"), new BigDecimal("20"),
-                BigDecimal.ZERO);
+                BigDecimal.ZERO, "Concurrent correction");
     }
 
     private static StoreCashTargetRequest targetRequest(String amount) {

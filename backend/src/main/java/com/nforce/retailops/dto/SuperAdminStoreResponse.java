@@ -1,5 +1,7 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
+
 public record SuperAdminStoreResponse(
     Long storeId,
     Long storeCode,
@@ -17,6 +19,9 @@ public record SuperAdminStoreResponse(
     // manage this store.
     boolean ownerAccessActive,
     int employeeCount,
-    int taskCount
+    int taskCount,
+    // The store's cash-drawer target. Null only for a store whose target has
+    // never been touched (it then reads the 100.00 column default, V117).
+    BigDecimal cashTarget
 ) {
 }

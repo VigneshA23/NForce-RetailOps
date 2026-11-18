@@ -36,7 +36,7 @@ class StoreCashTargetPersistenceTest {
             repository.saveAndFlush(created);
         });
         assertThat(load(storeId))
-            .isEqualByComparingTo("150.00");
+            .isEqualByComparingTo("100.00");
 
         tx.executeWithoutResult(s -> {
             StoreCashTarget t = repository.findByStoreId(storeId).orElseThrow();

@@ -16,7 +16,7 @@ vi.mock('../api/superAdminStores', () => ({ getAllStores: vi.fn() }));
 function store(storeId: number, storeName: string): SuperAdminStore {
   return {
     storeId, storeName, storeCode: 100 + storeId, storeLocation: null, storeActive: false,
-    ownerId: null, ownerName: null, ownerAccessActive: false, ownerActive: null, employeeCount: 0, taskCount: 0,
+    ownerId: null, ownerName: null, ownerAccessActive: false, ownerActive: null, employeeCount: 0, taskCount: 0, cashTarget: null,
   };
 }
 

@@ -14,9 +14,17 @@ export interface SuperAdminStore {
   ownerAccessActive: boolean;
   employeeCount: number;
   taskCount: number;
+  // The store's cash-drawer target. Null only while it is still the untouched
+  // platform default (no row saved yet).
+  cashTarget: number | null;
 }
 
 export interface CreateStoreValues {
   name: string;
   location: string;
+  // Required on create; the edit form always sends the current value too.
+  cashTarget: number;
 }
+
+// The platform default target (store_cash_targets column default, V117).
+export const DEFAULT_CASH_TARGET = 100;

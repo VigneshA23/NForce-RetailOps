@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -48,6 +49,12 @@ public record DailyCashEntryRequest(
 
     @NotNull(message = "Other adjustments is required (use 0 if none)")
     @Digits(integer = 10, fraction = 2, message = "Other adjustments: use at most 2 decimal places")
-    BigDecimal otherAdjustments
+    BigDecimal otherAdjustments,
+
+    // Required when this changes an entry that already exists (a direct
+    // correction); ignored on the first save of a day. Enforced in
+    // DailyCashEntryService, which knows whether the entry exists.
+    @Size(max = 500, message = "Reason must be 500 characters or fewer")
+    String correctionReason
 ) {
 }

@@ -142,6 +142,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(CorrectionReasonRequiredException.class)
+    public ResponseEntity<Map<String, String>> handleCorrectionReasonRequired(CorrectionReasonRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(StoreAdminConflictException.class)
     public ResponseEntity<Map<String, String>> handleStoreAdminConflict(StoreAdminConflictException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));

@@ -11,6 +11,7 @@ import com.nforce.retailops.dto.SupplierRequest;
 import com.nforce.retailops.dto.SupplierResponse;
 import com.nforce.retailops.dto.UpdateStoreStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
+import com.nforce.retailops.security.SuperAdminUserDetails;
 import com.nforce.retailops.service.InventoryCategoryService;
 import com.nforce.retailops.service.StoreService;
 import com.nforce.retailops.service.SupplierService;
@@ -110,17 +111,29 @@ public class StoreController {
 
     @PostMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<SuperAdminStoreResponse> createUnownedStore(@Valid @RequestBody CreateStoreRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(storeService.createUnownedStore(request));
+    public ResponseEntity<SuperAdminStoreResponse> createUnownedStore(
+        @AuthenticationPrincipal Object principal,
+        @Valid @RequestBody CreateStoreRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(storeService.createUnownedStore(superAdminId(principal), request));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<SuperAdminStoreResponse> update(
+        @AuthenticationPrincipal Object principal,
         @PathVariable Long id,
         @Valid @RequestBody StoreRequest request
     ) {
-        return ResponseEntity.ok(storeService.updateStore(id, request));
+        return ResponseEntity.ok(storeService.updateStore(superAdminId(principal), id, request));
+    }
+
+    // The acting Super Admin, recorded on cash-target changes. Null for any
+    // other principal shape (only possible in tests that grant the role to a
+    // users row); StoreService refuses a target change without one.
+    private static Long superAdminId(Object principal) {
+        return principal instanceof SuperAdminUserDetails details ? details.getSuperAdmin().getId() : null;
     }
 
     @DeleteMapping("/{id}")

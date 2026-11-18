@@ -239,24 +239,24 @@ class StoreControllerTest {
         mockMvc.perform(post("/api/stores")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Attempted Store\",\"location\":\"Nowhere\"}"))
+                .content("{\"name\":\"Attempted Store\",\"location\":\"Nowhere\",\"cashTarget\":150}"))
             .andExpect(status().isForbidden());
     }
 
     @Test
     @Transactional
     void superAdminCanCreateAnUnownedStoreAndItAppearsAsReassignable() throws Exception {
-        Role superRole = role("SUPER_ADMIN");
-        user("store-create-super@nforce.test", superRole);
+        superAdmin("store-create-super@nforce.test");
 
         String token = login("store-create-super@nforce.test");
 
         mockMvc.perform(post("/api/stores")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Unowned Store\",\"location\":\"Midtown\"}"))
+                .content("{\"name\":\"Unowned Store\",\"location\":\"Midtown\",\"cashTarget\":225.50}"))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.storeName").value("Unowned Store"))
+            .andExpect(jsonPath("$.cashTarget").value(225.50))
             .andExpect(jsonPath("$.ownerId").value(org.hamcrest.Matchers.nullValue()))
             // The store itself is active/open even with no owner assigned yet --
             // storeActive must reflect the store, not the (necessarily inactive)
@@ -278,8 +278,7 @@ class StoreControllerTest {
     @Test
     @Transactional
     void superAdminCannotCreateAStoreWithADuplicateNameAndLocation() throws Exception {
-        Role superRole = role("SUPER_ADMIN");
-        user("store-dup-super@nforce.test", superRole);
+        superAdmin("store-dup-super@nforce.test");
         store("Duplicate Store", 8020L, "Riverside");
 
         String token = login("store-dup-super@nforce.test");
@@ -288,7 +287,7 @@ class StoreControllerTest {
         mockMvc.perform(post("/api/stores")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\" duplicate store \",\"location\":\" RIVERSIDE \"}"))
+                .content("{\"name\":\" duplicate store \",\"location\":\" RIVERSIDE \",\"cashTarget\":150}"))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.message").value("A store with this name and location already exists"));
     }

@@ -5,11 +5,15 @@ import type { CreateStoreValues } from '../types/superAdminStore';
 import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
+import StoreCashTargetField, { validateCashTarget } from './StoreCashTargetField';
+import { parseAmount } from '../utils/amountInput';
+import { formatAmount } from '../utils/currency';
 import './AssignStoreModal.css';
 import './SupplierFormModal.css';
 
 interface EditStoreModalProps {
   isOpen: boolean;
+  // The store as saved; the target shows as its current amount.
   initialValues?: CreateStoreValues;
   errorMessage?: string | null;
   isSubmitting?: boolean;
@@ -17,33 +21,48 @@ interface EditStoreModalProps {
   onSubmit: (values: CreateStoreValues) => void;
 }
 
-const EMPTY_VALUES: CreateStoreValues = { name: '', location: '' };
+// The form's own state: the target is kept as typed text until submit.
+interface FormValues {
+  name: string;
+  location: string;
+  cashTarget: string;
+}
+
+const EMPTY_VALUES: FormValues = { name: '', location: '', cashTarget: '' };
 
 function EditStoreModal({ isOpen, initialValues, errorMessage, isSubmitting = false, onClose, onSubmit }: EditStoreModalProps) {
-  const [values, setValues] = useState<CreateStoreValues>(EMPTY_VALUES);
-  const [errors, setErrors] = useState<Partial<Record<keyof CreateStoreValues, string>>>({});
+  const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
+  const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
 
   useEffect(() => {
     if (!isOpen) return;
-    setValues(initialValues ?? EMPTY_VALUES);
+    setValues(initialValues
+      ? { name: initialValues.name, location: initialValues.location, cashTarget: formatAmount(initialValues.cashTarget) }
+      : EMPTY_VALUES);
     setErrors({});
   }, [isOpen, initialValues]);
 
-  function updateField<K extends keyof CreateStoreValues>(field: K, value: CreateStoreValues[K]) {
+  function updateField<K extends keyof FormValues>(field: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
   }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const nextErrors: Partial<Record<keyof CreateStoreValues, string>> = {};
+    const nextErrors: Partial<Record<keyof FormValues, string>> = {};
     if (!values.name.trim()) nextErrors.name = 'Store name is required';
     if (!values.location.trim()) nextErrors.location = 'Store location is required';
+    const cashTargetError = validateCashTarget(values.cashTarget);
+    if (cashTargetError) nextErrors.cashTarget = cashTargetError;
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
     }
 
-    onSubmit({ name: values.name.trim(), location: values.location.trim() });
+    onSubmit({
+      name: values.name.trim(),
+      location: values.location.trim(),
+      cashTarget: parseAmount(values.cashTarget),
+    });
   }
 
   return (
@@ -90,6 +109,13 @@ function EditStoreModal({ isOpen, initialValues, errorMessage, isSubmitting = fa
             />
           </div>
         </FormField>
+
+        <StoreCashTargetField
+          id="edit-store-cash-target"
+          value={values.cashTarget}
+          error={errors.cashTarget}
+          onChange={(value) => updateField('cashTarget', value)}
+        />
 
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>

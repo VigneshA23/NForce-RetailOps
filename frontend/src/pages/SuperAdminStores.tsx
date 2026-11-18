@@ -5,7 +5,7 @@ import { assignStoreOwner, createStandaloneStore, deleteStore, getAllStores, upd
 import { getOwners } from '../api/owners';
 import { getAllEmployeesForSuperAdmin } from '../api/superAdminEmployees';
 import type { OwnerSummary } from '../types/owner';
-import type { CreateStoreValues, SuperAdminStore } from '../types/superAdminStore';
+import { DEFAULT_CASH_TARGET, type CreateStoreValues, type SuperAdminStore } from '../types/superAdminStore';
 import SuperAdminStoreTable from '../components/SuperAdminStoreTable';
 import AddStoreModal from '../components/AddStoreModal';
 import EditStoreModal from '../components/EditStoreModal';
@@ -159,6 +159,19 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
       setDeleteError(error instanceof Error ? error.message : 'Failed to delete store');
     }
   }
+
+  // Memoised so the edit form isn't reset on every re-render of this page.
+  const editInitialValues = useMemo(
+    () =>
+      editTarget
+        ? {
+            name: editTarget.storeName,
+            location: editTarget.storeLocation ?? '',
+            cashTarget: editTarget.cashTarget ?? DEFAULT_CASH_TARGET,
+          }
+        : undefined,
+    [editTarget],
+  );
 
   // Owners available to assign: every active owner, once each (the listing has
   // a row per owner-store pair). An owner may hold several stores; it is the
@@ -339,7 +352,7 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
 
       <EditStoreModal
         isOpen={editTarget !== null}
-        initialValues={editTarget ? { name: editTarget.storeName, location: editTarget.storeLocation ?? '' } : undefined}
+        initialValues={editInitialValues}
         errorMessage={editError}
         isSubmitting={isEditing}
         onClose={() => {

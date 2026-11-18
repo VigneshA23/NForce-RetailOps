@@ -8,6 +8,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.DailyCashEntryNotFoundException;
+import com.nforce.retailops.exception.CorrectionReasonRequiredException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.DailyCashEntryCorrectionRepository;
 import com.nforce.retailops.repository.DailyCashEntryRepository;
@@ -73,8 +74,31 @@ class DailyCashEntryServiceTest {
     }
 
     private static DailyCashEntryRequest req(LocalDate date, String sales, String adj) {
+        return req(date, sales, adj, null);
+    }
+
+    private static DailyCashEntryRequest req(LocalDate date, String sales, String adj, String reason) {
         return new DailyCashEntryRequest(date, new BigDecimal(sales), new BigDecimal("100"),
-            new BigDecimal("10"), new BigDecimal("90"), new BigDecimal("5"), new BigDecimal("20"), new BigDecimal(adj));
+            new BigDecimal("10"), new BigDecimal("90"), new BigDecimal("5"), new BigDecimal("20"), new BigDecimal(adj),
+            reason);
+    }
+
+    private DailyCashEntry existingEntry(LocalDate d) {
+        DailyCashEntry existing = new DailyCashEntry();
+        existing.setStore(store);
+        existing.setBusinessDate(d);
+        existing.setTotalCashSales(new BigDecimal("500"));
+        existing.setOpeningDrawerCash(new BigDecimal("100"));
+        existing.setCashRemoved(BigDecimal.ZERO);
+        existing.setCashRemaining(BigDecimal.ZERO);
+        existing.setCashExpenses(BigDecimal.ZERO);
+        existing.setBankDeposits(BigDecimal.ZERO);
+        existing.setOtherAdjustments(BigDecimal.ZERO);
+        existing.setEnteredByUser(owner);
+        existing.setUpdatedByUser(owner);
+        existing.setEnteredAt(java.time.OffsetDateTime.now().minusHours(1));
+        existing.setUpdatedAt(java.time.OffsetDateTime.now().minusHours(1));
+        return existing;
     }
 
     @Test
@@ -109,12 +133,69 @@ class DailyCashEntryServiceTest {
         existing.setUpdatedAt(java.time.OffsetDateTime.now().minusHours(1));
         when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.of(existing));
 
-        DailyCashEntryResponse r = service.save(9L, req(d, "650", "0"));
+        DailyCashEntryResponse r = service.save(9L, req(d, "650", "0", "  Till miscounted  "));
 
         ArgumentCaptor<DailyCashEntryCorrection> cap = ArgumentCaptor.forClass(DailyCashEntryCorrection.class);
         verify(correctionRepository).save(cap.capture());
-        assertEquals(new BigDecimal("500"), cap.getValue().getPreviousTotalCashSales());
+        DailyCashEntryCorrection c = cap.getValue();
+        assertEquals(new BigDecimal("500"), c.getPreviousTotalCashSales());
+        assertEquals(new BigDecimal("650"), c.getNewTotalCashSales());
+        assertEquals(new BigDecimal("90"), c.getNewCashRemaining());
+        assertEquals("Till miscounted", c.getReason());
+        assertEquals(owner, c.getCorrectedByUser());
         assertEquals(new BigDecimal("650"), r.totalCashSales());
+    }
+
+    @Test
+    void correctingAnExistingEntryWithoutAReasonIsRefusedAndChangesNothing() {
+        LocalDate d = LocalDate.now();
+        DailyCashEntry existing = existingEntry(d);
+        when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.of(existing));
+
+        assertThrows(CorrectionReasonRequiredException.class, () -> service.save(9L, req(d, "650", "0", "   ")));
+        assertThrows(CorrectionReasonRequiredException.class, () -> service.save(9L, req(d, "650", "0", null)));
+
+        assertEquals(new BigDecimal("500"), existing.getTotalCashSales());
+        verify(correctionRepository, never()).save(any());
+        verify(entryRepository, never()).save(any());
+    }
+
+    @Test
+    void resavingIdenticalFiguresIsNotACorrection() {
+        LocalDate d = LocalDate.now();
+        DailyCashEntry existing = existingEntry(d);
+        existing.setCashRemoved(new BigDecimal("10"));
+        existing.setCashRemaining(new BigDecimal("90"));
+        existing.setCashExpenses(new BigDecimal("5"));
+        existing.setBankDeposits(new BigDecimal("20"));
+        when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.of(existing));
+
+        service.save(9L, req(d, "500.00", "0"));
+
+        verify(correctionRepository, never()).save(any());
+    }
+
+    @Test
+    void theEntryShowsWhoLastCorrectedItAndWhen() {
+        LocalDate d = LocalDate.now();
+        DailyCashEntry existing = existingEntry(d);
+        when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.of(existing));
+        when(owner.getFullName()).thenReturn("Priya Admin");
+        java.util.List<DailyCashEntryCorrection> saved = new java.util.ArrayList<>();
+        when(correctionRepository.save(any(DailyCashEntryCorrection.class))).thenAnswer(i -> {
+            saved.add(i.getArgument(0));
+            return i.getArgument(0);
+        });
+        when(correctionRepository.findByEntryIdOrderByCorrectedAtAscIdAsc(any())).thenAnswer(i -> saved);
+
+        DailyCashEntryResponse r = service.save(9L, req(d, "650", "0", "Typo in sales"));
+
+        assertEquals("Priya Admin", r.correctedByName());
+        assertEquals(saved.get(0).getCorrectedAt(), r.correctedAt());
+        assertEquals(1, r.history().size());
+        assertEquals("Typo in sales", r.history().get(0).reason());
+        assertEquals(new BigDecimal("500"), r.history().get(0).previousTotalCashSales());
+        assertEquals(new BigDecimal("650"), r.history().get(0).newTotalCashSales());
     }
 
     @Test
