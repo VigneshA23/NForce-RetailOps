@@ -82,6 +82,15 @@ public class SuperAdminController {
         return ResponseEntity.ok(ownerManagementService.setStoreActive(ownerId, storeId, request.active()));
     }
 
+    // Removes a store from an admin: a soft release of the link, not a delete.
+    @DeleteMapping("/owners/{ownerId}/stores/{storeId}")
+    public ResponseEntity<List<OwnerResponse>> unassignStore(
+        @PathVariable Long ownerId,
+        @PathVariable Long storeId
+    ) {
+        return ResponseEntity.ok(ownerManagementService.unassignStore(ownerId, storeId));
+    }
+
     @DeleteMapping("/owners/{ownerId}")
     public ResponseEntity<Void> deleteOwner(@PathVariable Long ownerId) {
         ownerManagementService.deleteOwner(ownerId);

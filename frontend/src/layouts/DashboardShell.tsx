@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Store as StoreIcon } from 'lucide-react';
+import type { StoreSummary } from '../types/store';
 import type { NavTabKey } from '../types/navigation';
 import { OWNER_BOTTOM_NAV_ITEMS, OWNER_NAV_ITEMS, PAGE_TITLES } from '../types/navigation';
 import { getOwnerOverlay, getOwnerTab, setOwnerOverlay, setOwnerTab } from '../utils/navigationStorage';
@@ -30,6 +32,11 @@ import { OWNER_NOTIFICATION_ROUTES, resolveNotificationRoute, type NotificationN
 
 interface DashboardShellProps {
   user: AuthUser;
+  // The store this dashboard is scoped to (every owner request carries it),
+  // and every store the admin holds -- "Switch store" shows only with 2+.
+  store: StoreSummary;
+  stores: StoreSummary[];
+  onSwitchStore: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
   avatarUrl?: string | null;
@@ -39,7 +46,8 @@ interface DashboardShellProps {
 
 type Overlay = 'profile' | 'help' | 'notifications' | null;
 
-function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate }: DashboardShellProps) {
+function DashboardShell({ user, store, stores, onSwitchStore, onLogout, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate }: DashboardShellProps) {
+  const canSwitchStore = stores.length > 1;
   // Restores the tab across a refresh, since there's no router to reflect it
   // in the URL -- see navigationStorage.ts for why.
   const isMobile = useIsMobile();
@@ -215,7 +223,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
         setActiveTab(key);
       }}
       title={title}
-      subtitle={storesState.stores[0]?.name}
+      subtitle={store.name}
       // A stable key (not activeTab) while no overlay is open: AppShell keys
       // its content wrapper on this and remounts on every change, which would
       // otherwise blow away the "lazy-mount, stay alive" tabs below on every
@@ -231,6 +239,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
+      onSwitchStore={canSwitchStore ? onSwitchStore : undefined}
       onIssuesClick={() => { setOverlay(null); setActiveTab('issues'); }}
       // Inventory, Orders, Daily Cash and Cash Target are sidebar tabs on tablet and
       // desktop, so the profile menu only offers them on mobile, where the
@@ -251,7 +260,20 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       hideBottomNav={mobileSearchActive}
       showSearch={false}
       headerActions={
-        <AdminSearchDropdown onNavigate={handleSearchNavigate} onMobileOpenChange={setMobileSearchActive} />
+        <>
+          <AdminSearchDropdown onNavigate={handleSearchNavigate} onMobileOpenChange={setMobileSearchActive} />
+          {canSwitchStore && (
+            <button
+              type="button"
+              className="btn btn--secondary switch-store-btn"
+              onClick={onSwitchStore}
+              aria-label="Switch Store"
+            >
+              <StoreIcon size={16} />
+              <span className="switch-store-btn__label">Switch Store</span>
+            </button>
+          )}
+        </>
       }
     >
       {overlay === 'profile' ? (

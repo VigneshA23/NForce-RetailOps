@@ -13,11 +13,12 @@ interface OwnerDetailModalProps {
 function OwnerDetailModal({ owner, onClose }: OwnerDetailModalProps) {
   if (!owner) return null;
 
-  const storeName = owner.activeStore
-    ? owner.activeStore.storeName
-    : owner.ownerActive && owner.anyStore
-      ? `${owner.anyStore.storeName} (Inactive)`
-      : null;
+  // Every store the admin holds (they may have several).
+  const storeNames = [
+    ...owner.activeStores.map((store) => store.storeName),
+    ...(owner.ownerActive ? owner.inactiveStores.map((store) => `${store.storeName} (Inactive)`) : []),
+  ];
+  const storeName = storeNames.length > 0 ? storeNames.join(', ') : null;
 
   return (
     <Modal

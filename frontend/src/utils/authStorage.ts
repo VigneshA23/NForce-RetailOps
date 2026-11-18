@@ -106,7 +106,36 @@ export function clearStoredAvatarUrl(): void {
   localStorage.removeItem(AVATAR_KEY);
 }
 
-export function authHeaders(): HeadersInit {
+export const OWNER_STORE_STORAGE_KEY = 'nforce-retailops-owner-store';
+
+// The store an Owner/Admin picked. sessionStorage, so it is remembered for this
+// session only (a reload keeps it, a new session asks again). Like the
+// employee's choice above, only the id is kept and it is re-validated against
+// the server's list of the admin's stores before it is ever used.
+export function setOwnerStoreId(storeId: number): void {
+  sessionStorage.setItem(OWNER_STORE_STORAGE_KEY, String(storeId));
+}
+
+export function getOwnerStoreId(): number | null {
+  const raw = sessionStorage.getItem(OWNER_STORE_STORAGE_KEY);
+  if (raw === null) return null;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
+export function clearOwnerStoreId(): void {
+  sessionStorage.removeItem(OWNER_STORE_STORAGE_KEY);
+}
+
+// Header naming the Owner/Admin's selected store. The backend scopes every
+// owner request to it and re-checks the admin's link to it each time.
+export const STORE_HEADER = 'X-Store-Id';
+
+export function authHeaders(): Record<string, string> {
   const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  if (!token) return {};
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  const ownerStoreId = getOwnerStoreId();
+  if (ownerStoreId !== null) headers[STORE_HEADER] = String(ownerStoreId);
+  return headers;
 }

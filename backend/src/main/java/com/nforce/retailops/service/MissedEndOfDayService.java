@@ -75,8 +75,10 @@ public class MissedEndOfDayService {
         storeEmployeeRepository.findByEmployeeId(userId)
             .ifPresent(se -> se.getStores().stream().filter(Store::isActive)
                 .forEach(s -> stores.put(s.getId(), s)));
-        storeOwnerRepository.findByOwnerIdAndActiveTrue(userId)
-            .ifPresent(so -> stores.put(so.getStore().getId(), so.getStore()));
+        // Every store the admin holds: notifications belong to the user, not
+        // to whichever store they have selected right now.
+        OwnerStoreScope.activeLinks(storeOwnerRepository, userId)
+            .forEach(so -> stores.put(so.getStore().getId(), so.getStore()));
         for (Store store : stores.values()) {
             if (handled.add(userId + ":" + store.getId())) {
                 ensureNoticesForStore(store, today.minusDays(1));

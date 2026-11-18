@@ -9,7 +9,8 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailAlreadyExistsException;
-import com.nforce.retailops.exception.OwnerStoreConflictException;
+import com.nforce.retailops.exception.StoreAdminConflictException;
+import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -124,22 +125,63 @@ class OwnerManagementServiceTest {
         verify(storeOwnerRepository, times(1)).findByOwnerIdInWithStoreAndOwner(List.of(1L, 2L));
     }
 
+    // An owner may hold several stores; a store may have one active admin.
     @Test
-    void assignStoreThrowsConflictWhenOwnerAlreadyHasActiveStore() {
+    void assignStoreRejectsAStoreThatAlreadyHasAnActiveAdminWith409AndChangesNothing() {
         User owner = user(1L, "Alice Owner");
+        User holder = user(2L, "Bob Owner");
+        Store store = store(20L, "Uptown");
+        StoreOwner held = storeOwner(holder, store);
+        held.setActive(true);
         when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
-        when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(1L)).thenReturn(true);
+        when(storeOwnerRepository.findByStoreIdForUpdate(20L)).thenReturn(Optional.of(held));
 
-        assertThatThrownBy(() -> ownerManagementService.assignStore(1L, new AssignStoreRequest("New Store", "Main St", null)))
-            .isInstanceOf(OwnerStoreConflictException.class)
-            .hasMessageContaining("active store assigned");
+        assertThatThrownBy(() -> ownerManagementService.assignStore(1L, new AssignStoreRequest(null, null, 20L)))
+            .isInstanceOf(StoreAdminConflictException.class)
+            .hasMessage("An admin is already assigned to this store");
+
+        assertThat(held.getOwner()).isEqualTo(holder);
+        verify(storeOwnerRepository, never()).save(any(StoreOwner.class));
     }
 
     @Test
-    void assignStoreSucceedsWhenOwnerHasNoActiveStore() {
+    void unassignStoreSoftReleasesTheLinkAndKeepsTheLastOwner() {
+        User owner = user(1L, "Alice Owner");
+        Store store = store(20L, "Uptown");
+        StoreOwner link = storeOwner(owner, store);
+        link.setActive(true);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(storeOwnerRepository.findByStoreIdForUpdate(20L)).thenReturn(Optional.of(link));
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of());
+
+        List<OwnerResponse> result = ownerManagementService.unassignStore(1L, 20L);
+
+        assertThat(link.isActive()).isFalse();
+        assertThat(link.getOwner()).isNull();
+        assertThat(link.getLastOwner()).isEqualTo(owner);
+        assertThat(link.getOwnerVacantSince()).isNotNull();
+        assertThat(result).singleElement().satisfies(row -> assertThat(row.storeId()).isNull());
+        verify(storeOwnerRepository).save(link);
+    }
+
+    @Test
+    void unassignStoreOfAStoreHeldBySomeoneElseIs404() {
+        User owner = user(1L, "Alice Owner");
+        Store store = store(20L, "Uptown");
+        StoreOwner link = storeOwner(user(2L, "Bob Owner"), store);
+        link.setActive(true);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(storeOwnerRepository.findByStoreIdForUpdate(20L)).thenReturn(Optional.of(link));
+
+        assertThatThrownBy(() -> ownerManagementService.unassignStore(1L, 20L))
+            .isInstanceOf(StoreNotFoundException.class);
+        assertThat(link.isActive()).isTrue();
+    }
+
+    @Test
+    void assignStoreSucceedsEvenWhenOwnerAlreadyHasAnActiveStore() {
         User owner = user(1L, "Alice Owner");
         when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
-        when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(1L)).thenReturn(false);
         when(storeCodeGenerator.next()).thenReturn(300L);
         when(storeRepository.save(any(Store.class))).thenAnswer(invocation -> {
             Store s = invocation.getArgument(0);
@@ -159,7 +201,6 @@ class OwnerManagementServiceTest {
     void assignStoreRejectsDuplicateNameAndLocation() {
         User owner = user(1L, "Alice Owner");
         when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
-        when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(1L)).thenReturn(false);
         when(storeRepository.existsByNameAndLocationIgnoreCase("New Store", "Main St")).thenReturn(true);
 
         assertThatThrownBy(() -> ownerManagementService.assignStore(1L, new AssignStoreRequest("New Store", "Main St", null)))
@@ -200,8 +241,7 @@ class OwnerManagementServiceTest {
         revokedLink.setOwnerVacantSince(OffsetDateTime.now().minusHours(30));
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
-        when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(1L)).thenReturn(false);
-        when(storeOwnerRepository.findByStoreId(20L)).thenReturn(Optional.of(revokedLink));
+        when(storeOwnerRepository.findByStoreIdForUpdate(20L)).thenReturn(Optional.of(revokedLink));
         when(storeOwnerRepository.save(any(StoreOwner.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OwnerResponse response = ownerManagementService.assignStore(1L, new AssignStoreRequest(null, null, 20L));

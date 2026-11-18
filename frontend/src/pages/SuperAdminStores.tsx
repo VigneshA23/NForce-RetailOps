@@ -160,12 +160,17 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
     }
   }
 
-  // Owners available to assign: those without an active store.
-  // A store with storeActive=null means there's no active StoreOwner record for that owner.
-  const availableOwners = useMemo(
-    () => allOwners.filter((o) => o.ownerActive && (o.storeId === null || o.storeActive !== true)),
-    [allOwners],
-  );
+  // Owners available to assign: every active owner, once each (the listing has
+  // a row per owner-store pair). An owner may hold several stores; it is the
+  // store that can have only one active admin, which the backend enforces (409).
+  const availableOwners = useMemo(() => {
+    const seen = new Set<number>();
+    return allOwners.filter((o) => {
+      if (!o.ownerActive || seen.has(o.ownerId)) return false;
+      seen.add(o.ownerId);
+      return true;
+    });
+  }, [allOwners]);
 
   async function handleAssignOwner(ownerId: number) {
     if (!assignTarget) return;

@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.MeResponse;
 import com.nforce.retailops.dto.UpdateMeRequest;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.StoreNotFoundException;
@@ -132,9 +133,9 @@ public class UserProfileService {
 
     private List<Store> accessibleStores(User user) {
         List<Store> stores = isOwnerAdmin(user)
-                ? storeOwnerRepository.findByOwnerIdAndActiveTrue(user.getId())
-                        .map(so -> List.of(so.getStore()))
-                        .orElseGet(List::of)
+                ? OwnerStoreScope.activeLinks(storeOwnerRepository, user.getId()).stream()
+                        .map(StoreOwner::getStore)
+                        .toList()
                 : storeEmployeeRepository.findByEmployeeId(user.getId())
                         .map(storeEmployee -> List.copyOf(storeEmployee.getStores()))
                         .orElseGet(List::of);

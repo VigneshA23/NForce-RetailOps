@@ -1,6 +1,6 @@
 import type { AddOwnerValues, AssignStoreValues, OwnerCreationResult, OwnerSummary, ReassignableStore, UpdateOwnerValues } from '../types/owner';
 import { authHeaders } from '../utils/authStorage';
-import { fetchWithTimeout } from './client';
+import { apiRequest, fetchWithTimeout } from './client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
@@ -88,4 +88,11 @@ export async function setStoreStatus(ownerId: number, storeId: number, active: b
   });
   if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to update store status'));
   return response.json();
+}
+
+// Removes a store from an admin. The backend soft-releases the link (the store
+// becomes vacant and can be assigned to someone else) and returns the admin's
+// remaining store rows.
+export function unassignStore(ownerId: number, storeId: number): Promise<OwnerSummary[]> {
+  return apiRequest<OwnerSummary[]>(`/owners/${ownerId}/stores/${storeId}`, { method: 'DELETE' });
 }

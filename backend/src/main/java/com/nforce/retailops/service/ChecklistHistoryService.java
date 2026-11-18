@@ -959,7 +959,7 @@ public class ChecklistHistoryService {
 
     private List<Store> resolveStores(Long ownerId, List<Long> requestedStoreIds) {
         if (requestedStoreIds == null || requestedStoreIds.isEmpty()) {
-            return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+            return OwnerStoreScope.currentLink(storeOwnerRepository, ownerId)
                 .map(so -> List.of(so.getStore()))
                 .orElseGet(List::of);
         }

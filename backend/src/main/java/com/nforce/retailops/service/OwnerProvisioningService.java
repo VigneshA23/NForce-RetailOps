@@ -8,6 +8,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.StoreAlreadyExistsException;
+import com.nforce.retailops.exception.StoreAdminConflictException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -114,10 +115,11 @@ public class OwnerProvisioningService {
             storeOwner.setOwner(owner);
             storeOwner = storeOwnerRepository.save(storeOwner);
         } else if (hasExistingStore) {
-            storeOwner = storeOwnerRepository.findByStoreId(request.existingStoreId())
+            // Locked, so a concurrent assign to the same store cannot also win.
+            storeOwner = storeOwnerRepository.findByStoreIdForUpdate(request.existingStoreId())
                     .orElseThrow(() -> new StoreNotFoundException("Store not found"));
             if (storeOwner.isActive()) {
-                throw new InvalidOwnerRequestException("That store is not available for reassignment");
+                throw new StoreAdminConflictException();
             }
             reassignedExistingStore = true;
             previousOwnerId = storeOwner.getOwner() != null ? storeOwner.getOwner().getId() : null;

@@ -13,7 +13,7 @@ import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
-import com.nforce.retailops.exception.OwnerStoreConflictException;
+import com.nforce.retailops.exception.StoreAdminConflictException;
 import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -184,11 +184,6 @@ public class OwnerManagementService {
             throw new InvalidOwnerRequestException("Cannot assign a store to a deactivated owner");
         }
 
-        if (storeOwnerRepository.existsByOwnerIdAndActiveTrue(ownerId)) {
-            throw new OwnerStoreConflictException(
-                    "This owner already has an active store assigned. Deactivate their current store first before assigning a new one.");
-        }
-
         boolean hasNewStoreName = request.storeName() != null && !request.storeName().isBlank();
         boolean hasNewStoreLocation = request.storeLocation() != null && !request.storeLocation().isBlank();
         if (hasNewStoreName != hasNewStoreLocation) {
@@ -217,10 +212,14 @@ public class OwnerManagementService {
             storeOwner.setOwner(owner);
             storeOwner = storeOwnerRepository.save(storeOwner);
         } else {
-            storeOwner = storeOwnerRepository.findByStoreId(request.existingStoreId())
+            // An owner may hold several stores, but a store has one active
+            // admin at most. The row is locked for the rest of the transaction
+            // so that of two concurrent assigns to the same store, the second
+            // sees the first one's active link and gets the same 409.
+            storeOwner = storeOwnerRepository.findByStoreIdForUpdate(request.existingStoreId())
                     .orElseThrow(() -> new StoreNotFoundException("Store not found"));
             if (storeOwner.isActive()) {
-                throw new InvalidOwnerRequestException("That store is not available for reassignment");
+                throw new StoreAdminConflictException();
             }
             storeOwner.setOwner(owner);
             storeOwner.setActive(true);
@@ -329,6 +328,40 @@ public class OwnerManagementService {
         return storeOwnerRepository.findByOwnerId(ownerId).stream()
                 .map(OwnerResponse::from)
                 .toList();
+    }
+
+    /**
+     * Super Admin removes a store from an admin. A soft release, never a
+     * delete: the link goes inactive with no owner (the same shape as
+     * deactivating the admin), last_owner_id keeps the store's tasks visible
+     * to its employees, and the vacancy clock starts so the owner-vacancy
+     * alert applies. The store can then be assigned to anyone. The admin's
+     * very next request scoped to this store gets a 404 (OwnerStoreScope).
+     */
+    @Transactional
+    public List<OwnerResponse> unassignStore(Long ownerId, Long storeId) {
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdForUpdate(storeId)
+                .filter(link -> link.getOwner() != null && link.getOwner().getId().equals(ownerId))
+                .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+
+        storeOwner.setActive(false);
+        storeOwner.setLastOwner(owner);
+        storeOwner.setOwner(null);
+        storeOwner.setOwnerVacantSince(OffsetDateTime.now());
+        storeOwnerRepository.save(storeOwner);
+
+        activityLogService.log(
+                "STORE_UNASSIGNED", "Super Admin", "SUPER_ADMIN",
+                storeOwner.getStore().getId(), storeOwner.getStore().getName(), "OWNER", owner.getFullName(),
+                "Removed " + owner.getFullName() + " from " + storeOwner.getStore().getName());
+
+        List<StoreOwner> remaining = storeOwnerRepository.findByOwnerId(ownerId);
+        if (remaining.isEmpty()) {
+            return List.of(OwnerResponse.withoutStore(owner));
+        }
+        return remaining.stream().map(OwnerResponse::from).toList();
     }
 
     @Transactional

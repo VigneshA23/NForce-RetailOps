@@ -142,6 +142,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(StoreAdminConflictException.class)
+    public ResponseEntity<Map<String, String>> handleStoreAdminConflict(StoreAdminConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
+    // 404 rather than 403 so a store the admin cannot use is indistinguishable
+    // from one that does not exist; `code` lets the UI return to the store picker.
+    @ExceptionHandler(StoreScopeInvalidException.class)
+    public ResponseEntity<Map<String, String>> handleStoreScopeInvalid(StoreScopeInvalidException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(Map.of("message", ex.getMessage(), "code", StoreScopeInvalidException.CODE));
+    }
+
     @ExceptionHandler(OwnerStoreConflictException.class)
     public ResponseEntity<Map<String, String>> handleOwnerStoreConflict(OwnerStoreConflictException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));

@@ -142,8 +142,8 @@ public class StoreController {
         return ResponseEntity.ok(storeService.setStoreActive(id, request.active()));
     }
 
-    // Assigns or reassigns which owner manages a store.
-    // Guard: target owner must not already manage a different active store.
+    // Assigns which owner manages a store. 409 if a different admin is
+    // already active on it (an owner may hold any number of stores).
     @PatchMapping("/{id}/assign-owner")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<SuperAdminStoreResponse> assignOwner(
