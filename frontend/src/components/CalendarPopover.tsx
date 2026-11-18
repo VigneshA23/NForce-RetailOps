@@ -1,10 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { MonthGrid, YEARS_PER_PAGE, YearGrid, firstYearOfPage } from './CalendarPeriodGrids'
+import useAnchoredPopoverPosition from '../hooks/useAnchoredPopoverPosition'
 import useDismissablePanel from '../hooks/useDismissablePanel'
 import './CalendarPopover.css'
-
-const VIEWPORT_MARGIN = 8
 
 interface CalendarPopoverProps {
   // YYYY-MM-DD, local calendar -- matches the rest of EmployeeHistory's date
@@ -33,50 +33,25 @@ function toDateKey(date: Date): string {
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef, onClear, onToday }: CalendarPopoverProps) {
-  const [position, setPosition] = useState({ top: 0, left: 0 })
   const [viewDate, setViewDate] = useState(() => new Date(`${value}T00:00:00`))
+  // 'days' is the normal calendar. Clicking its "June 2026" label opens
+  // 'months' (that year's 12 months); clicking the year there opens 'years'.
+  // Picking a year returns to its months, picking a month to its days.
+  const [view, setView] = useState<'days' | 'months' | 'years'>('days')
+  const [pageStart, setPageStart] = useState(() => firstYearOfPage(new Date(`${value}T00:00:00`).getFullYear()))
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (isOpen) setViewDate(new Date(`${value}T00:00:00`))
+    if (isOpen) {
+      setViewDate(new Date(`${value}T00:00:00`))
+      setView('days')
+    }
   }, [isOpen, value])
 
-  // Portal + measure-after-render, same pattern as SearchableSelect -- but
-  // this panel also clamps horizontally (SearchableSelect never needs to,
-  // since its panel is always sized to match its trigger's width). A native
-  // <input type="date"> picker anchored near a trigger close to the screen
-  // edge has no such clamp, which is what let it run off-screen on mobile.
-  useLayoutEffect(() => {
-    if (!isOpen) return
-    const anchor = anchorRef.current
-    const panel = panelRef.current
-    if (!anchor || !panel) return
-
-    const anchorRect = anchor.getBoundingClientRect()
-    const panelRect = panel.getBoundingClientRect()
-
-    let top = anchorRect.bottom + 8
-    if (top + panelRect.height > window.innerHeight - VIEWPORT_MARGIN) {
-      top = anchorRect.top - panelRect.height - 8
-    }
-    top = Math.max(VIEWPORT_MARGIN, top)
-
-    // Left-align with the trigger by default (the panel grows rightward,
-    // same as a typical dropdown) -- only right-align instead (grow
-    // leftward) when that would push it past the right edge. Right-aligning
-    // unconditionally used to push a wide panel's left edge past its own
-    // trigger's left edge for any trigger near the screen's left side (e.g.
-    // Daily Checklist's date nav, right next to the sidebar), overlapping
-    // whatever sits there.
-    let left = anchorRect.left
-    if (left + panelRect.width > window.innerWidth - VIEWPORT_MARGIN) {
-      left = anchorRect.right - panelRect.width
-    }
-    left = Math.min(left, window.innerWidth - panelRect.width - VIEWPORT_MARGIN)
-    left = Math.max(VIEWPORT_MARGIN, left)
-
-    setPosition((current) => (current.top === top && current.left === left ? current : { top, left }))
-  }, [isOpen, anchorRef, viewDate])
+  // Portal + measure-after-render, clamped inside the viewport on both axes
+  // (a native <input type="date"> picker has no such clamp, which is what let
+  // it run off-screen on mobile). Shared with MonthPickerPopover.
+  const position = useAnchoredPopoverPosition(isOpen, anchorRef, panelRef, [viewDate, view, pageStart])
 
   useDismissablePanel({ isOpen, onClose, refs: [anchorRef, panelRef], closeOnScrollOrResize: false })
 
@@ -96,6 +71,42 @@ function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef
   const todayCellDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const isTodayDisabled = (maxDate != null && todayCellDate > maxDate) || (minDate != null && todayCellDate < minDate)
 
+  // A month or year is selectable when any of its days falls inside min/max.
+  const isRangeOutside = (first: Date, last: Date) =>
+    (maxDate != null && first > maxDate) || (minDate != null && last < minDate)
+  const isMonthDisabled = (y: number, m: number) => isRangeOutside(new Date(y, m, 1), new Date(y, m + 1, 0))
+  const isYearDisabled = (y: number) => isRangeOutside(new Date(y, 0, 1), new Date(y, 11, 31))
+  const pageEnd = pageStart + YEARS_PER_PAGE - 1
+  const selectedDate = new Date(`${value}T00:00:00`)
+
+  // Header arrows step a month, a year or a page of years depending on view.
+  const header = view === 'days'
+    ? {
+      prevLabel: 'Previous month',
+      nextLabel: 'Next month',
+      prevDisabled: isPrevDisabled,
+      nextDisabled: isNextDisabled,
+      onPrev: () => setViewDate(new Date(year, month - 1, 1)),
+      onNext: () => setViewDate(new Date(year, month + 1, 1)),
+    }
+    : view === 'months'
+      ? {
+        prevLabel: 'Previous year',
+        nextLabel: 'Next year',
+        prevDisabled: isYearDisabled(year - 1),
+        nextDisabled: isYearDisabled(year + 1),
+        onPrev: () => setViewDate(new Date(year - 1, month, 1)),
+        onNext: () => setViewDate(new Date(year + 1, month, 1)),
+      }
+      : {
+        prevLabel: 'Previous years',
+        nextLabel: 'Next years',
+        prevDisabled: isRangeOutside(new Date(pageStart - YEARS_PER_PAGE, 0, 1), new Date(pageStart - 1, 11, 31)),
+        nextDisabled: isRangeOutside(new Date(pageEnd + 1, 0, 1), new Date(pageEnd + YEARS_PER_PAGE, 11, 31)),
+        onPrev: () => setPageStart((start) => start - YEARS_PER_PAGE),
+        onNext: () => setPageStart((start) => start + YEARS_PER_PAGE),
+      }
+
   const cells: (number | null)[] = [
     ...Array.from({ length: startOffset }, () => null),
     ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
@@ -108,26 +119,68 @@ function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef
         <button
           type="button"
           className="calendar-popover__nav"
-          aria-label="Previous month"
-          disabled={isPrevDisabled}
-          onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          aria-label={header.prevLabel}
+          disabled={header.prevDisabled}
+          onClick={header.onPrev}
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="calendar-popover__label">
-          {firstOfMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-        </span>
+        {view === 'days' ? (
+          <button
+            type="button"
+            className="calendar-popover__label calendar-popover__label-button"
+            aria-label={`${firstOfMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}, choose a month`}
+            onClick={() => setView('months')}
+          >
+            {firstOfMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+            <ChevronDown size={14} aria-hidden="true" />
+          </button>
+        ) : view === 'months' ? (
+          <button
+            type="button"
+            className="calendar-popover__label calendar-popover__label-button"
+            aria-label={`${year}, choose a year`}
+            onClick={() => { setPageStart(firstYearOfPage(year)); setView('years') }}
+          >
+            {year}
+            <ChevronDown size={14} aria-hidden="true" />
+          </button>
+        ) : (
+          <span className="calendar-popover__label">{pageStart} – {pageEnd}</span>
+        )}
         <button
           type="button"
           className="calendar-popover__nav"
-          aria-label="Next month"
-          disabled={isNextDisabled}
-          onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          aria-label={header.nextLabel}
+          disabled={header.nextDisabled}
+          onClick={header.onNext}
         >
           <ChevronRight size={16} />
         </button>
       </div>
 
+      {view === 'months' && (
+        <MonthGrid
+          year={year}
+          selectedMonth={selectedDate.getFullYear() === year ? selectedDate.getMonth() : null}
+          currentMonth={now.getFullYear() === year ? now.getMonth() : null}
+          isDisabled={(m) => isMonthDisabled(year, m)}
+          onPick={(m) => { setViewDate(new Date(year, m, 1)); setView('days') }}
+        />
+      )}
+
+      {view === 'years' && (
+        <YearGrid
+          pageStart={pageStart}
+          selectedYear={year}
+          currentYear={now.getFullYear()}
+          isDisabled={isYearDisabled}
+          onPick={(y) => { setViewDate(new Date(y, month, 1)); setView('months') }}
+        />
+      )}
+
+      {view === 'days' && (
+      <>
       <div className="calendar-popover__weekdays">
         {WEEKDAY_LABELS.map((label, index) => (
           <span key={index}>{label}</span>
@@ -158,6 +211,8 @@ function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef
           )
         })}
       </div>
+      </>
+      )}
 
       {(onClear || onToday) && (
         <div className="calendar-popover__footer">

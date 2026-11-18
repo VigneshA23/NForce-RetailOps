@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import CalendarPopover from './CalendarPopover'
@@ -59,5 +59,41 @@ describe('CalendarPopover', () => {
 
     expect(within(dialog).getByRole('button', { name: '1' })).toBeEnabled()
     expect(screen.getByRole('button', { name: /previous month/i })).toBeEnabled()
+  })
+})
+
+describe('CalendarPopover month and year views', () => {
+  const monthName = (y: number, m: number) =>
+    new Date(y, m, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+
+  it('opens the months from the header label and returns to the picked month days', () => {
+    render(<Harness value="2026-06-15" max="2026-08-20" />)
+    const dialog = screen.getByRole('dialog')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: `${monthName(2026, 5)}, choose a month` }))
+    expect(within(dialog).getByRole('button', { name: monthName(2026, 5) })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(dialog).getByRole('button', { name: monthName(2026, 7) })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: monthName(2026, 8) })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Next year' })).toBeDisabled()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: monthName(2026, 2) }))
+    expect(within(dialog).getByRole('button', { name: `${monthName(2026, 2)}, choose a month` })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '31' })).toBeInTheDocument()
+  })
+
+  it('opens the years from the month view and respects min', () => {
+    render(<Harness value="2026-06-15" min="2020-03-10" />)
+    const dialog = screen.getByRole('dialog')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: `${monthName(2026, 5)}, choose a month` }))
+    fireEvent.click(within(dialog).getByRole('button', { name: '2026, choose a year' }))
+    expect(within(dialog).getByText('2016 – 2027')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '2019' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: '2020' })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: 'Previous years' })).toBeDisabled()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '2020' }))
+    expect(within(dialog).getByRole('button', { name: monthName(2020, 1) })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: monthName(2020, 2) })).toBeEnabled()
   })
 })

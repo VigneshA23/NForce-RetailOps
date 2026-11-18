@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getMonthlyCashSummary, getSuperAdminMonthlyCashSummary } from '../api/cashSummary';
 import { getAllStores } from '../api/superAdminStores';
@@ -6,6 +6,7 @@ import type { SuperAdminStore } from '../types/superAdminStore';
 import type { MonthlyCashSummary as Summary, StoreMonthlyCashSummary } from '../types/cashSummary';
 import StoreCashSummaryView from '../components/StoreCashSummaryView';
 import SearchableSelect from '../components/SearchableSelect';
+import MonthPickerPopover from '../components/MonthPickerPopover';
 // The month selector reuses the Daily Checklist's date-nav look.
 import './StoreDetail.css';
 import './MonthlyCashSummary.css';
@@ -53,6 +54,8 @@ function monthLabel(month: string): string {
 function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
   const isSuperAdmin = scope === 'super-admin';
   const [month, setMonth] = useState(currentMonth);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const monthTriggerRef = useRef<HTMLButtonElement>(null);
   const [storeSelection, setStoreSelection] = useState<StoreSelection>(isSuperAdmin ? COMBINED_SELECTION : NO_SELECTION);
   const [stores, setStores] = useState<SuperAdminStore[]>([]);
   const [storesLoading, setStoresLoading] = useState(isSuperAdmin);
@@ -144,10 +147,18 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
           >
             <ChevronLeft size={16} />
           </button>
-          <span className="store-detail-page__date-display" aria-live="polite">
+          <button
+            ref={monthTriggerRef}
+            type="button"
+            className="store-detail-page__date-display"
+            onClick={() => setPickerOpen((open) => !open)}
+            aria-expanded={pickerOpen}
+            aria-haspopup="dialog"
+            aria-label={`Pick a month, ${monthLabel(month)} selected`}
+          >
             <Calendar size={13} />
-            {monthLabel(month)}
-          </span>
+            <span aria-live="polite">{monthLabel(month)}</span>
+          </button>
           <button
             type="button"
             className="store-detail-page__date-arrow"
@@ -158,6 +169,14 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
             <ChevronRight size={16} />
           </button>
         </div>
+        <MonthPickerPopover
+          value={month}
+          max={currentMonth()}
+          isOpen={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onSelect={setMonth}
+          anchorRef={monthTriggerRef}
+        />
 
         {isSuperAdmin && (
           <div className="cash-summary__store-select">
