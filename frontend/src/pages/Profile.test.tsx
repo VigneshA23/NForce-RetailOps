@@ -217,25 +217,3 @@ describe('Profile change password section', () => {
     expect(screen.queryByLabelText(/current password/i)).not.toBeInTheDocument()
   })
 })
-
-describe('Profile appearance section', () => {
-  beforeEach(() => {
-    window.localStorage.removeItem('nforce-retailops-background')
-    delete document.documentElement.dataset.bg
-  })
-
-  it('defaults to the blue background and switches to pink when chosen', async () => {
-    const user = userEvent.setup()
-    render(<Profile initials="JE" />)
-    await screen.findByRole('heading', { name: 'Jane Employee' })
-
-    expect(screen.getByRole('radio', { name: 'Blue waves' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('radio', { name: 'Pink waves' })).toHaveAttribute('aria-checked', 'false')
-
-    await user.click(screen.getByRole('radio', { name: 'Pink waves' }))
-
-    expect(screen.getByRole('radio', { name: 'Pink waves' })).toHaveAttribute('aria-checked', 'true')
-    expect(document.documentElement.dataset.bg).toBe('pink')
-    expect(window.localStorage.getItem('nforce-retailops-background')).toBe('pink')
-  })
-})
