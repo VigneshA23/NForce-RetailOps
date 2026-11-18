@@ -181,7 +181,7 @@ class MailServiceTest {
                 .contains("alt=\"Ked's Ice Cream\"")
                 .contains("max-width:560px")
                 .contains("&copy; " + Year.now().getValue() + " Ked's Ice Cream")
-                .contains("please do not reply")
+                .contains("Ked's Ice Cream. Please do not reply.")
                 .doesNotContain("#10A3A8");
         }
     }
@@ -202,7 +202,7 @@ class MailServiceTest {
                 + "If you did not expect this change, contact your administrator.</p>");
         for (String body : html) {
             assertThat(body).containsPattern(
-                "please do not reply\\.</p>\\s*<p[^>]*>&copy; " + Year.now().getValue() + " Ked's Ice Cream");
+                "Ked's Ice Cream\\. Please do not reply\\.</p>\\s*<p[^>]*>&copy; " + Year.now().getValue() + " Ked's Ice Cream");
         }
     }
 
