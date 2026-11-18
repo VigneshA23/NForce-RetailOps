@@ -205,7 +205,7 @@ function InventoryImagePicker({ id, itemName, value, onChange }: InventoryImageP
             </button>
           </div>
 
-          {isSearching && <p className="inventory-image-picker__status">Searching Unsplash...</p>}
+          {isSearching && <p className="inventory-image-picker__status">Searching...</p>}
           {!isSearching && error && <p className="form-field__error">{error}</p>}
           {!isSearching && !error && searchedFor && results.length === 0 && (
             <p className="inventory-image-picker__status">No images found for &ldquo;{searchedFor}&rdquo;.</p>

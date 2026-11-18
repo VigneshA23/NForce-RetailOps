@@ -85,6 +85,19 @@ function CorrectionModal({ isOpen, onClose, responseEntry, task, onSaved }: Corr
     event.preventDefault();
     if (!reason.trim()) return;
 
+    const unchanged =
+      task.responseType === 'YES_NO' || task.responseType === 'DONE_NOT_DONE'
+        ? correctedBoolean === responseEntry.booleanValue
+        : task.responseType === 'NUMERIC'
+          ? correctedNumeric !== '' && Number(correctedNumeric) === responseEntry.numericValue
+          : correctedText.trim() === (responseEntry.textValue ?? '').trim();
+    if (unchanged) {
+      setSubmitError(
+        'The corrected value is the same as the current response. Change the value, or use Flag to ask the employee to resubmit.',
+      );
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError(null);
 
