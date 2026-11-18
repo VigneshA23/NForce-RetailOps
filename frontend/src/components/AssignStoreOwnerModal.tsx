@@ -37,7 +37,7 @@ function AssignStoreOwnerModal({
   const hasOwners = availableOwners.length > 0;
   const ownerOptions = availableOwners.map((owner) => ({
     value: String(owner.ownerId),
-    label: `${owner.adminCode} — ${owner.ownerName}`,
+    label: `${owner.adminCode} - ${owner.ownerName}`,
   }));
 
   return (
@@ -65,7 +65,7 @@ function AssignStoreOwnerModal({
       <form id="assign-owner-form" onSubmit={handleSubmit}>
         {!hasOwners ? (
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-            No owners available to assign — all current owners already manage a store.
+            No owners available to assign. All current owners already manage a store.
           </p>
         ) : (
           <div className="form-field">

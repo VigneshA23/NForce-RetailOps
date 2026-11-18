@@ -296,7 +296,7 @@ export default function LoginHeroPanel() {
       <div className="lhp__tagline-wrap">
         <p className="lhp__tagline">Your stores. One checklist.</p>
         <p className="lhp__tagline-sub">
-          Run daily checklists, audits, and store ops — from one place.
+          Run daily checklists, audits, and store ops from one place.
         </p>
       </div>
     </div>

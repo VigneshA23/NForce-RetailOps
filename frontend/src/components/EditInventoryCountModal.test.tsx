@@ -79,7 +79,7 @@ describe('EditInventoryCountModal', () => {
     await user.click(screen.getByLabelText('Increase'));
     await user.click(screen.getByRole('button', { name: 'Save count' }));
 
-    expect(onSubmit).toHaveBeenCalledWith({ available: 31, reason: 'Waste or spoilage — Spilled crate' });
+    expect(onSubmit).toHaveBeenCalledWith({ available: 31, reason: 'Waste or spoilage: Spilled crate' });
   });
 
   it('disables the save button and shows an error message while submitting', () => {

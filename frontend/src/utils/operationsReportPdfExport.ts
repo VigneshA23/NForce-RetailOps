@@ -37,7 +37,7 @@ export async function buildAndDownloadOperationsReportPdf(params: OperationsRepo
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(100, 100, 100);
-  doc.text(`Daily Checklist — ${dateLabel}`, margin, y);
+  doc.text(`Daily Checklist - ${dateLabel}`, margin, y);
   y += 5;
 
   // Divider

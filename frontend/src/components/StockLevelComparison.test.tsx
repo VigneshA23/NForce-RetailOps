@@ -117,8 +117,8 @@ describe('StockLevelComparison', () => {
 
     const storeBCell = await within(await screen.findByRole('table')).findByText('Store B');
     const cells = storeBCell.closest('tr')!.querySelectorAll('td');
-    expect(cells[1].textContent).toBe('—');
-    expect(cells[2].textContent).toBe('—');
-    expect(cells[3].textContent).toBe('—');
+    expect(cells[1].textContent).toBe('-');
+    expect(cells[2].textContent).toBe('-');
+    expect(cells[3].textContent).toBe('-');
   });
 });

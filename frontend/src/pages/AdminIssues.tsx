@@ -233,7 +233,7 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
         {!isLoading && !storesLoading && !error && filtered.length === 0 && (
           <div className="issue-card-list__empty">
             {issues.length === 0 ? 'No issues have been raised yet.'
-              : statusFilter === 'ACTIVE' && !search ? 'All caught up — no open issues.'
+              : statusFilter === 'ACTIVE' && !search ? 'All caught up. No open issues.'
               : 'No issues match your filters.'}
           </div>
         )}

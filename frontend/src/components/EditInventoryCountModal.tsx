@@ -61,7 +61,7 @@ function EditInventoryCountModal({ isOpen, row, errorMessage, isSubmitting = fal
     const reasonLabel = REASON_OPTIONS.find((option) => option.value === reason)?.label ?? reason;
     onSubmit({
       available,
-      reason: note.trim() ? `${reasonLabel} — ${note.trim()}` : reasonLabel,
+      reason: note.trim() ? `${reasonLabel}: ${note.trim()}` : reasonLabel,
     });
   }
 

@@ -183,7 +183,7 @@ describe('StockCheckHistory', () => {
 
     const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
     const countCell = tableRow.querySelector('[data-label="Count Entered"]')!;
-    expect(countCell).toHaveTextContent('—');
+    expect(countCell).toHaveTextContent('-');
   });
 
   it('filters rows by search term against item name and recorded-by name', async () => {

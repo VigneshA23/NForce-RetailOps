@@ -549,16 +549,16 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
           <div className="profile-fields-readonly">
             <div className="profile-field-row">
               <div className="profile-field__label profile-field__label--icon"><User size={14} aria-hidden="true" />Full name</div>
-              <div className="profile-field-value">{savedInfo.fullName || '—'}</div>
+              <div className="profile-field-value">{savedInfo.fullName || '-'}</div>
             </div>
             <div className="profile-field-row">
               <div className="profile-field__label profile-field__label--icon"><Mail size={14} aria-hidden="true" />Email</div>
-              <div className="profile-field-value">{savedInfo.email || '—'}</div>
+              <div className="profile-field-value">{savedInfo.email || '-'}</div>
             </div>
             <div className="profile-field-row">
               <div className="profile-field__label profile-field__label--icon"><Phone size={14} aria-hidden="true" />Phone</div>
               <div className="profile-field-value">
-                {savedInfo.phone ? `${savedInfo.countryCode} ${savedInfo.phone}` : '—'}
+                {savedInfo.phone ? `${savedInfo.countryCode} ${savedInfo.phone}` : '-'}
               </div>
             </div>
           </div>

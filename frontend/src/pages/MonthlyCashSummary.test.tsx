@@ -187,7 +187,7 @@ describe('MonthlyCashSummary', () => {
     render(<MonthlyCashSummary />);
 
     expect(await screen.findByText(/No daily cash entries were recorded/)).toBeInTheDocument();
-    expect(screen.getAllByText('—').length).toBe(8);
+    expect(screen.getAllByText('-').length).toBe(8);
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
@@ -201,7 +201,7 @@ describe('MonthlyCashSummary', () => {
     render(<MonthlyCashSummary scope="super-admin" />);
 
     expect(await screen.findByText(/No daily cash entries were recorded/)).toBeInTheDocument();
-    expect(screen.getAllByText('—').length).toBe(8);
+    expect(screen.getAllByText('-').length).toBe(8);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 

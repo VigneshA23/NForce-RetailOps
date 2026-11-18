@@ -311,7 +311,7 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
                           {category.appliesToAllStores ? (
                             <AllStoresChip />
                           ) : category.stores.length === 0 ? (
-                            <span className="employee-table__no-stores">—</span>
+                            <span className="employee-table__no-stores">-</span>
                           ) : (
                             <div className="store-summary" onClick={(event) => event.stopPropagation()}>
                               <StoreChip name={category.stores[0].name} />
@@ -479,7 +479,7 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
                 <div className="supplier-mobile-card__footer">
                   <span className="supplier-mobile-card__store-value">
                     <StoreIcon size={12} />
-                    {category.appliesToAllStores ? 'All Stores' : category.stores.length === 1 ? category.stores[0].name : category.stores.length === 0 ? '—' : `${category.stores.length} Stores`}
+                    {category.appliesToAllStores ? 'All Stores' : category.stores.length === 1 ? category.stores[0].name : category.stores.length === 0 ? '-' : `${category.stores.length} Stores`}
                   </span>
                   <button type="button" className="supplier-mobile-card__details-toggle" onClick={() => toggleExpanded(category.id)}>
                     {isExpanded ? 'Hide Details' : 'Show Details'}

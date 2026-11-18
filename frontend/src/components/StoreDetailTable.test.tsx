@@ -73,11 +73,11 @@ describe('StoreDetailTable employee column', () => {
     expect(screen.getAllByText(/Alice Caller/)).toHaveLength(1);
   });
 
-  it('shows an em dash when no one has responded yet', () => {
+  it('shows a dash when no one has responded yet', () => {
     const unansweredTask = task({ completed: false, responses: [] });
 
     render(<StoreDetailTable rows={[row(unansweredTask)]} hasChecklist />);
 
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
   });
 });

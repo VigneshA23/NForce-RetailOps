@@ -46,13 +46,13 @@ describe('buildReorderListText', () => {
   it('still includes an item whose need has reset to zero but carries a manual addition', () => {
     const entries = [entry({ itemName: 'Napkins', quantityNeeded: 0, manualAddition: 2 })];
     const text = buildReorderListText(entries, 'Downtown', GENERATED_AT)!;
-    expect(text).toContain('* Napkins — 2 gallons');
+    expect(text).toContain('* Napkins - 2 gallons');
   });
 
   it('exports the Need + Manual total as the real quantity to order', () => {
     const entries = [entry({ itemName: 'Milk', quantityNeeded: 12, manualAddition: 3 })];
     const text = buildReorderListText(entries, 'Downtown', GENERATED_AT)!;
-    expect(text).toContain('* Milk — 15 gallons');
+    expect(text).toContain('* Milk - 15 gallons');
   });
 
   it('excludes items already ordered or received, keeping only what still needs ordering', () => {
@@ -67,10 +67,10 @@ describe('buildReorderListText', () => {
     expect(text).not.toContain('Eggs');
   });
 
-  it('formats each line as "Item Name — Quantity Unit"', () => {
+  it('formats each line as "Item Name - Quantity Unit"', () => {
     const entries = [entry({ itemName: 'Milk', quantityNeeded: 12, unitOfMeasurement: 'gallons' })];
     const text = buildReorderListText(entries, 'Downtown', GENERATED_AT)!;
-    expect(text).toContain('* Milk — 12 gallons');
+    expect(text).toContain('* Milk - 12 gallons');
   });
 
   it('groups multiple items under the same supplier together', () => {

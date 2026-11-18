@@ -84,7 +84,7 @@ function ExpectedCashStat({ scope, storeId, refreshKey }: ExpectedCashStatProps)
         icon={Wallet}
         label={label}
         value="Unavailable"
-        caption="Couldn't load — tap to retry"
+        caption="Couldn't load. Tap to retry"
         tone="warning"
         onClick={() => setRetryToken((token) => token + 1)}
       />

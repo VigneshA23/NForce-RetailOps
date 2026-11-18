@@ -86,7 +86,7 @@ function TaskDetailModal({ task, onClose, onEdit }: TaskDetailModalProps) {
             <div>
               <dt>Expected Range</dt>
               <dd>
-                {task.numericMin ?? '—'} to {task.numericMax ?? '—'} {task.numericUnit ?? ''}
+                {task.numericMin ?? '-'} to {task.numericMax ?? '-'} {task.numericUnit ?? ''}
               </dd>
             </div>
           )}

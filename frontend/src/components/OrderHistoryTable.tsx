@@ -18,7 +18,7 @@ interface OrderHistoryTableProps {
 // formatDateLabel was written for elsewhere), so the date and time are split
 // out the same way InventoryCounts' own history timeline does.
 function renderStamp(at: string | null, byName: string | null) {
-  if (!at) return <span className="order-history-table__muted">—</span>;
+  if (!at) return <span className="order-history-table__muted">-</span>;
   return (
     <>
       <div>{formatDateLabel(at.slice(0, 10))} <span className="order-history-table__muted">{formatTimeLabel(at)}</span></div>
@@ -57,7 +57,7 @@ function renderCard(row: OrderHistoryEntry) {
                 {row.quantityReceived} <span className="order-history-table__unit">{row.unitOfMeasurement}</span>
               </>
             ) : (
-              <span className="order-history-table__muted">—</span>
+              <span className="order-history-table__muted">-</span>
             )}
           </span>
         </div>
@@ -128,7 +128,7 @@ function OrderHistoryTable({ rows, isLoading, footer }: OrderHistoryTableProps) 
                       <CategoryIcon category={row.category} name={row.itemName} size={36} imageId={row.imageId} />
                       <div>
                         <div className="order-history-table__item-name">{row.itemName}</div>
-                        <div className="order-history-table__item-category">{categoryLabelOf(row.category) || '—'}</div>
+                        <div className="order-history-table__item-category">{categoryLabelOf(row.category) || '-'}</div>
                       </div>
                     </div>
                   </td>
@@ -142,7 +142,7 @@ function OrderHistoryTable({ rows, isLoading, footer }: OrderHistoryTableProps) 
                         {row.quantityReceived} <span className="order-history-table__unit">{row.unitOfMeasurement}</span>
                       </>
                     ) : (
-                      <span className="order-history-table__muted">—</span>
+                      <span className="order-history-table__muted">-</span>
                     )}
                   </td>
                   <td data-label="Ordered">{renderStamp(row.orderedAt, row.orderedByName)}</td>

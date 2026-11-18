@@ -19,7 +19,7 @@ function completionTone(percent: number): string {
 }
 
 function relativeTime(isoString: string | null): string {
-  if (!isoString) return '—';
+  if (!isoString) return '-';
   const diff = Date.now() - new Date(isoString).getTime();
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return 'just now';
@@ -92,7 +92,7 @@ function StoreComparisonTable({ stores, isLoading, onStoreClick, onViewDetail }:
                   {store.openIssues > 0 ? (
                     <span className="sct__badge sct__badge--issue">{store.openIssues}</span>
                   ) : (
-                    <span className="sct__none">—</span>
+                    <span className="sct__none">-</span>
                   )}
                 </td>
                 <td className="sct__td sct__td--right sct__td--muted" data-label="Last Activity">

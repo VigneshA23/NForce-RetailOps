@@ -46,12 +46,12 @@ describe('buildStockCheckHistoryWorkbook', () => {
     const workbook = await buildStockCheckHistoryWorkbook([row()], '2026-09-20', '2026-09-20', { includeStore: true });
     const sheet = workbook.worksheets[0];
     const dataRow = sheet.getRow(5).values as unknown[];
-    expect(dataRow[1]).toBe('—');
+    expect(dataRow[1]).toBe('-');
   });
 
   // Regression for a mismatch the UI never shows: a non-shortage, non-pending
   // row always reads "Sufficient" on screen (QtyNeededBadge), but the export
-  // used to split it into "0 (Sufficient)" or "— (Optimal)" based on `buffer`.
+  // used to split it into "0 (Sufficient)" or "- (Optimal)" based on `buffer`.
   it('labels every non-shortage, non-pending row "Sufficient", matching the on-screen badge', async () => {
     const workbook = await buildStockCheckHistoryWorkbook(
       [row({ status: 'optimal', buffer: 0 }), row({ id: 2, status: 'optimal', buffer: 5 })],

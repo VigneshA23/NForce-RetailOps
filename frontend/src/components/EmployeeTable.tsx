@@ -75,7 +75,7 @@ function EmployeeTable({
                         : `Assigned Stores (${employee.stores.length})`}
                     </span>
                     {employee.stores.length === 0 ? (
-                      <span className="employee-table__no-stores employee-cards__mobile-only">—</span>
+                      <span className="employee-table__no-stores employee-cards__mobile-only">-</span>
                     ) : (
                       <span className="employee-table__store-badges employee-cards__mobile-only">
                         {employee.stores.map((store) => (

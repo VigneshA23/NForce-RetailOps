@@ -158,7 +158,7 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
           className={`btn btn--secondary btn--sm${nudgingId === issue.id ? ' btn--loading' : ''}`}
           onClick={() => handleNudge(issue)}
           disabled={nudgingId === issue.id || nudged}
-          title={nudged ? 'Owner already nudged — you can nudge again after 24 hours' : 'Notify the store owner to take action'}
+          title={nudged ? 'Owner already nudged. You can nudge again after 24 hours' : 'Notify the store owner to take action'}
         >
           {nudgingId === issue.id ? <ButtonDots label="Sending" /> : nudged ? 'Nudged' : 'Nudge owner'}
         </button>
@@ -267,7 +267,7 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
         {!isLoading && !error && filtered.length === 0 && (
           <div className="issue-card-list__empty">
             {issues.length === 0 ? 'No issues have been raised yet.'
-              : statusFilter === 'ACTIVE' && !search && !storeFilter ? 'All caught up — no open issues across stores.'
+              : statusFilter === 'ACTIVE' && !search && !storeFilter ? 'All caught up. No open issues across stores.'
               : 'No issues match your filters.'}
           </div>
         )}

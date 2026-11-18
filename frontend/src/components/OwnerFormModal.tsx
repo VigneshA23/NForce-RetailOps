@@ -315,8 +315,8 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
                         options={reassignableStores.map((store) => ({
                           value: String(store.storeId),
                           label: store.currentOwnerName
-                            ? `#${store.storeCode} · ${store.storeName} — was ${store.currentOwnerName}`
-                            : `#${store.storeCode} · ${store.storeName} — unassigned`,
+                            ? `#${store.storeCode} · ${store.storeName} (was ${store.currentOwnerName})`
+                            : `#${store.storeCode} · ${store.storeName} (unassigned)`,
                         }))}
                       />
                     </IconField>

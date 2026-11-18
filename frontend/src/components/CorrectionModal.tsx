@@ -16,7 +16,7 @@ interface CorrectionModalProps {
 }
 
 function boolLabel(value: boolean | null, responseType: string): string {
-  if (value === null) return '—';
+  if (value === null) return '-';
   if (responseType === 'YES_NO') return value ? 'Yes' : 'No';
   return value ? 'Done' : 'Not done';
 }
@@ -35,7 +35,7 @@ function correctionValueLabel(entry: AdminCorrectionEntry, task: ChecklistHistor
     if (task.responseType === 'DONE_NOT_DONE') return 'Not done';
     return 'No answer';
   }
-  return '—';
+  return '-';
 }
 
 function CorrectionModal({ isOpen, onClose, responseEntry, task, onSaved }: CorrectionModalProps) {
@@ -129,7 +129,7 @@ function CorrectionModal({ isOpen, onClose, responseEntry, task, onSaved }: Corr
         ? task.numericUnit
           ? `${responseEntry.numericValue} ${task.numericUnit}`
           : String(responseEntry.numericValue)
-        : (responseEntry.textValue ?? '—');
+        : (responseEntry.textValue ?? '-');
 
   return (
     <Modal

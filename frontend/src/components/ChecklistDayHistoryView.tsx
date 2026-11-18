@@ -99,7 +99,7 @@ function correctionValueLabel(
     if (responseType === 'DONE_NOT_DONE') return 'Not done'
     return 'No answer'
   }
-  return '—'
+  return '-'
 }
 
 function ChecklistDayHistoryView({
@@ -527,7 +527,7 @@ function ChecklistDayHistoryView({
                                         {task.resubmissionHistory.map((transition, index) => (
                                           <div key={index} className="employee-history-task-history-item">
                                             <p className="employee-history-task-history-change">
-                                              {transition.fromValue ?? '—'} → {transition.toValue ?? '—'}
+                                              {transition.fromValue ?? '-'} → {transition.toValue ?? '-'}
                                             </p>
                                             <p className="employee-history-task-history-meta">
                                               {transition.kind === 'DIRECT_CORRECTION'

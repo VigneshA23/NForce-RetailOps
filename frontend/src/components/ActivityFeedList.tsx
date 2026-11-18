@@ -60,7 +60,7 @@ export function ActivityFeedRow({ entry, timeLabel }: { entry: ActivityLogEntry;
       </span>
       <div className="activity-feed__row-main">
         <span className="activity-feed__description">
-          <strong>{entry.actorName}</strong> — {entry.description.replace(/^./, (c) => c.toLowerCase())}
+          <strong>{entry.actorName}</strong>: {entry.description.replace(/^./, (c) => c.toLowerCase())}
         </span>
         {entry.storeName && <span className="activity-feed__store">{entry.storeName}</span>}
       </div>

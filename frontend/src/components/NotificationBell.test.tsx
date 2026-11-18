@@ -108,7 +108,7 @@ describe('NotificationBell — issue deep links', () => {
     mockGetNotifications.mockResolvedValue([
       makeNotification({
         id: 4,
-        title: 'Downtown — no activity today',
+        title: 'Downtown: no activity today',
         category: 'STORE_ZERO_ACTIVITY',
         linkPath: '/checklist',
         storeId: 7,
@@ -119,7 +119,7 @@ describe('NotificationBell — issue deep links', () => {
 
     render(<NotificationBell unreadCount={1} onCountChange={vi.fn()} onViewAll={vi.fn()} onNavigate={onNavigate} />)
     await user.click(screen.getByLabelText(/notifications/i))
-    await user.click(await screen.findByText('Downtown — no activity today'))
+    await user.click(await screen.findByText('Downtown: no activity today'))
 
     await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/checklist', { createdAt: '2026-09-19T09:00:00Z', relatedIssueId: null, storeId: 7, notificationId: expect.any(Number) }))
   })

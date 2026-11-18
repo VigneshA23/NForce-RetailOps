@@ -34,7 +34,7 @@ function EndOfDaySkippedBadge({ reason, byName, className = 'badge badge--outlin
           {!isMobile && (
             <span className="eod-skipped__tip" role="tooltip">
               {message}
-              {byName ? <em> — {byName}</em> : null}
+              {byName ? <em> by {byName}</em> : null}
             </span>
           )}
         </button>

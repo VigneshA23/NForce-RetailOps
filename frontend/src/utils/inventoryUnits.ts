@@ -7,11 +7,11 @@ import { registerWholeNumberUnits } from './quantity';
 // what's stored on the item (store_inventory_items.unit_of_measurement) and
 // shown next to counts elsewhere, e.g. "Target: 8 kg".
 export const INVENTORY_UNIT_OPTIONS: SelectOption[] = [
-  { value: 'g', label: 'g — Grams' },
-  { value: 'kg', label: 'kg — Kilograms' },
-  { value: 'ml', label: 'ml — Milliliters' },
-  { value: 'L', label: 'L — Liters' },
-  { value: 'Nos.', label: 'Nos. — Number of items' },
+  { value: 'g', label: 'g - Grams' },
+  { value: 'kg', label: 'kg - Kilograms' },
+  { value: 'ml', label: 'ml - Milliliters' },
+  { value: 'L', label: 'L - Liters' },
+  { value: 'Nos.', label: 'Nos. - Number of items' },
 ];
 
 // Value of the Super Admin-only dropdown entry that opens the "new unit" popup.
@@ -50,7 +50,7 @@ export function useCustomUnits(): InventoryUnit[] {
 }
 
 function unitLabel(unit: InventoryUnit): string {
-  return `${unit.name} — ${unit.wholeNumber ? 'whole numbers' : 'decimals'}`;
+  return `${unit.name} - ${unit.wholeNumber ? 'whole numbers' : 'decimals'}`;
 }
 
 // Items created before the unit list was fixed may hold a free-text unit

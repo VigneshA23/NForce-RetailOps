@@ -103,7 +103,7 @@ public class SuperAdminAlertService {
                 notificationService.sendToSuperAdmin(
                     sa,
                     "STORE_ZERO_ACTIVITY",
-                    store.getName() + " — no activity today",
+                    store.getName() + ": no activity today",
                     "No task responses have been recorded at " + store.getName() + " for " + date + ".",
                     "/checklist",
                     dedupKey,
@@ -145,7 +145,7 @@ public class SuperAdminAlertService {
             String dedupKey = "ISSUES_OVERDUE:" + store.getId() + ":" + today;
             for (SuperAdmin sa : superAdmins) {
                 if (notificationService.superAdminNotificationExists(sa.getId(), dedupKey)) continue;
-                String title = store.getName() + " — " + overdueCount + " overdue issue" + (overdueCount == 1 ? "" : "s");
+                String title = store.getName() + ": " + overdueCount + " overdue issue" + (overdueCount == 1 ? "" : "s");
                 String message = store.getName() + " has " + overdueCount + " issue"
                     + (overdueCount == 1 ? "" : "s") + " unresolved for more than 48 hours.";
                 notificationService.sendToSuperAdmin(sa, "ISSUES_OVERDUE", title, message, "/issues", dedupKey, store);
@@ -168,7 +168,7 @@ public class SuperAdminAlertService {
             "OWNER_EMAIL_FAILED",
             "Owner account email delivery failed",
             "Temporary password could not be emailed to " + ownerName
-                + ". The account was created — share the temporary password with them manually.",
+                + ". The account was created. Share the temporary password with them manually.",
             "/owners",
             null
         );
