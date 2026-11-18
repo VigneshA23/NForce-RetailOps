@@ -1,4 +1,4 @@
-import { Copy, Eye, Mail, Pencil, Store as StoreIcon, Trash2, X } from 'lucide-react';
+import { Copy, Eye, Mail, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { OwnerSummary } from '../types/owner';
 import { nfToast } from '../utils/toast';
@@ -75,21 +75,14 @@ interface OwnerTableProps {
   onToggleStatus: (owner: GroupedOwner) => void;
   onDelete: (owner: GroupedOwner) => void;
   onAddStore: (owner: GroupedOwner) => void;
-  // Unassigns one store from the admin; omitted, no remove control is shown.
-  onRemoveStore?: (owner: GroupedOwner, store: OwnerSummary) => void;
   onView: (owner: GroupedOwner) => void;
 }
 
-// Every store the admin holds. A store whose access was toggled off is shown
-// (marked Inactive) only while the owner is active -- a deactivated owner's
-// released links aren't worth flagging. Each can be removed from the admin.
-function OwnerStoreList({
-  owner,
-  onRemoveStore,
-}: {
-  owner: GroupedOwner;
-  onRemoveStore?: (owner: GroupedOwner, store: OwnerSummary) => void;
-}) {
+// Every store the admin holds (read-only; stores are added and removed from
+// Edit Owner). A store whose access was toggled off is shown (marked Inactive)
+// only while the owner is active -- a deactivated owner's released links
+// aren't worth flagging.
+function OwnerStoreList({ owner }: { owner: GroupedOwner }) {
   const inactive = owner.ownerActive ? owner.inactiveStores : [];
   if (owner.activeStores.length === 0 && inactive.length === 0) {
     return <span className="owner-table__no-store">No store assigned</span>;
@@ -105,17 +98,6 @@ function OwnerStoreList({
           <StoreIcon size={13} aria-hidden="true" />
           <span>{row.storeName}</span>
           {!row.storeActive && <span className="badge badge--outline">Inactive</span>}
-          {onRemoveStore && (
-            <button
-              type="button"
-              className="owner-table__store-remove"
-              aria-label={`Remove ${row.storeName} from ${owner.ownerName}`}
-              title="Remove store from this admin"
-              onClick={() => onRemoveStore(owner, row)}
-            >
-              <X size={12} />
-            </button>
-          )}
         </li>
       ))}
     </ul>
@@ -130,7 +112,6 @@ function OwnerTable({
   onToggleStatus,
   onDelete,
   onAddStore,
-  onRemoveStore,
   onView,
 }: OwnerTableProps) {
   const allGrouped = useMemo(() => groupOwners(owners), [owners]);
@@ -178,7 +159,7 @@ function OwnerTable({
                   <span className="owner-table__email">{owner.ownerEmail}</span>
                 </td>
                 <td data-label="Assigned Store">
-                  <OwnerStoreList owner={owner} onRemoveStore={onRemoveStore} />
+                  <OwnerStoreList owner={owner} />
                 </td>
                 <td data-label="Status">
                   <label
@@ -296,7 +277,7 @@ function OwnerTable({
                 <div className="owner-mobile-card__store-block">
                   <span className="owner-mobile-card__store-label">Assigned Store</span>
                   <div className="owner-mobile-card__store-row">
-                    <OwnerStoreList owner={owner} onRemoveStore={onRemoveStore} />
+                    <OwnerStoreList owner={owner} />
 
                     <div className="owner-mobile-card__icon-actions">
                       <button

@@ -51,27 +51,6 @@
   list-style: none;
 }
 
-.owner-table__store-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-left: 2px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-}
-
-.owner-table__store-remove:hover,
-.owner-table__store-remove:focus-visible {
-  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
-  color: var(--color-danger);
-}
-
 .owner-table__store svg {
   flex-shrink: 0;
   color: var(--color-text-muted);
