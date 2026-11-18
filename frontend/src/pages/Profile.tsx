@@ -12,9 +12,10 @@ import { nfToast } from '../utils/toast';
 import { AVATAR_ACCEPT, validateAvatarFile } from '../utils/avatarUpload';
 import { getInitials } from '../utils/initials';
 import { useTheme } from '../hooks/useTheme';
+import { PAGE_BACKGROUND_OPTIONS, usePageBackground } from '../hooks/usePageBackground';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import './Profile.css';
-
+
 import IconField from '../components/IconField';
 interface ProfileProps {
   initials: string;
@@ -100,6 +101,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
   const { isDarkTheme, toggleTheme } = useTheme();
+  const { background, setBackground } = usePageBackground();
 
   // Personal info — separate saved vs. in-progress values for clean Cancel
   const [infoEditing, setInfoEditing] = useState(false);
@@ -443,11 +445,12 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
         </div>
       </section>
 
-      {/* Appearance (phones only -- the header's theme toggle is hidden there) */}
-      {isMobile && (
-        <section className="profile-section profile-section--appearance">
-          <div className="profile-section__header">
-            <h3 className="profile-section__title">Appearance</h3>
+      {/* Appearance: page background on every screen size; the light/dark
+          toggle only on phones, where the header's theme toggle is hidden. */}
+      <section className="profile-section profile-section--appearance">
+        <div className="profile-section__header">
+          <h3 className="profile-section__title">Appearance</h3>
+          {isMobile && (
             <button
               type="button"
               className="profile-edit-btn"
@@ -457,9 +460,27 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
               {isDarkTheme ? <Sun size={13} /> : <Moon size={13} />}
               {isDarkTheme ? 'Light mode' : 'Dark mode'}
             </button>
+          )}
+        </div>
+        <div className="profile-background">
+          <span className="profile-background__label" id="profile-background-label">Background</span>
+          <div className="profile-background__options" role="radiogroup" aria-labelledby="profile-background-label">
+            {PAGE_BACKGROUND_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={background === option.value}
+                className={`profile-background__option${background === option.value ? ' is-selected' : ''}`}
+                onClick={() => setBackground(option.value)}
+              >
+                <span className={`profile-background__swatch profile-background__swatch--${option.value}`} aria-hidden="true" />
+                {option.label}
+              </button>
+            ))}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
 
       {/* ── Personal info ────────────────────────────────────────────────── */}
