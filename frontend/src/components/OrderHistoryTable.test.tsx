@@ -66,8 +66,8 @@ describe('OrderHistoryTable', () => {
     />);
 
     const row = screen.getByText('Napkins').closest('tr')!;
-    expect(row.querySelector('[data-label="Received Qty"]')).toHaveTextContent('—');
-    expect(row.querySelector('[data-label="Received"]')).toHaveTextContent('—');
+    expect(row.querySelector('[data-label="Received Qty"]')).toHaveTextContent('-');
+    expect(row.querySelector('[data-label="Received"]')).toHaveTextContent('-');
     expect(row.querySelector('[data-label="Status"]')).toHaveTextContent('Ordered');
   });
 

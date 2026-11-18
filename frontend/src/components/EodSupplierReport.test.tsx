@@ -238,9 +238,9 @@ describe('EodSupplierReport', () => {
     const copied = writeText.mock.calls[0][0] as string;
     expect(copied.startsWith('*End of Day Report :*\n\n*Store  - Downtown*\n*Date   - September 30, 2026*')).toBe(true);
     expect(copied).toContain('Supplier A');
-    expect(copied).toContain('* Milk: start 48 (2 dead), end 34 (1 dead), used 14 — order 6 L');
+    expect(copied).toContain('* Milk: start 48 (2 dead), end 34 (1 dead), used 14, order 6 L');
     expect(copied).toContain('No Supplier');
-    expect(copied).toContain('* Bread: start 20, end —, used —');
+    expect(copied).toContain('* Bread: start 20, end -, used -');
     expect(nfToast.success).toHaveBeenCalledWith('Report copied to clipboard.');
   });
 

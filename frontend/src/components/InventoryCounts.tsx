@@ -179,10 +179,10 @@ function InventoryCounts() {
               <td>
                 {entry.count} {row.unitOfMeasurement}
               </td>
-              <td>{entry.delta != null ? (entry.delta > 0 ? `+${entry.delta}` : entry.delta) : '—'}</td>
+              <td>{entry.delta != null ? (entry.delta > 0 ? `+${entry.delta}` : entry.delta) : '-'}</td>
               <td>
                 <span className="inventory-counts__avatar">{(entry.updatedByName ?? "?").slice(0, 2).toUpperCase()}</span>
-                {entry.updatedByName ?? "—"}
+                {entry.updatedByName ?? "-"}
                 <span className="inventory-counts__muted"> · {countSourceLabel(entry.source)}</span>
               </td>
             </tr>
@@ -195,7 +195,7 @@ function InventoryCounts() {
   function renderMobileCard(row: InventoryCountRow) {
     const meta = STATUS_META[row.status];
     const isExpanded = expandedItemId === row.itemId;
-    const categoryLabel = categoryLabelOf(row.category) || '—';
+    const categoryLabel = categoryLabelOf(row.category) || '-';
     // The "9 -> 4" sub-line is derived, not a separate field: change is
     // already (current - previous), so previous = current - change.
     const previous = row.change != null && row.currentStock != null ? row.currentStock - row.change : null;
@@ -223,7 +223,7 @@ function InventoryCounts() {
                   <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                 </>
               ) : (
-                '—'
+                '-'
               )}
             </span>
           </div>
@@ -236,7 +236,7 @@ function InventoryCounts() {
                   <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                 </>
               ) : (
-                '—'
+                '-'
               )}
             </span>
           </div>
@@ -251,7 +251,7 @@ function InventoryCounts() {
                 {previous != null && <span className="inventory-counts__card-change-sub">{previous} → {row.currentStock}</span>}
               </>
             ) : (
-              '—'
+              '-'
             )}
           </div>
           <button
@@ -377,7 +377,7 @@ function InventoryCounts() {
                           <div>
                             <div className="inventory-counts__item-name">{row.name}</div>
                             <div className="inventory-counts__item-category">
-                              {categoryLabelOf(row.category) || '—'}
+                              {categoryLabelOf(row.category) || '-'}
                             </div>
                           </div>
                         </div>
@@ -389,7 +389,7 @@ function InventoryCounts() {
                             <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                           </>
                         ) : (
-                          '—'
+                          '-'
                         )}
                       </td>
                       <td data-label="Minimum">
@@ -399,7 +399,7 @@ function InventoryCounts() {
                             <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                           </>
                         ) : (
-                          '—'
+                          '-'
                         )}
                       </td>
                       <td data-label="Status">
@@ -425,7 +425,7 @@ function InventoryCounts() {
                             {row.change}
                           </span>
                         ) : (
-                          '—'
+                          '-'
                         )}
                       </td>
                       <td className="table-actions-cell" data-label="Actions">

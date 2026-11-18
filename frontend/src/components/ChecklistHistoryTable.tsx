@@ -51,7 +51,7 @@ function ChecklistHistoryTable({ rows, isLoading = false, onView }: ChecklistHis
                       View
                     </button>
                   ) : (
-                    <span aria-hidden="true">—</span>
+                    <span aria-hidden="true">-</span>
                   )}
                 </td>
               </tr>

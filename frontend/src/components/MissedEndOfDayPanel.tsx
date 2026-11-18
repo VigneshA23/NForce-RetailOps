@@ -77,7 +77,7 @@ function MissedCard({ item, onAnswer, onAnswered }: CardProps) {
 
   const openingStock = (
     <span className="meod-card__subtitle">
-      Opening stock: {item.startOfDayUsable ?? '—'} {item.unitOfMeasurement}
+      Opening stock: {item.startOfDayUsable ?? '-'} {item.unitOfMeasurement}
     </span>
   );
 
@@ -98,7 +98,7 @@ function MissedCard({ item, onAnswer, onAnswered }: CardProps) {
         <div className="meod-card__fields meod-card__fields--readonly">
           <div className="meod-card__field">
             <span className="meod-card__field-label">Available stock ({item.unitOfMeasurement})</span>
-            <div className="meod-card__field-value">{formatQty(item.endOfDayAvailable) || '—'}</div>
+            <div className="meod-card__field-value">{formatQty(item.endOfDayAvailable) || '-'}</div>
           </div>
           <div className="meod-card__field">
             <span className="meod-card__field-label">Damaged / spoiled stock ({item.unitOfMeasurement})</span>

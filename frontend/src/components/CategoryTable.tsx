@@ -59,7 +59,7 @@ interface RowSharedProps {
 
 function storesLabel(category: Category): string {
   if (category.appliesToAllStores) return 'All Stores';
-  if (category.stores.length === 0) return '—';
+  if (category.stores.length === 0) return '-';
   return category.stores.map((store) => store.name).join(', ');
 }
 
@@ -135,7 +135,7 @@ function CategoryRowCells({
             {category.appliesToAllStores ? (
               <AllStoresChip />
             ) : category.stores.length === 0 ? (
-              <span className="category-table__no-stores">—</span>
+              <span className="category-table__no-stores">-</span>
             ) : (
               <>
                 <StoreChip name={category.stores[0].name} />

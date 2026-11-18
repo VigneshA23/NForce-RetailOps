@@ -77,8 +77,8 @@ export function taskStatus(task: ChecklistHistoryTaskItem): ChecklistTaskStatus 
 
 export function responseDisplayValue(task: ChecklistHistoryTaskItem): string {
   const response = latestResponse(task);
-  if (!response) return '—';
-  if (response.undone) return '—';
+  if (!response) return '-';
+  if (response.undone) return '-';
   if (response.booleanValue !== null) {
     if (task.responseType === 'YES_NO') return response.booleanValue ? 'Yes' : 'No';
     return response.booleanValue ? 'Done' : 'Not done';
@@ -87,7 +87,7 @@ export function responseDisplayValue(task: ChecklistHistoryTaskItem): string {
     return task.numericUnit ? `${response.numericValue} ${task.numericUnit}` : String(response.numericValue);
   }
   if (response.textValue !== null && response.textValue !== '') return response.textValue;
-  return '—';
+  return '-';
 }
 
 // A single response entry's own value, independent of which one is "latest"
@@ -105,7 +105,7 @@ export function formatResponseEntryValue(
     return task.numericUnit ? `${response.numericValue} ${task.numericUnit}` : String(response.numericValue);
   }
   if (response.textValue !== null && response.textValue !== '') return response.textValue;
-  return '—';
+  return '-';
 }
 
 export function checklistItemStatusBadgeClass(completed: boolean): string {

@@ -520,7 +520,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
           <div className="stat-card-row">
             <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
             <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
-            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '—'} tone="info" />
+            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '-'} tone="info" />
             <StatCard icon={UserX} label="Inactive Owners" value={inactiveOwnerCount} tone="warning" />
           </div>
 

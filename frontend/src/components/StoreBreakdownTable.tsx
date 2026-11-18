@@ -11,16 +11,16 @@ interface StoreBreakdownTableProps {
 }
 
 function dayLabel(value: string | null): string {
-  if (!value) return '—';
+  if (!value) return '-';
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
 function money(value: number | null): string {
-  return value === null ? '—' : formatCurrency(value);
+  return value === null ? '-' : formatCurrency(value);
 }
 
 function signed(value: number | null): string {
-  if (value === null) return '—';
+  if (value === null) return '-';
   if (value === 0) return formatCurrency(0);
   return value > 0 ? `+${formatCurrency(value)}` : formatCurrency(value);
 }

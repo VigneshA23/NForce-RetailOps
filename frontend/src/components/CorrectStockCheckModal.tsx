@@ -106,7 +106,7 @@ function CorrectStockCheckModal({ isOpen, row, snapshot, errorMessage, isSubmitt
     onSubmit({
       available,
       deadStock,
-      reason: note.trim() ? `${reasonLabel} — ${note.trim()}` : reasonLabel,
+      reason: note.trim() ? `${reasonLabel}: ${note.trim()}` : reasonLabel,
     });
   }
 

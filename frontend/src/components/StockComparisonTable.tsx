@@ -36,13 +36,13 @@ function StockComparisonTable({ rows, isLoading }: StockComparisonTableProps) {
               <tr key={row.storeId} className="slc__row">
                 <td className="slc__td slc__td--name" data-label="Store">{row.storeName}</td>
                 <td className="slc__td slc__td--center" data-label="Required Today">
-                  {row.assigned ? (row.requiredToday ?? '—') : <span className="slc__none">—</span>}
+                  {row.assigned ? (row.requiredToday ?? '-') : <span className="slc__none">-</span>}
                 </td>
                 <td className="slc__td slc__td--center" data-label="Current Available">
-                  {row.assigned ? (row.currentAvailable ?? '—') : <span className="slc__none">—</span>}
+                  {row.assigned ? (row.currentAvailable ?? '-') : <span className="slc__none">-</span>}
                 </td>
                 <td className="slc__td slc__td--center" data-label="As Of">
-                  {row.assigned && row.asOfDate ? formatDateLabel(row.asOfDate) : <span className="slc__none">—</span>}
+                  {row.assigned && row.asOfDate ? formatDateLabel(row.asOfDate) : <span className="slc__none">-</span>}
                 </td>
                 <td className="slc__td slc__td--center" data-label="Status">
                   <span className="slc__status-pill" style={{ color: meta.fg, background: meta.bg }}>
@@ -72,15 +72,15 @@ function StockComparisonTable({ rows, isLoading }: StockComparisonTableProps) {
 
               <div className="slc-mobile-card__row">
                 <span className="slc-mobile-card__label">Required Today</span>
-                <span>{row.assigned ? (row.requiredToday ?? '—') : '—'}</span>
+                <span>{row.assigned ? (row.requiredToday ?? '-') : '-'}</span>
               </div>
               <div className="slc-mobile-card__row">
                 <span className="slc-mobile-card__label">Current Available</span>
-                <span>{row.assigned ? (row.currentAvailable ?? '—') : '—'}</span>
+                <span>{row.assigned ? (row.currentAvailable ?? '-') : '-'}</span>
               </div>
               <div className="slc-mobile-card__row">
                 <span className="slc-mobile-card__label">As Of</span>
-                <span>{row.assigned && row.asOfDate ? formatDateLabel(row.asOfDate) : '—'}</span>
+                <span>{row.assigned && row.asOfDate ? formatDateLabel(row.asOfDate) : '-'}</span>
               </div>
             </div>
           );

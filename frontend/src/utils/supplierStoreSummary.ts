@@ -7,7 +7,7 @@ import type { Supplier } from '../types/supplier';
 export function supplierStoreSummaryLabel(supplier: Pick<Supplier, 'appliesToAllStores' | 'stores'>): string {
   if (supplier.appliesToAllStores) return 'All Stores';
   const stores = supplier.stores ?? [];
-  if (stores.length === 0) return '—';
+  if (stores.length === 0) return '-';
   if (stores.length === 1) return stores[0].name;
   return `${stores.length} Stores`;
 }

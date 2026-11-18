@@ -464,7 +464,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
       && new Date(entry.stockAtOrderAt).toDateString() === new Date().toDateString();
     const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
     const meta = STATUS_META[entry.status];
-    const categoryLabel = categoryLabelOf(category) || '—';
+    const categoryLabel = categoryLabelOf(category) || '-';
     const raisedBy = entry.raisedByName ?? (entry.adHoc ? 'Manual' : 'Auto-detected');
     const raisedAt = new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
     return {
@@ -604,7 +604,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   // surplus the admin added), shown once the entry has moved past NEEDS_ORDERING.
   // Matches Owner/Admin's OrderList.tsx exactly, which this page otherwise mirrors.
   function orderedCell(entry: OrderListEntry) {
-    if (entry.status === 'NEEDS_ORDERING') return <span className="order-list__manual-empty">—</span>;
+    if (entry.status === 'NEEDS_ORDERING') return <span className="order-list__manual-empty">-</span>;
     return (
       <>
         {entry.quantityNeeded + entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
@@ -641,8 +641,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Stock</span>
               <span className="order-list__cell-value">
-                <span className="order-list__on-hand">{row.onHand ?? '—'}</span>
-                <span className="order-list__par"> / {row.par ?? '—'}</span>
+                <span className="order-list__on-hand">{row.onHand ?? '-'}</span>
+                <span className="order-list__par"> / {row.par ?? '-'}</span>
               </span>
             </div>
             <div className="order-list__mobile-stat">
@@ -659,7 +659,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                     +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
                   </span>
                 ) : (
-                  <span className="order-list__manual-empty">—</span>
+                  <span className="order-list__manual-empty">-</span>
                 )}
               </span>
             </div>
@@ -711,8 +711,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
         {!isFlat && <td className="order-list__category-cell">{row.categoryLabel}</td>}
         <td className="order-list__num-cell order-list__stock-cell" data-label="Stock">
           <span className="order-list__cell-value">
-            <span className="order-list__on-hand">{row.onHand ?? '—'}</span>
-            <span className="order-list__par"> / {row.par ?? '—'}</span>
+            <span className="order-list__on-hand">{row.onHand ?? '-'}</span>
+            <span className="order-list__par"> / {row.par ?? '-'}</span>
           </span>
         </td>
         <td className="order-list__num-cell order-list__need-cell" data-label="Need" style={{ color: row.needFg, fontWeight: 800 }}>
@@ -727,7 +727,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                 +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
               </span>
             ) : (
-              <span className="order-list__manual-empty">—</span>
+              <span className="order-list__manual-empty">-</span>
             )}
           </span>
         </td>
@@ -736,7 +736,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
         </td>
         {isFlat && (
           <>
-            <td className="order-list__mobile-hide">{entry.supplierName ?? '—'}</td>
+            <td className="order-list__mobile-hide">{entry.supplierName ?? '-'}</td>
             <td className="order-list__mobile-hide">{row.categoryLabel}</td>
           </>
         )}

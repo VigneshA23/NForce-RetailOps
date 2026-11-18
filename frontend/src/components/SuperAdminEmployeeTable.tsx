@@ -94,7 +94,7 @@ function SuperAdminEmployeeTable({
                       : `Assigned Stores (${employee.stores.length})`}
                   </span>
                   {employee.stores.length === 0 ? (
-                    <span className="employee-table__no-stores">—</span>
+                    <span className="employee-table__no-stores">-</span>
                   ) : (
                     <>
                       {/* Desktop: first store plus a "+N more" toggle. */}

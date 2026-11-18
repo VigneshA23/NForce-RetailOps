@@ -75,7 +75,7 @@ public class PasswordResetService {
         try {
             mailService.sendPasswordResetEmail(normalised, fullName, resetLink);
         } catch (Exception ex) {
-            log.warn("Password reset email delivery failed for {} — token still valid", normalised, ex);
+            log.warn("Password reset email delivery failed for {}; token still valid", normalised, ex);
         }
     }
 

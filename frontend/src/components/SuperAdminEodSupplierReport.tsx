@@ -38,7 +38,7 @@ const GROUP_ROW_LIMIT = 5;
 const MOBILE_GROUP_ROW_LIMIT = 3;
 
 function value(n: number | null): string {
-  return n == null ? '—' : String(n);
+  return n == null ? '-' : String(n);
 }
 
 async function copyText(text: string, emptyMessage: string, successMessage: string) {
@@ -162,7 +162,7 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
       item,
       supplierId,
       supplierName,
-      categoryLabel: categoryLabelOf(item.category) || '—',
+      categoryLabel: categoryLabelOf(item.category) || '-',
       startUsable,
       endUsable: usableStock(item.endOfDayAvailable, item.endOfDayDeadStock),
       deadStock: item.endOfDayDeadStock ?? item.startOfDayDeadStock,

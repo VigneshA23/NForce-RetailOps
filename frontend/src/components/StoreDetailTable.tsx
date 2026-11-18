@@ -201,7 +201,7 @@ function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHisto
         : c.originalValueBoolean ? 'Done' : 'Not done'
       : c.originalValueNumeric !== null
         ? task.numericUnit ? `${c.originalValueNumeric} ${task.numericUnit}` : String(c.originalValueNumeric)
-        : (c.originalValueText ?? '—');
+        : (c.originalValueText ?? '-');
 
   const correctedVal =
     c.correctedValueBoolean !== null
@@ -210,7 +210,7 @@ function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHisto
         : c.correctedValueBoolean ? 'Done' : 'Not done'
       : c.correctedValueNumeric !== null
         ? task.numericUnit ? `${c.correctedValueNumeric} ${task.numericUnit}` : String(c.correctedValueNumeric)
-        : (c.correctedValueText ?? '—');
+        : (c.correctedValueText ?? '-');
 
   return (
     <span className="store-detail-table__corrected-wrap">
@@ -474,7 +474,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                         ))}
                         </div>
                       ) : (
-                        '—'
+                        '-'
                       )}
                     </td>
                     <td data-label="Manager Actions" className="store-detail-table__actions-cell store-detail-table__desktop-actions">
@@ -485,7 +485,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                           </div>
                         ))
                       ) : (
-                        '—'
+                        '-'
                       )}
                     </td>
                     <td data-label="Status" className="store-detail-table__status-cell">

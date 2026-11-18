@@ -40,7 +40,7 @@ function isExpired(endDate?: string | null): boolean {
 // list. Always showing the real list here is what makes this column honest
 // for both the Super Admin view and an Owner/Admin looking at their own row.
 function taskStoresLabel(task: AdminTask): string {
-  if (task.stores.length === 0) return '—';
+  if (task.stores.length === 0) return '-';
   return task.stores.map((store) => store.name).join(', ');
 }
 

@@ -65,7 +65,7 @@ function dateAndTimestampLabel(row: StockCheckHistoryRowView): string {
 
 function countEnteredLabel(row: StockCheckHistoryRowView): string {
   const counted = countEntered(row);
-  return counted != null ? `${counted} ${row.unitOfMeasurement}` : '—';
+  return counted != null ? `${counted} ${row.unitOfMeasurement}` : '-';
 }
 
 // Plain-string port of StockCheckHistory.tsx's QtyNeededBadge JSX branches --
@@ -73,8 +73,8 @@ function countEnteredLabel(row: StockCheckHistoryRowView): string {
 // on-screen badge never shows), or the export disagrees with what's on screen.
 function qtyNeededLabel(row: StockCheckHistoryRowView): string {
   if (row.status === 'shortage') return `+${row.deficit} ${row.unitOfMeasurement} needed`;
-  if (row.status === 'skipped') return `— (EOD Not Counted: ${row.endOfDaySkipped?.reason ?? 'no reason recorded'})`;
-  if (row.status === 'pending') return '— (Not Counted)';
+  if (row.status === 'skipped') return `- (EOD Not Counted: ${row.endOfDaySkipped?.reason ?? 'no reason recorded'})`;
+  if (row.status === 'pending') return '- (Not Counted)';
   return 'Sufficient';
 }
 
@@ -161,12 +161,12 @@ export async function buildStockCheckHistoryWorkbook(
   rows.forEach((row, idx) => {
     const excelRow = worksheet.getRow(headerRowNumber + 1 + idx);
     const values: Array<string | number> = [
-      ...(includeStore ? [row.storeName ?? '—'] : []),
+      ...(includeStore ? [row.storeName ?? '-'] : []),
       itemAndCategoryLabel(row),
       dateAndTimestampLabel(row),
       countEnteredLabel(row),
       qtyNeededLabel(row),
-      recordedByName(row) ?? '—',
+      recordedByName(row) ?? '-',
     ];
     values.forEach((value, i) => {
       const cell = excelRow.getCell(i + 1);
@@ -232,7 +232,7 @@ export async function buildAndDownloadStockCheckHistoryPdf(
   doc.setFontSize(11);
   doc.setTextColor(100, 100, 100);
   const dateLabel = startDate === endDate ? formatLongDate(startDate) : `${formatLongDate(startDate)} – ${formatLongDate(endDate)}`;
-  doc.text(storeName ? `${storeName} — ${dateLabel}` : dateLabel, margin, y);
+  doc.text(storeName ? `${storeName} - ${dateLabel}` : dateLabel, margin, y);
   y += 5;
 
   doc.text(`${rows.length} record${rows.length === 1 ? '' : 's'}`, margin, y);
@@ -244,12 +244,12 @@ export async function buildAndDownloadStockCheckHistoryPdf(
 
   const rowStatuses = rows.map((row) => row.status);
   const body = rows.map((row) => [
-    ...(includeStore ? [row.storeName ?? '—'] : []),
+    ...(includeStore ? [row.storeName ?? '-'] : []),
     itemAndCategoryLabel(row),
     dateAndTimestampLabel(row),
     countEnteredLabel(row),
     qtyNeededLabel(row),
-    recordedByName(row) ?? '—',
+    recordedByName(row) ?? '-',
   ]);
 
   autoTable(doc, {

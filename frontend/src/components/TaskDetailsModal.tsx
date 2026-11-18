@@ -26,7 +26,7 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
   );
 }
 
-const DASH = '—';
+const DASH = '-';
 
 function TaskDetailsModal({ task, isOpen, onClose }: TaskDetailsModalProps) {
   if (!task) return null;

@@ -116,7 +116,7 @@ function originalValueLabelForExport(
     return numericUnit ? `${entry.originalValueNumeric} ${numericUnit}` : String(entry.originalValueNumeric);
   }
   if (entry.originalValueText !== null && entry.originalValueText !== undefined) return entry.originalValueText;
-  return '—';
+  return '-';
 }
 
 // Same label set already established for the History page's "View response

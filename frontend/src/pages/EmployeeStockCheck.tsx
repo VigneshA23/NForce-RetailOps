@@ -538,7 +538,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                   <div>
                     <h2 className="employee-stock-check-page__item-name">{item.itemName}</h2>
                     <p className="employee-stock-check-page__item-meta">
-                      Today&apos;s target: {item.minTarget ?? '—'} {item.unitOfMeasurement}
+                      Today&apos;s target: {item.minTarget ?? '-'} {item.unitOfMeasurement}
                     </p>
                   </div>
                 </div>
@@ -546,7 +546,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                   <div className="employee-stock-check-page__available">
                     <span className="employee-stock-check-page__available-label">Available:</span>
                     <span className="employee-stock-check-page__available-pill">
-                      {item.available ?? '—'}
+                      {item.available ?? '-'}
                       <span className="employee-stock-check-page__available-tag">Auto-calc</span>
                     </span>
                     {item.minTarget != null && (
@@ -635,19 +635,19 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                         }
                         footer={
                           snapshot === 'START_OF_DAY' ? (
-                            <>Opening Stock: <strong>{item.startOfDay?.usable ?? '—'} {item.unitOfMeasurement}</strong></>
+                            <>Opening Stock: <strong>{item.startOfDay?.usable ?? '-'} {item.unitOfMeasurement}</strong></>
                           ) : item.quantityToOrder != null && item.quantityToOrder > 0 ? (
                             <>
-                              Usage: <strong>{item.stockUsed ?? '—'} {item.unitOfMeasurement}</strong> · To Order:{' '}
+                              Usage: <strong>{item.stockUsed ?? '-'} {item.unitOfMeasurement}</strong> · To Order:{' '}
                               <strong>{item.quantityToOrder} {item.unitOfMeasurement}</strong>
                             </>
                           ) : item.endOfDay != null && item.minTarget != null && item.available != null ? (
                             <>
-                              Usage: <strong>{item.stockUsed ?? '—'} {item.unitOfMeasurement}</strong> · Buffer:{' '}
+                              Usage: <strong>{item.stockUsed ?? '-'} {item.unitOfMeasurement}</strong> · Buffer:{' '}
                               <strong>+{item.available - item.minTarget} {item.unitOfMeasurement}</strong>
                             </>
                           ) : (
-                            <>Usage: <strong>{item.stockUsed ?? '—'} {item.unitOfMeasurement}</strong></>
+                            <>Usage: <strong>{item.stockUsed ?? '-'} {item.unitOfMeasurement}</strong></>
                           )
                         }
                       />
@@ -668,10 +668,10 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                       </span>
                     ) : (
                       <span>
-                        Reconciliation: Stock used today: <strong>{item.stockUsed ?? '—'}</strong> {item.unitOfMeasurement}
+                        Reconciliation: Stock used today: <strong>{item.stockUsed ?? '-'}</strong> {item.unitOfMeasurement}
                         {item.quantityReceived ? <> (excl. {item.quantityReceived} received)</> : null}
                         {item.pendingReceivedQuantity ? <> ({item.pendingReceivedQuantity} received, awaiting admin approval)</> : null} · Tomorrow
-                        opening need: <strong>{item.requiredTomorrow ?? '—'}</strong> {item.unitOfMeasurement}
+                        opening need: <strong>{item.requiredTomorrow ?? '-'}</strong> {item.unitOfMeasurement}
                       </span>
                     )}
                     <span className="employee-stock-check-page__totals-spacer" />
@@ -683,7 +683,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                         <strong
                           className={item.quantityToOrder && item.quantityToOrder > 0 ? 'employee-stock-check-page__shortage' : undefined}
                         >
-                          {item.quantityToOrder ?? '—'}
+                          {item.quantityToOrder ?? '-'}
                         </strong>
                       </span>
                     )}

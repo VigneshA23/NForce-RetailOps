@@ -24,7 +24,7 @@ function varianceClass(value: number | null): string {
 }
 
 function money(value: number | null): string {
-  return value === null ? '—' : formatCurrency(value);
+  return value === null ? '-' : formatCurrency(value);
 }
 
 // Per-day figures behind the month totals. Every number is rendered as the API
@@ -98,18 +98,18 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
                   Month Total
                   <span className="daily-cash__hint">({summary.daysRecorded} day{summary.daysRecorded === 1 ? '' : 's'})</span>
                 </th>
-                <td aria-label="Opening drawer is not totalled">—</td>
+                <td aria-label="Opening drawer is not totalled">-</td>
                 <td>{money(summary.totalCashSales)}</td>
                 <td>{money(summary.totalCashRemoved)}</td>
                 <td>{money(summary.bankDeposits)}</td>
                 <td>{money(summary.cashExpenses)}</td>
                 <td className={varianceClass(summary.adjustments).trim()}>
-                  {summary.adjustments === null ? '—' : formatVariance(summary.adjustments)}
+                  {summary.adjustments === null ? '-' : formatVariance(summary.adjustments)}
                 </td>
-                <td aria-label="Expected cash is not totalled">—</td>
-                <td aria-label="Actual count is not totalled">—</td>
+                <td aria-label="Expected cash is not totalled">-</td>
+                <td aria-label="Actual count is not totalled">-</td>
                 <td className={`daily-cash__variance${varianceClass(summary.netDailyVariance)}`}>
-                  {summary.netDailyVariance === null ? '—' : formatVariance(summary.netDailyVariance)}
+                  {summary.netDailyVariance === null ? '-' : formatVariance(summary.netDailyVariance)}
                 </td>
               </tr>
             </tfoot>

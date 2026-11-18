@@ -194,10 +194,10 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
               <td>
                 {entry.count} {row.unitOfMeasurement}
               </td>
-              <td>{entry.delta != null ? (entry.delta > 0 ? `+${entry.delta}` : entry.delta) : '—'}</td>
+              <td>{entry.delta != null ? (entry.delta > 0 ? `+${entry.delta}` : entry.delta) : '-'}</td>
               <td>
                 <span className="inventory-counts__avatar">{(entry.updatedByName ?? "?").slice(0, 2).toUpperCase()}</span>
-                {entry.updatedByName ?? "—"}
+                {entry.updatedByName ?? "-"}
                 <span className="inventory-counts__muted"> · {countSourceLabel(entry.source)}</span>
               </td>
             </tr>
@@ -210,7 +210,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
   function renderMobileCard(row: InventoryCountRow) {
     const meta = STATUS_META[row.status];
     const isExpanded = expandedItemId === row.itemId;
-    const categoryLabel = categoryLabelOf(row.category) || '—';
+    const categoryLabel = categoryLabelOf(row.category) || '-';
     const previous = row.change != null && row.currentStock != null ? row.currentStock - row.change : null;
     return (
       <div key={row.itemId} className="inventory-counts__card">
@@ -236,7 +236,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
                   <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                 </>
               ) : (
-                '—'
+                '-'
               )}
             </span>
           </div>
@@ -249,7 +249,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
                   <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                 </>
               ) : (
-                '—'
+                '-'
               )}
             </span>
           </div>
@@ -264,7 +264,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
                 {previous != null && <span className="inventory-counts__card-change-sub">{previous} → {row.currentStock}</span>}
               </>
             ) : (
-              '—'
+              '-'
             )}
           </div>
           <button
@@ -390,7 +390,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
                           <div>
                             <div className="inventory-counts__item-name">{row.name}</div>
                             <div className="inventory-counts__item-category">
-                              {categoryLabelOf(row.category) || '—'}
+                              {categoryLabelOf(row.category) || '-'}
                             </div>
                           </div>
                         </div>
@@ -402,7 +402,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
                             <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                           </>
                         ) : (
-                          '—'
+                          '-'
                         )}
                       </td>
                       <td data-label="Minimum">
@@ -412,7 +412,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
                             <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                           </>
                         ) : (
-                          '—'
+                          '-'
                         )}
                       </td>
                       <td data-label="Status">
@@ -438,7 +438,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
                             {row.change}
                           </span>
                         ) : (
-                          '—'
+                          '-'
                         )}
                       </td>
                       <td className="table-actions-cell" data-label="Actions">

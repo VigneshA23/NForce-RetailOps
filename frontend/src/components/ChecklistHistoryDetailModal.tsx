@@ -55,7 +55,7 @@ function formatOriginalValue(correction: AdminCorrectionEntry): string {
   if (correction.originalValueText !== null && correction.originalValueText !== undefined) {
     return correction.originalValueText;
   }
-  return '—';
+  return '-';
 }
 
 function formatCorrectedValue(correction: AdminCorrectionEntry): string {
@@ -68,7 +68,7 @@ function formatCorrectedValue(correction: AdminCorrectionEntry): string {
   if (correction.correctedValueText !== null && correction.correctedValueText !== undefined) {
     return correction.correctedValueText;
   }
-  return '—';
+  return '-';
 }
 
 function CorrectionForm({
@@ -97,11 +97,11 @@ function CorrectionForm({
 
   function newDisplay(): string {
     if (responseType === 'YES_NO' || responseType === 'DONE_NOT_DONE') {
-      if (boolValue === null) return '—';
+      if (boolValue === null) return '-';
       return boolValue ? 'Done' : 'Not done';
     }
-    if (responseType === 'NUMERIC') return numValue || '—';
-    return textValue || '—';
+    if (responseType === 'NUMERIC') return numValue || '-';
+    return textValue || '-';
   }
 
   function handleConfirmClick() {
@@ -257,7 +257,7 @@ function CorrectionHistoryPanel({ responseId, onClose }: { responseId: number; o
               {entry.correctedByFullName}
               {' at '}
               {new Date(entry.correctedAt).toLocaleString()}
-              {entry.reason && <span style={{ color: 'var(--color-text-muted)' }}> — {entry.reason}</span>}
+              {entry.reason && <span style={{ color: 'var(--color-text-muted)' }}>: {entry.reason}</span>}
             </div>
           ))}
         </div>
@@ -320,7 +320,7 @@ function ChecklistHistoryDetailModal({ target, onClose }: ChecklistHistoryDetail
     <Modal
       isOpen={target !== null}
       onClose={onClose}
-      title={target ? `${target.storeName} — ${formatDateLabel(target.date)}` : ''}
+      title={target ? `${target.storeName} - ${formatDateLabel(target.date)}` : ''}
       size="lg"
       footer={
         <button type="button" className="btn btn--secondary" onClick={onClose}>
@@ -373,9 +373,9 @@ function ChecklistHistoryDetailModal({ target, onClose }: ChecklistHistoryDetail
                             <div key={response.id}>
                               <p className="checklist-history-detail__response">
                                 <span className="checklist-history-detail__response-text">
-                                  {formatTimeLabel(response.respondedAt)} — {response.employeeFullName}
+                                  {formatTimeLabel(response.respondedAt)} - {response.employeeFullName}
                                   {response.empId ? ` (${response.empId})` : ''}
-                                  {' — '}
+                                  {' - '}
                                   {formatResponseValue(response)}
                                 </span>
                                 {response.latestCorrection && !isHistoryOpen && (

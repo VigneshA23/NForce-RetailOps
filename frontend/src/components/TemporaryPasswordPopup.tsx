@@ -66,8 +66,8 @@ function TemporaryPasswordPopup({ isOpen, name, password, emailSent, onClose }: 
           <div className="temp-password-popup__email-status temp-password-popup__email-status--sent">
             <Mail size={14} />
             {setupLinkMode
-              ? 'Setup link sent — they\'ll receive an email to set their password.'
-              : 'Welcome email sent — they\'ll receive it shortly.'}
+              ? 'Setup link sent. They\'ll receive an email to set their password.'
+              : 'Welcome email sent. They\'ll receive it shortly.'}
           </div>
         ) : (
           <div className="temp-password-popup__email-status temp-password-popup__email-status--failed">

@@ -787,7 +787,7 @@ function SuperAdminInventory() {
                             {supplier.appliesToAllStores ? (
                               <AllStoresChip />
                             ) : (supplier.stores ?? []).length === 0 ? (
-                              <span className="employee-table__no-stores">—</span>
+                              <span className="employee-table__no-stores">-</span>
                             ) : (
                               <div className="store-summary" onClick={(event) => event.stopPropagation()}>
                                 <StoreChip name={(supplier.stores ?? [])[0].name} />

@@ -439,7 +439,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
                     <td data-label="Count Entered">
                       <div className="stock-check-history__metric">
                         <span className="stock-check-history__metric-label">Count Entered</span>
-                        <span>{countEntered != null ? `${countEntered} ${row.unitOfMeasurement}` : '—'}</span>
+                        <span>{countEntered != null ? `${countEntered} ${row.unitOfMeasurement}` : '-'}</span>
                       </div>
                     </td>
                     <td data-label="Required">
@@ -458,7 +458,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
                           />
                           <span className="stock-check-history__recorder-name">{recordedBy}</span>
                         </div>
-                      ) : '—'}
+                      ) : '-'}
                     </td>
                     <td data-label="Actions" className="table-actions-cell">
                       <div className="table-row-actions">

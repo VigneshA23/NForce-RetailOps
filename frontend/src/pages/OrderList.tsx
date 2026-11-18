@@ -345,7 +345,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
     const stock = waiting ? liveStock : undefined;
     const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
     const meta = STATUS_META[entry.status];
-    const categoryLabel = categoryLabelOf(category) || '—';
+    const categoryLabel = categoryLabelOf(category) || '-';
     // "Tomorrow" only holds on the day the End of Day count was taken; the next
     // day the row is simply for that day, so the tag drops off.
     const forTomorrow = !!entry.stockForTomorrow && !!entry.stockAtOrderAt
@@ -541,7 +541,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
   // Ordered column: the full quantity placed with the supplier (need plus any
   // surplus the admin added), shown once the entry has moved past NEEDS_ORDERING.
   function orderedCell(entry: OrderListEntry) {
-    if (entry.status === 'NEEDS_ORDERING') return <span className="order-list__manual-empty">—</span>;
+    if (entry.status === 'NEEDS_ORDERING') return <span className="order-list__manual-empty">-</span>;
     return (
       <>
         {entry.quantityNeeded + entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
@@ -552,7 +552,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
   // Manual column: the surplus an admin added on top of the calculated need,
   // broken out of the Need cell into its own column.
   function manualCell(entry: OrderListEntry) {
-    if (entry.manualAddition <= 0) return <span className="order-list__manual-empty">—</span>;
+    if (entry.manualAddition <= 0) return <span className="order-list__manual-empty">-</span>;
     return (
       <span className="order-list__manual-value">
         +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
@@ -596,8 +596,8 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Stock</span>
               <span className="order-list__cell-value">
-                <span className="order-list__on-hand">{row.onHand ?? '—'}</span>
-                <span className="order-list__par"> / {row.par ?? '—'}</span>
+                <span className="order-list__on-hand">{row.onHand ?? '-'}</span>
+                <span className="order-list__par"> / {row.par ?? '-'}</span>
               </span>
             </div>
             <div className="order-list__mobile-stat">
@@ -658,8 +658,8 @@ function OrderList({ storeName, seed }: OrderListProps) {
         {!isFlat && <td className="order-list__category-cell">{row.categoryLabel}</td>}
         <td className="order-list__num-cell order-list__stock-cell" data-label="Stock">
           <span className="order-list__cell-value">
-            <span className="order-list__on-hand">{row.onHand ?? '—'}</span>
-            <span className="order-list__par"> / {row.par ?? '—'}</span>
+            <span className="order-list__on-hand">{row.onHand ?? '-'}</span>
+            <span className="order-list__par"> / {row.par ?? '-'}</span>
           </span>
         </td>
         <td className="order-list__num-cell order-list__need-cell" data-label="Need" style={{ color: row.needFg, fontWeight: 800 }}>
@@ -676,7 +676,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
         </td>
         {isFlat && (
           <>
-            <td className="order-list__mobile-hide">{entry.supplierName ?? '—'}</td>
+            <td className="order-list__mobile-hide">{entry.supplierName ?? '-'}</td>
             <td className="order-list__mobile-hide">{row.categoryLabel}</td>
           </>
         )}

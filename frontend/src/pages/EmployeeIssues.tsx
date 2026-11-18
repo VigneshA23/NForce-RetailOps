@@ -102,7 +102,7 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
       setIsRaiseModalOpen(false)
       nfToast.success('Issue raised. Owner has been notified.')
     } catch (err) {
-      nfToast.error(err instanceof ApiError ? err.message : 'Could not submit issue — please try again.')
+      nfToast.error(err instanceof ApiError ? err.message : 'Could not submit issue. Please try again.')
     } finally {
       setIsSubmittingIssue(false)
     }

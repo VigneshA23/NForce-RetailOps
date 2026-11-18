@@ -21,7 +21,7 @@ const COMBINED_SELECTION = 'combined';
 const NO_SELECTION = null;
 type StoreSelection = typeof NO_SELECTION | string;
 
-// Nothing to show yet -- every amount null, so the tiles read "—", never $0.00.
+// Nothing to show yet -- every amount null, so the tiles read "-", never $0.00.
 const NOTHING_SELECTED: StoreMonthlyCashSummary = {
   storeId: null, storeName: '', storeCode: null, daysRecorded: 0, asOfDate: null,
   totalCashSales: null, totalCashRemoved: null, bankDeposits: null, cashExpenses: null, adjustments: null,

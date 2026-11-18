@@ -112,7 +112,7 @@ const MISSED_END_OF_DAY_ADMIN_SECTION: HelpSection = {
     "Or choose Couldn't count it and explain why (at least 5 words), then Submit reason.",
   ],
   important: [
-    'Each item is answered once — whoever responds first (you or an employee) is the answer that is kept.',
+    'Each item is answered once: whoever responds first (you or an employee) is the answer that is kept.',
     "Employees cannot record today's Start of Day for an item until yesterday's missed End of Day is answered.",
     'A counted answer is saved as a normal End of Day and updates the order list.',
   ],
@@ -303,7 +303,7 @@ const SUPER_ADMIN_SECTIONS: HelpSection[] = [
     ],
     important: [
       'Negative variance is a shortage; positive variance is an overage.',
-      'This page is read-only — make changes from Daily Cash.',
+      'This page is read-only. Make changes from Daily Cash.',
     ],
   },
   {
@@ -538,7 +538,7 @@ const OWNER_ADMIN_SECTIONS: HelpSection[] = [
     ],
     important: [
       'Negative variance is a shortage; positive variance is an overage.',
-      'This page is read-only — make changes from Daily Cash.',
+      'This page is read-only. Make changes from Daily Cash.',
     ],
   },
 ];
@@ -577,7 +577,7 @@ const EMPLOYEE_SECTIONS: HelpSection[] = [
       "Use the Undo option if it's available for that response.",
     ],
     important: [
-      'Not every submission can be undone — Undo is only available for eligible responses.',
+      'Not every submission can be undone. Undo is only available for eligible responses.',
     ],
   },
   {

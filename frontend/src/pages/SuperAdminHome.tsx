@@ -211,16 +211,16 @@ function SuperAdminHome({
 
       <div className="stat-card-row">
         {ownersLoading ? (
-          <StatCard icon={Building2} label="Total Owners" value="—" tone="primary" onClick={onOwnersClick} />
+          <StatCard icon={Building2} label="Total Owners" value="-" tone="primary" onClick={onOwnersClick} />
         ) : (
           <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" onClick={onOwnersClick} />
         )}
-        <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '—'} tone="info" onClick={onStoresClick} />
-        <StatCard icon={Tags} label="Categories" value={totalCategoryCount ?? '—'} tone="success" onClick={onCategoriesClick} />
+        <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '-'} tone="info" onClick={onStoresClick} />
+        <StatCard icon={Tags} label="Categories" value={totalCategoryCount ?? '-'} tone="success" onClick={onCategoriesClick} />
         {platformStats === null ? (
           <>
-            <StatCard icon={Percent} label="Platform Completion" value="—" tone="warning" onClick={onChecklistClick} />
-            <StatCard icon={AlertTriangle} label="Open Issues" value="—" tone="info" onClick={onIssuesClick} />
+            <StatCard icon={Percent} label="Platform Completion" value="-" tone="warning" onClick={onChecklistClick} />
+            <StatCard icon={AlertTriangle} label="Open Issues" value="-" tone="info" onClick={onIssuesClick} />
           </>
         ) : (
           <>

@@ -30,7 +30,7 @@ function signClass(value: number | null): string {
 }
 
 function money(value: number | null): string {
-  return value === null ? '—' : formatCurrency(value);
+  return value === null ? '-' : formatCurrency(value);
 }
 
 // Month-End Cash Summary for one store, or All Stores (the Combined summary):
@@ -52,7 +52,7 @@ function StoreCashSummaryView({ summary, storeRows = [], emptyMessage }: StoreCa
         <StatCard
           icon={Scale}
           label="Adjustments"
-          value={summary.adjustments === null ? '—' : formatVariance(summary.adjustments)}
+          value={summary.adjustments === null ? '-' : formatVariance(summary.adjustments)}
           tone="purple"
           className={signClass(summary.adjustments).trim()}
         />
@@ -73,7 +73,7 @@ function StoreCashSummaryView({ summary, storeRows = [], emptyMessage }: StoreCa
         <StatCard
           icon={TriangleAlert}
           label="Variance"
-          value={variance === null ? '—' : formatVariance(variance)}
+          value={variance === null ? '-' : formatVariance(variance)}
           tone="primary"
           className={`cash-tile--teal ${signClass(variance)}`.trim()}
         />

@@ -366,7 +366,7 @@ function Home({
           />
         )}
         {issuesLoading ? (
-          <StatCard icon={AlertTriangle} label="Active Issues" value="—" tone="info" />
+          <StatCard icon={AlertTriangle} label="Active Issues" value="-" tone="info" />
         ) : (
           <StatCard
             icon={hasOpenIssues ? AlertTriangle : CheckCircle2}

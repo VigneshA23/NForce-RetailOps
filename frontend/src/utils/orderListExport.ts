@@ -119,7 +119,7 @@ export function buildReorderListText(
   for (const group of sortedGroups) {
     lines.push(group.label);
     for (const entry of group.items) {
-      lines.push(`* ${entry.itemName} — ${entry.quantityNeeded + entry.manualAddition} ${entry.unitOfMeasurement}`);
+      lines.push(`* ${entry.itemName} - ${entry.quantityNeeded + entry.manualAddition} ${entry.unitOfMeasurement}`);
     }
     lines.push('');
   }
@@ -128,7 +128,7 @@ export function buildReorderListText(
 }
 
 function value(n: number | null): string {
-  return n == null ? '—' : String(n);
+  return n == null ? '-' : String(n);
 }
 
 // Usable = available minus dead stock -- the figure every stock total and
@@ -153,7 +153,7 @@ export function buildEodReportText(report: EodSupplierReport, storeName: string 
   for (const group of report.groups) {
     lines.push(group.supplierName);
     for (const row of group.items) {
-      const need = row.quantityToOrder ? ` — order ${row.quantityToOrder} ${row.unitOfMeasurement}` : '';
+      const need = row.quantityToOrder ? `, order ${row.quantityToOrder} ${row.unitOfMeasurement}` : '';
       const start = withDead(usableStock(row.startOfDayAvailable, row.startOfDayDeadStock), row.startOfDayDeadStock);
       const end = withDead(usableStock(row.endOfDayAvailable, row.endOfDayDeadStock), row.endOfDayDeadStock);
       lines.push(`* ${row.itemName}: start ${start}, end ${end}, used ${value(row.stockUsed)}${need}`);

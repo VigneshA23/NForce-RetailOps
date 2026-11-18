@@ -65,20 +65,20 @@ describe('StoreInventoryItemFormModal', () => {
     const listbox = screen.getByRole('listbox');
     const labels = within(listbox).getAllByRole('option').map((option) => option.textContent);
     expect(labels).toEqual([
-      'g — Grams',
-      'kg — Kilograms',
-      'ml — Milliliters',
-      'L — Liters',
-      'Nos. — Number of items',
+      'g - Grams',
+      'kg - Kilograms',
+      'ml - Milliliters',
+      'L - Liters',
+      'Nos. - Number of items',
     ]);
 
-    await user.click(screen.getByRole('option', { name: 'kg — Kilograms' }));
-    expect(screen.getByRole('button', { name: 'Unit' })).toHaveTextContent('kg — Kilograms');
+    await user.click(screen.getByRole('option', { name: 'kg - Kilograms' }));
+    expect(screen.getByRole('button', { name: 'Unit' })).toHaveTextContent('kg - Kilograms');
 
     // Picking another replaces the first -- only one unit at a time.
     await user.click(screen.getByRole('button', { name: 'Unit' }));
-    await user.click(screen.getByRole('option', { name: 'L — Liters' }));
-    expect(screen.getByRole('button', { name: 'Unit' })).toHaveTextContent('L — Liters');
+    await user.click(screen.getByRole('option', { name: 'L - Liters' }));
+    expect(screen.getByRole('button', { name: 'Unit' })).toHaveTextContent('L - Liters');
   });
 
   it('requires a unit', async () => {
@@ -122,7 +122,7 @@ describe('StoreInventoryItemFormModal', () => {
 
     await fillRequired(user);
     await user.click(screen.getByRole('button', { name: 'Unit' }));
-    await user.click(screen.getByRole('option', { name: 'ml — Milliliters' }));
+    await user.click(screen.getByRole('option', { name: 'ml - Milliliters' }));
     await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
 
     expect(screen.queryByText('Preferred supplier is required')).not.toBeInTheDocument();
@@ -145,7 +145,7 @@ describe('StoreInventoryItemFormModal', () => {
 
     await fillRequired(user);
     await user.click(screen.getByRole('button', { name: 'Unit' }));
-    await user.click(screen.getByRole('option', { name: 'ml — Milliliters' }));
+    await user.click(screen.getByRole('option', { name: 'ml - Milliliters' }));
     await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ preferredSupplierId: 2, unitOfMeasurement: 'ml' }));
   });

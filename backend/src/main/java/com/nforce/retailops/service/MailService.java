@@ -151,7 +151,7 @@ public class MailService {
                       <div style="text-align:center;margin:0 0 28px;">
                         <a href="%s" style="display:inline-block;background:#10A3A8;color:#ffffff;font-size:14px;font-weight:700;padding:13px 36px;border-radius:8px;text-decoration:none;">Set Up My Account</a>
                       </div>
-                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">If you weren't expecting this email, you can safely ignore it.<br>This is an automated message from NForce RetailOps — please do not reply.</p>
+                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">If you weren't expecting this email, you can safely ignore it.<br>This is an automated message from NForce RetailOps. Please do not reply.</p>
                     </td></tr>
                     <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 40px;text-align:center;">
                       <p style="margin:0;font-size:11px;color:#94a3b8;">&copy; 2026 NForce RetailOps &middot; All rights reserved</p>
@@ -186,7 +186,7 @@ public class MailService {
                         <a href="%s" style="display:inline-block;background:#10A3A8;color:#ffffff;font-size:14px;font-weight:700;padding:13px 36px;border-radius:8px;text-decoration:none;">Reset My Password</a>
                       </div>
                       <p style="margin:0 0 28px;font-size:13px;color:#64748b;line-height:1.7;">This link expires in <strong>1 hour</strong>. If you did not request a reset, you can safely ignore this email.</p>
-                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">This is an automated message from NForce RetailOps — please do not reply.</p>
+                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">This is an automated message from NForce RetailOps. Please do not reply.</p>
                     </td></tr>
                     <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 40px;text-align:center;">
                       <p style="margin:0;font-size:11px;color:#94a3b8;">&copy; 2026 NForce RetailOps &middot; All rights reserved</p>
@@ -222,7 +222,7 @@ public class MailService {
                       <p style="margin:0 0 16px;font-size:14px;color:#64748b;line-height:1.7;">Hi %s, an administrator changed the email you use to sign in to NForce RetailOps.</p>
                       <p style="margin:0 0 16px;font-size:14px;color:#0f172a;line-height:1.7;">New login email: <strong>%s</strong></p>
                       <p style="margin:0 0 28px;font-size:13px;color:#64748b;line-height:1.7;">Your password is unchanged. You have been signed out and can sign in again with the new email. If you did not expect this change, contact your administrator.</p>
-                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">This is an automated message from NForce RetailOps — please do not reply.</p>
+                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">This is an automated message from NForce RetailOps. Please do not reply.</p>
                     </td></tr>
                     <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 40px;text-align:center;">
                       <p style="margin:0;font-size:11px;color:#94a3b8;">&copy; 2026 NForce RetailOps &middot; All rights reserved</p>
