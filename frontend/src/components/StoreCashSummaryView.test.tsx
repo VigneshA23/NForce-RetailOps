@@ -41,8 +41,6 @@ describe('StoreCashSummaryView', () => {
     expect(screen.getByText('$55.00', { selector: '.stat-card__value' })).toBeInTheDocument();
     expect(screen.getByText('$10.00', { selector: '.stat-card__value' })).toBeInTheDocument();
     expect(screen.getByText('-$45.00', { selector: '.stat-card__value' })).toBeInTheDocument();
-    expect(screen.getByText('As at the last day recorded')).toBeInTheDocument();
-    expect(screen.getByText('Cash remaining on that day')).toBeInTheDocument();
   });
 
   it('flags a shortage in red and an overage in green, always with the sign', () => {

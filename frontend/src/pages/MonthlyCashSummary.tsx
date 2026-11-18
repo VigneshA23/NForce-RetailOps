@@ -53,13 +53,13 @@ function monthLabel(month: string): string {
 function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
   const isSuperAdmin = scope === 'super-admin';
   const [month, setMonth] = useState(currentMonth);
-  const [storeSelection, setStoreSelection] = useState<StoreSelection>(NO_SELECTION);
+  const [storeSelection, setStoreSelection] = useState<StoreSelection>(isSuperAdmin ? COMBINED_SELECTION : NO_SELECTION);
   const [stores, setStores] = useState<SuperAdminStore[]>([]);
   const [storesLoading, setStoresLoading] = useState(isSuperAdmin);
   const [storesError, setStoresError] = useState<string | null>(null);
   const [storesReloadToken, setStoresReloadToken] = useState(0);
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [isLoading, setIsLoading] = useState(!isSuperAdmin);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -203,7 +203,7 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
               ? 'Select a store above to view its month-end cash summary.'
               : `No daily cash entries were recorded in ${monthLabel(month)}.`}
           />
-          <p className="cash-summary__footnote">Negative variance is a shortage, positive is an overage.</p>
+          <p className="cash-summary__footnote">Expected cash, actual count and variance are as at the last day recorded. Negative variance is a shortage, positive is an overage.</p>
         </div>
       )}
     </div>

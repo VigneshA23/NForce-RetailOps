@@ -23,6 +23,12 @@
   }
 }
 
+/* The two closing-position tiles get colours of their own so neither repeats
+   another tile: pistachio green for Expected, orange for Actual, teal for Variance. */
+.cash-view .stat-card.cash-tile--pista { --stat-color: #7fb85a; --stat-rgb: 147, 197, 114; }
+.cash-view .stat-card.cash-tile--teal { --stat-color: #0f9d8f; --stat-rgb: 20, 184, 166; }
+.cash-view .stat-card.cash-tile--orange { --stat-color: #ea6a2a; --stat-rgb: 234, 106, 42; }
+
 /* Tiles carry the sign in their text; colour only reinforces it. */
 .stat-card.cash-kpi--short .stat-card__value {
   color: var(--color-accent);

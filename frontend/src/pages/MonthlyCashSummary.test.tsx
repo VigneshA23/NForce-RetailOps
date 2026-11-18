@@ -78,36 +78,31 @@ async function openStoreSelect(user: ReturnType<typeof userEvent.setup>) {
   await user.click(document.getElementById('cash-summary-store') as HTMLElement);
 }
 
-async function chooseAllStores(user: ReturnType<typeof userEvent.setup>) {
-  await openStoreSelect(user);
-  await user.click(screen.getByRole('button', { name: 'All Stores' }));
-}
-
 function tile(label: string): HTMLElement {
   return screen.getByText(label, { selector: '.stat-card__label' }).closest('.stat-card') as HTMLElement;
 }
 
 describe('MonthlyCashSummary', () => {
-  it('shows dashes and a prompt, and fetches nothing, until Super Admin picks a store', async () => {
+  it('defaults Super Admin to All Stores and fetches the combined month straight away', async () => {
+    vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
+      [column({})],
+      column({ storeId: null, storeName: 'Combined', storeCode: null, variance: -15 }),
+    ));
+
     render(<MonthlyCashSummary scope="super-admin" />);
 
-    expect(await screen.findByText('Select a store above to view its month-end cash summary.')).toBeInTheDocument();
-    expect(screen.getAllByText('—').length).toBe(8);
-    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Previous month' })).toBeInTheDocument();
-    expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).not.toHaveBeenCalled();
+    expect(await screen.findByRole('table', { name: 'Store cash breakdown' })).toBeInTheDocument();
+    expect(within(tile('Variance')).getByText('-$15.00')).toBeInTheDocument();
+    expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenCalledWith(currentMonth(), expect.anything(), undefined);
   });
 
   it('shows the tiles layout with a store breakdown when Super Admin selects all stores', async () => {
-    const user = userEvent.setup();
     vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
       [column({}), column({ storeId: 2, storeName: 'Store 2', variance: -20 })],
       column({ storeId: null, storeName: 'Combined', storeCode: null, variance: -15, expectedCashOnHand: 640 }),
     ));
 
     render(<MonthlyCashSummary scope="super-admin" />);
-    await chooseAllStores(user);
 
     expect(await screen.findByRole('table', { name: 'Store cash breakdown' })).toBeInTheDocument();
     expect(within(tile('Variance')).getByText('-$15.00')).toBeInTheDocument();
@@ -141,7 +136,6 @@ describe('MonthlyCashSummary', () => {
       ));
 
     render(<MonthlyCashSummary scope="super-admin" />);
-    await chooseAllStores(user);
     await screen.findByRole('table', { name: 'Store cash breakdown' });
     await openStoreSelect(user);
     await user.type(screen.getByPlaceholderText('Search...'), 'Store 2');
@@ -152,21 +146,19 @@ describe('MonthlyCashSummary', () => {
     expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenLastCalledWith(currentMonth(), expect.anything(), 2);
 
     await openStoreSelect(user);
-    await user.click(screen.getByRole('button', { name: 'All Stores' }));
+    await user.click((() => { const all = screen.getAllByRole('button', { name: 'All Stores' }); return all[all.length - 1]; })());
     expect(await screen.findByRole('table', { name: 'Store cash breakdown' })).toBeInTheDocument();
     expect(within(tile('Expected Cash on Hand')).getByText('$640.00')).toBeInTheDocument();
     expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenLastCalledWith(currentMonth(), expect.anything(), undefined);
   });
 
   it('lists only the stores that recorded cash in the Store Breakdown', async () => {
-    const user = userEvent.setup();
     vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
       [column({}), emptyColumn({ storeId: 2, storeName: 'Quiet Store' })],
       column({ storeId: null, storeName: 'Combined', storeCode: null }),
     ));
 
     render(<MonthlyCashSummary scope="super-admin" />);
-    await chooseAllStores(user);
 
     const table = await screen.findByRole('table', { name: 'Store cash breakdown' });
     expect(within(table).getByText('Store 1')).toBeInTheDocument();
@@ -201,14 +193,12 @@ describe('MonthlyCashSummary', () => {
   });
 
   it('keeps the same layout for All Stores in a month with no entries', async () => {
-    const user = userEvent.setup();
     vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
       [emptyColumn()],
       emptyColumn({ storeId: null, storeName: 'Combined', storeCode: null }),
     ));
 
     render(<MonthlyCashSummary scope="super-admin" />);
-    await chooseAllStores(user);
 
     expect(await screen.findByText(/No daily cash entries were recorded/)).toBeInTheDocument();
     expect(screen.getAllByText('—').length).toBe(8);
