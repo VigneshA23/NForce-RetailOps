@@ -6,6 +6,10 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 // Each actor is a user/super-admin id pair; exactly one is non-null.
+//
+// dailyExpectedCash and expectedCashOnHand are on Owner/Admin and Super Admin
+// responses only (Story 5); the employee variant of this payload goes through
+// a separate endpoint that strips them.
 public record DailyCashEntryResponse(
     Long id,
     Long storeId,
@@ -17,6 +21,12 @@ public record DailyCashEntryResponse(
     BigDecimal cashExpenses,
     BigDecimal bankDeposits,
     BigDecimal otherAdjustments,
+    // Cash remaining + other adjustments for this entry's day, as saved on
+    // the row.
+    BigDecimal dailyExpectedCash,
+    // Running sum of dailyExpectedCash from the store's first entry up to
+    // and including this entry's businessDate. Days with no entry add 0.
+    BigDecimal expectedCashOnHand,
     Long enteredByUserId,
     Long enteredBySuperAdminId,
     OffsetDateTime enteredAt,
@@ -40,6 +50,8 @@ public record DailyCashEntryResponse(
         BigDecimal previousCashExpenses,
         BigDecimal previousBankDeposits,
         BigDecimal previousOtherAdjustments,
+        // Null on corrections written before V117.
+        BigDecimal previousDailyExpectedCash,
         Long previousUpdatedByUserId,
         Long previousUpdatedBySuperAdminId,
         OffsetDateTime previousUpdatedAt,

@@ -2,6 +2,7 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.DailyCashEntryRequest;
 import com.nforce.retailops.dto.DailyCashEntryResponse;
+import com.nforce.retailops.dto.ExpectedCashRangeResponse;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.DailyCashEntryService;
 import jakarta.validation.Valid;
@@ -41,5 +42,17 @@ public class StoreCashController {
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         return ResponseEntity.ok(service.get(principal.getUser().getId(), date));
+    }
+
+    // Sum of daily expected cash for the Owner/Admin's own store over
+    // [from, to] inclusive. Days with no entry inside the range add 0, so 0
+    // comes back when the range has none.
+    @GetMapping("/expected-cash-on-hand")
+    public ResponseEntity<ExpectedCashRangeResponse> rangeSum(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return ResponseEntity.ok(service.getRangeSum(principal.getUser().getId(), from, to));
     }
 }

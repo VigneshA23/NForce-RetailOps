@@ -215,6 +215,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(CashEntryFlagException.class)
+    public ResponseEntity<Map<String, String>> handleCashEntryFlag(CashEntryFlagException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidTaskResponseException.class)
     public ResponseEntity<Map<String, String>> handleInvalidTaskResponse(InvalidTaskResponseException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));

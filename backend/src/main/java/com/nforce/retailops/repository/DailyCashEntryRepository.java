@@ -41,4 +41,28 @@ public interface DailyCashEntryRepository extends JpaRepository<DailyCashEntry, 
     // since still show up in the month it traded.
     @Query("select distinct e.store.id from DailyCashEntry e where e.businessDate between :from and :to")
     List<Long> findStoreIdsWithEntriesBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    // The spec's running total: sum of each day's stored daily_expected_cash
+    // from the store's first entry up to and including the given date. Days
+    // with no entry count as 0, so a plain SUM across rows gives the right
+    // figure. Returns null (translated to 0 by the caller) when the store has
+    // no entries up to that date.
+    @Query("select coalesce(sum(e.dailyExpectedCash), 0) "
+        + "from DailyCashEntry e "
+        + "where e.store.id = :storeId and e.businessDate <= :asOf")
+    java.math.BigDecimal sumExpectedCashOnHandUpTo(
+        @Param("storeId") Long storeId, @Param("asOf") LocalDate asOf);
+
+    // Same sum restricted to a chosen inclusive date range. Days with no
+    // entry inside the range still add 0. Returns null (translated to 0 by
+    // the caller) when the range has no entries.
+    @Query("select coalesce(sum(e.dailyExpectedCash), 0) "
+        + "from DailyCashEntry e "
+        + "where e.store.id = :storeId and e.businessDate between :from and :to")
+    java.math.BigDecimal sumExpectedCashOnHandBetween(
+        @Param("storeId") Long storeId,
+        @Param("from") LocalDate from,
+        @Param("to") LocalDate to);
+
+    boolean existsByStoreIdAndBusinessDateLessThanEqual(Long storeId, LocalDate asOf);
 }
