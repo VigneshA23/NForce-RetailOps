@@ -17,7 +17,7 @@ function summary(overrides: Partial<StoreMonthlyCashSummary> = {}): StoreMonthly
 }
 
 describe('StoreCashSummaryView', () => {
-  it('shows the five flow tiles with the API totals', () => {
+  it('shows the flow tiles with the API totals', () => {
     render(<StoreCashSummaryView summary={summary()} />);
     for (const [label, value] of [
       ['Total Cash Sales', '$3,412.00'], ['Total Cash Removed', '$84.00'], ['Bank Deposits', '$133.00'],
@@ -28,15 +28,21 @@ describe('StoreCashSummaryView', () => {
     }
   });
 
-  it('groups expected, actual, variance and net variance under Cash Reconciliation with explanations', () => {
+  it('shows eight tiles, four per row, with the closing figures explained and no Net Daily Variance tile', () => {
     render(<StoreCashSummaryView summary={summary()} />);
-    const group = screen.getByRole('group', { name: 'Cash reconciliation' });
-    expect(within(group).getByText('$55.00')).toBeInTheDocument();
-    expect(within(group).getByText('$10.00')).toBeInTheDocument();
-    expect(within(group).getByText('-$45.00')).toBeInTheDocument();
-    expect(within(group).getByText('-$3,085.00')).toBeInTheDocument();
-    expect(within(group).getByText('As at the last day recorded')).toBeInTheDocument();
-    expect(within(group).getByText('Cash remaining on that day')).toBeInTheDocument();
+    const tiles = document.querySelectorAll('.cash-view__tiles .stat-card');
+    expect(tiles).toHaveLength(8);
+    const labels = Array.from(tiles).map((t) => t.querySelector('.stat-card__label')?.textContent);
+    expect(labels).toEqual([
+      'Total Cash Sales', 'Total Cash Removed', 'Bank Deposits', 'Cash Expenses',
+      'Adjustments', 'Expected Cash on Hand', 'Actual Cash Count', 'Variance',
+    ]);
+    expect(screen.queryByText('Net Daily Variance', { selector: '.stat-card__label' })).not.toBeInTheDocument();
+    expect(screen.getByText('$55.00', { selector: '.stat-card__value' })).toBeInTheDocument();
+    expect(screen.getByText('$10.00', { selector: '.stat-card__value' })).toBeInTheDocument();
+    expect(screen.getByText('-$45.00', { selector: '.stat-card__value' })).toBeInTheDocument();
+    expect(screen.getByText('As at the last day recorded')).toBeInTheDocument();
+    expect(screen.getByText('Cash remaining on that day')).toBeInTheDocument();
   });
 
   it('flags a shortage in red and an overage in green, always with the sign', () => {
@@ -45,7 +51,6 @@ describe('StoreCashSummaryView', () => {
     rerender(<StoreCashSummaryView summary={summary({ variance: 5, netDailyVariance: 0 })} />);
     expect(screen.getByText('Variance', { selector: '.stat-card__label' }).closest('.stat-card')).toHaveClass('cash-kpi--over');
     expect(screen.getByText('+$5.00', { selector: '.stat-card__value' })).toBeInTheDocument();
-    expect(screen.getByText('Net Daily Variance', { selector: '.stat-card__label' }).closest('.stat-card')).not.toHaveClass('cash-kpi--short');
   });
 
   it('includes the daily breakdown table', () => {
