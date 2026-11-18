@@ -227,7 +227,7 @@ public class MailService {
                       %7$s
                     </td></tr>
                     <tr><td bgcolor="#fafafa" style="background:#fafafa;border-top:1px solid #e4e4e7;padding:18px 32px;text-align:center;">
-                      <p style="margin:0 0 4px;font-size:12px;color:#6b6b6f;line-height:1.6;">This is an automated message from %1$s &mdash; please do not reply.</p>
+                      <p style="margin:0 0 4px;font-size:12px;color:#6b6b6f;line-height:1.6;">This is an automated message from %1$s. Please do not reply.</p>
                       <p style="margin:0;font-size:11px;color:#9a9aa0;">&copy; %8$d %1$s &middot; All rights reserved</p>
                     </td></tr>
                   </table>
