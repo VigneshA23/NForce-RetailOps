@@ -225,7 +225,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                               type="text"
                               inputMode="email"
                               autoComplete="email"
-                              placeholder="you@kedsicecream.com"
+                              placeholder="you@gmail.com"
                               className="login3-input"
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
@@ -435,7 +435,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                                 type="text"
                                 inputMode="email"
                                 autoComplete="email"
-                                placeholder="you@nforceone.com"
+                                placeholder="you@gmail.com"
                                 className="login3-input"
                                 value={forgotEmail}
                                 onChange={(e) => setForgotEmail(e.target.value)}

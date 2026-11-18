@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'NForce RetailOps',
-        short_name: 'RetailOps',
+        name: "Ked's Ice Cream",
+        short_name: "Ked's",
         description: 'Retail store operations checklist and management',
         theme_color: '#0d0d0f',
         background_color: '#ffffff',

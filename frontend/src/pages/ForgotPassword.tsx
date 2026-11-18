@@ -101,7 +101,7 @@ function ForgotPassword({ onBackToSignIn }: ForgotPasswordProps) {
                       type="email"
                       inputMode="email"
                       autoComplete="email"
-                      placeholder="you@nforceone.com"
+                      placeholder="you@gmail.com"
                       className="login3-input"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
