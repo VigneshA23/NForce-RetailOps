@@ -68,7 +68,7 @@ session:
 
 resend:
   api-key: ${RESEND_API_KEY:}
-  from-email: ${RESEND_FROM_EMAIL:RetailOps <onboarding@resend.dev>}
+  from-email: ${RESEND_FROM_EMAIL:Ked's Ice Cream <onboarding@resend.dev>}
 
 # Inventory item display images. Only the Access Key is used (Client-ID
 # auth for search + photo fetch); the Secret Key is for OAuth flows the app

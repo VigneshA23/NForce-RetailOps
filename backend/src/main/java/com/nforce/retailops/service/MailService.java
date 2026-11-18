@@ -20,6 +20,7 @@ import software.amazon.awssdk.services.ses.model.SesException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.Year;
 import java.util.List;
 import java.util.Map;
 
@@ -38,13 +39,17 @@ public class MailService {
     }
 
     private final EmailTransport transport;
+    // Absolute URL of the Ked's logo in the email header (the frontend's /keds-logo.png).
+    private final String logoUrl;
 
     @Autowired
     public MailService(
         @Value("${resend.api-key:}") String resendApiKey,
         @Value("${resend.from-email}") String resendFromEmail,
-        @Value("${ses.from-email:noreply@nforceone.com}") String sesFromEmail
+        @Value("${ses.from-email:noreply@nforceone.com}") String sesFromEmail,
+        @Value("${app.base-url}") String appBaseUrl
     ) {
+        this.logoUrl = logoUrlFor(appBaseUrl);
         boolean isLambda = isLambdaEnvironment();
         log.info("MailService: provider={}", isLambda ? "SES (us-east-1)" : "Resend");
         this.transport = isLambda
@@ -54,7 +59,17 @@ public class MailService {
 
     // Package-private: lets tests inject a capture transport without touching real providers.
     MailService(EmailTransport transport) {
+        this(transport, "https://app.example.com");
+    }
+
+    MailService(EmailTransport transport, String appBaseUrl) {
         this.transport = transport;
+        this.logoUrl = logoUrlFor(appBaseUrl);
+    }
+
+    private static String logoUrlFor(String appBaseUrl) {
+        String base = appBaseUrl.endsWith("/") ? appBaseUrl.substring(0, appBaseUrl.length() - 1) : appBaseUrl;
+        return base + "/keds-logo.png";
     }
 
     // Package-private: exposed so tests can assert provider selection without env-var gymnastics.
@@ -132,112 +147,136 @@ public class MailService {
     }
 
     public void sendAccountSetupEmail(String toEmail, String fullName, String setupLink) {
-        String html = """
-            <!DOCTYPE html>
-            <html lang="en">
-            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-            <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-              <table width="100%%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f1f5f9;padding:40px 16px;">
-                <tr><td align="center">
-                  <table width="560" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-                    <tr><td style="background:#10A3A8;padding:28px 40px;text-align:center;">
-                      <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">NForce RetailOps</div>
-                      <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px;">Your stores. One checklist.</div>
-                    </td></tr>
-                    <tr><td style="padding:36px 40px 28px;">
-                      <p style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0f172a;">Welcome, %s!</p>
-                      <p style="margin:0 0 28px;font-size:14px;color:#64748b;line-height:1.7;">Your NForce RetailOps account is ready. Click the button below to set your password and get started.</p>
-                      <p style="margin:0 0 16px;font-size:13px;color:#64748b;line-height:1.7;">This setup link is valid for <strong>72 hours</strong>.</p>
-                      <div style="text-align:center;margin:0 0 28px;">
-                        <a href="%s" style="display:inline-block;background:#10A3A8;color:#ffffff;font-size:14px;font-weight:700;padding:13px 36px;border-radius:8px;text-decoration:none;">Set Up My Account</a>
-                      </div>
-                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">If you weren't expecting this email, you can safely ignore it.<br>This is an automated message from NForce RetailOps. Please do not reply.</p>
-                    </td></tr>
-                    <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 40px;text-align:center;">
-                      <p style="margin:0;font-size:11px;color:#94a3b8;">&copy; 2026 NForce RetailOps &middot; All rights reserved</p>
-                    </td></tr>
-                  </table>
-                </td></tr>
-              </table>
-            </body>
-            </html>
-            """.formatted(escapeHtml(fullName), setupLink);
+        String content = greeting("Welcome, " + escapeHtml(fullName) + "!")
+            + paragraph("Your " + BRAND_NAME + " account is ready. Click the button below to set your password and get started.")
+            + button("Set Up My Account", setupLink)
+            + plainLink(setupLink)
+            + note("This setup link is valid for <strong>72 hours</strong>. If you weren't expecting this email, you can safely ignore it.");
 
-        send(toEmail, "Set up your NForce RetailOps account", html);
+        send(toEmail, "Set up your " + BRAND_NAME + " account", layout(content));
     }
 
     public void sendPasswordResetEmail(String toEmail, String fullName, String resetLink) {
-        String html = """
-            <!DOCTYPE html>
-            <html lang="en">
-            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-            <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-              <table width="100%%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f1f5f9;padding:40px 16px;">
-                <tr><td align="center">
-                  <table width="560" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-                    <tr><td style="background:#10A3A8;padding:28px 40px;text-align:center;">
-                      <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">NForce RetailOps</div>
-                      <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px;">Your stores. One checklist.</div>
-                    </td></tr>
-                    <tr><td style="padding:36px 40px 28px;">
-                      <p style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0f172a;">Password Reset</p>
-                      <p style="margin:0 0 28px;font-size:14px;color:#64748b;line-height:1.7;">Hi %s, we received a request to reset your NForce RetailOps password. Click below to set a new one.</p>
-                      <div style="text-align:center;margin:0 0 28px;">
-                        <a href="%s" style="display:inline-block;background:#10A3A8;color:#ffffff;font-size:14px;font-weight:700;padding:13px 36px;border-radius:8px;text-decoration:none;">Reset My Password</a>
-                      </div>
-                      <p style="margin:0 0 28px;font-size:13px;color:#64748b;line-height:1.7;">This link expires in <strong>1 hour</strong>. If you did not request a reset, you can safely ignore this email.</p>
-                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">This is an automated message from NForce RetailOps. Please do not reply.</p>
-                    </td></tr>
-                    <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 40px;text-align:center;">
-                      <p style="margin:0;font-size:11px;color:#94a3b8;">&copy; 2026 NForce RetailOps &middot; All rights reserved</p>
-                    </td></tr>
-                  </table>
-                </td></tr>
-              </table>
-            </body>
-            </html>
-            """.formatted(escapeHtml(fullName), resetLink);
+        String content = greeting("Password Reset")
+            + paragraph("Hi " + escapeHtml(fullName) + ", we received a request to reset your " + BRAND_NAME
+                + " password. Click below to set a new one.")
+            + button("Reset My Password", resetLink)
+            + plainLink(resetLink)
+            + note("This link expires in <strong>1 hour</strong>. If you did not request a reset, you can safely ignore this email.");
 
-        send(toEmail, "Reset your NForce RetailOps password", html);
+        send(toEmail, "Reset your " + BRAND_NAME + " password", layout(content));
     }
 
     // Sent to both the old and the new address when an admin changes the login
     // email of an account that is already set up, so the owner of the old
     // address learns of the change rather than just finding their login gone.
     public void sendLoginEmailChangedEmail(String toEmail, String fullName, String newEmail) {
-        String html = """
+        String content = greeting("Your login email was changed")
+            + paragraph("Hi " + escapeHtml(fullName) + ", an administrator changed the email you use to sign in to "
+                + BRAND_NAME + ".")
+            + paragraph("New login email: <strong style=\"color:" + TEXT + ";\">" + escapeHtml(newEmail) + "</strong>")
+            + note("Your password is unchanged. You have been signed out and can sign in again with the new email.")
+            + smallPrint("If you did not expect this change, contact your administrator.");
+
+        send(toEmail, "Your " + BRAND_NAME + " login email was changed", layout(content));
+    }
+
+    // ── Shared Ked's layout ─────────────────────────────────────────────────────
+    // Every email is built from these pieces, so the brand (name, logo, colours,
+    // footer) is defined once. Inline styles and tables only: that is what
+    // Gmail, Outlook and Apple Mail all render. Colours are the app's palette
+    // (StatCard.css): pink primary, sky blue, warm yellow.
+
+    static final String BRAND_NAME = "Ked's Ice Cream";
+    private static final String PINK = "#d0178e";
+    private static final String BLUE = "#3fa8f4";
+    private static final String YELLOW = "#e5a52e";
+    private static final String TEXT = "#1a1a1a";
+    private static final String MUTED = "#6b6b6f";
+    private static final String FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+    // The header logo is the login page's /keds-logo.png, served by the frontend
+    // at app.base-url. Clients that block images show the alt text instead,
+    // styled as a pink "Ked's Ice Cream" wordmark.
+    String layout(String content) {
+        return """
             <!DOCTYPE html>
             <html lang="en">
-            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-            <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-              <table width="100%%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f1f5f9;padding:40px 16px;">
+            <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1.0">
+            <meta name="color-scheme" content="light">
+            <meta name="supported-color-schemes" content="light">
+            <title>%1$s</title>
+            </head>
+            <body style="margin:0;padding:0;background:#f2f2f4;font-family:%2$s;">
+              <table width="100%%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#f2f2f4" style="background:#f2f2f4;padding:32px 12px;">
                 <tr><td align="center">
-                  <table width="560" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-                    <tr><td style="background:#10A3A8;padding:28px 40px;text-align:center;">
-                      <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">NForce RetailOps</div>
-                      <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px;">Your stores. One checklist.</div>
+                  <table width="100%%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#ffffff" style="width:100%%;max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                    <tr><td style="padding:0;font-size:0;line-height:0;">
+                      <table width="100%%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+                        <td height="6" bgcolor="%3$s" style="background:%3$s;height:6px;width:34%%;"></td>
+                        <td height="6" bgcolor="%4$s" style="background:%4$s;height:6px;width:33%%;"></td>
+                        <td height="6" bgcolor="%5$s" style="background:%5$s;height:6px;width:33%%;"></td>
+                      </tr></table>
                     </td></tr>
-                    <tr><td style="padding:36px 40px 28px;">
-                      <p style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0f172a;">Your login email was changed</p>
-                      <p style="margin:0 0 16px;font-size:14px;color:#64748b;line-height:1.7;">Hi %s, an administrator changed the email you use to sign in to NForce RetailOps.</p>
-                      <p style="margin:0 0 16px;font-size:14px;color:#0f172a;line-height:1.7;">New login email: <strong>%s</strong></p>
-                      <p style="margin:0 0 28px;font-size:13px;color:#64748b;line-height:1.7;">Your password is unchanged. You have been signed out and can sign in again with the new email. If you did not expect this change, contact your administrator.</p>
-                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">This is an automated message from NForce RetailOps. Please do not reply.</p>
+                    <tr><td align="center" bgcolor="#ffffff" style="background:#ffffff;padding:28px 32px 8px;">
+                      <img src="%6$s" width="240" alt="%1$s" style="display:block;margin:0 auto;width:240px;max-width:80%%;height:auto;border:0;font-family:%2$s;font-size:22px;line-height:1.3;white-space:nowrap;font-weight:800;color:%4$s;text-align:center;">
                     </td></tr>
-                    <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 40px;text-align:center;">
-                      <p style="margin:0;font-size:11px;color:#94a3b8;">&copy; 2026 NForce RetailOps &middot; All rights reserved</p>
+                    <tr><td style="padding:24px 32px 28px;">
+                      %7$s
+                    </td></tr>
+                    <tr><td bgcolor="#fafafa" style="background:#fafafa;border-top:1px solid #e4e4e7;padding:18px 32px;text-align:center;">
+                      <p style="margin:0 0 4px;font-size:12px;color:#6b6b6f;line-height:1.6;">This is an automated message from %1$s &mdash; please do not reply.</p>
+                      <p style="margin:0;font-size:11px;color:#9a9aa0;">&copy; %8$d %1$s &middot; All rights reserved</p>
                     </td></tr>
                   </table>
                 </td></tr>
               </table>
             </body>
             </html>
-            """.formatted(escapeHtml(fullName), escapeHtml(newEmail));
+            """.formatted(BRAND_NAME, FONT, BLUE, PINK, YELLOW, escapeHtml(logoUrl), content, Year.now().getValue());
+    }
 
-        send(toEmail, "Your NForce RetailOps login email was changed", html);
+    private static String greeting(String text) {
+        return "<p style=\"margin:0 0 8px;font-size:20px;font-weight:700;color:" + TEXT + ";\">" + text + "</p>";
+    }
+
+    private static String paragraph(String html) {
+        return "<p style=\"margin:0 0 20px;font-size:14px;color:" + MUTED + ";line-height:1.7;\">" + html + "</p>";
+    }
+
+    private static String button(String label, String href) {
+        String safeHref = escapeHtml(href);
+        return "<table cellpadding=\"0\" cellspacing=\"0\" role=\"presentation\" align=\"center\" style=\"margin:4px auto 24px;\"><tr>"
+            + "<td align=\"center\" bgcolor=\"" + PINK + "\" style=\"background:" + PINK + ";border-radius:999px;\">"
+            + "<a href=\"" + safeHref + "\" style=\"display:inline-block;padding:13px 36px;font-family:" + FONT
+            + ";font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;\">" + label + "</a>"
+            + "</td></tr></table>";
+    }
+
+    // Expiry and similar: a yellow-tinted callout so it stands apart from the body.
+    private static String note(String html) {
+        return "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" role=\"presentation\" style=\"margin:0 0 20px;\"><tr>"
+            + "<td bgcolor=\"#fdf6e7\" style=\"background:#fdf6e7;border-left:4px solid " + YELLOW
+            + ";border-radius:8px;padding:12px 16px;font-size:13px;color:#5c4512;line-height:1.6;\">" + html + "</td>"
+            + "</tr></table>";
+    }
+
+    // The link as text under the button, for clients that don't render it (RTS-549).
+    private static String plainLink(String href) {
+        String safeHref = escapeHtml(href);
+        return "<p style=\"margin:0 0 4px;font-size:12px;color:" + MUTED + ";line-height:1.6;\">"
+            + "Button not working? Copy and paste this link into your browser:</p>"
+            + "<p style=\"margin:0 0 20px;font-size:12px;line-height:1.6;word-break:break-all;\">"
+            + "<a href=\"" + safeHref + "\" style=\"color:" + BLUE + ";text-decoration:underline;\">" + safeHref + "</a></p>";
+    }
+
+    private static String smallPrint(String text) {
+        return "<p style=\"margin:0;font-size:12px;color:#9a9aa0;line-height:1.6;\">" + text + "</p>";
     }
 
     private static String escapeHtml(String value) {
-        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 }
