@@ -12,7 +12,8 @@ import java.time.LocalDate;
 // Daily cash entry: the five agreed fields, in the order the page shows them.
 // businessDate defaults to today when omitted and cannot be in the future
 // (server's default timezone, like every other date boundary).
-// otherAdjustments is signed; every other amount is 0 or more, 2 decimals max.
+// otherAdjustments is signed and optional (blank counts as 0); every other amount
+// is required, 0 or more, 2 decimals max.
 public record DailyCashEntryRequest(
     @PastOrPresent(message = "Business date cannot be in the future")
     LocalDate businessDate,
@@ -21,11 +22,6 @@ public record DailyCashEntryRequest(
     @DecimalMin(value = "0", message = "Opening drawer cash cannot be negative")
     @Digits(integer = 10, fraction = 2, message = "Opening drawer cash: use at most 2 decimal places")
     BigDecimal openingDrawerCash,
-
-    @NotNull(message = "Cash expenses is required")
-    @DecimalMin(value = "0", message = "Cash expenses cannot be negative")
-    @Digits(integer = 10, fraction = 2, message = "Cash expenses: use at most 2 decimal places")
-    BigDecimal cashExpenses,
 
     @NotNull(message = "Cash removed is required")
     @DecimalMin(value = "0", message = "Cash removed cannot be negative")
@@ -37,7 +33,6 @@ public record DailyCashEntryRequest(
     @Digits(integer = 10, fraction = 2, message = "Cash remaining: use at most 2 decimal places")
     BigDecimal cashRemaining,
 
-    @NotNull(message = "Other adjustments is required (use 0 if none)")
     @Digits(integer = 10, fraction = 2, message = "Other adjustments: use at most 2 decimal places")
     BigDecimal otherAdjustments,
 
@@ -47,4 +42,8 @@ public record DailyCashEntryRequest(
     @Size(max = 500, message = "Reason must be 500 characters or fewer")
     String correctionReason
 ) {
+    // Other adjustments is optional; a blank one is recorded as 0.
+    public BigDecimal otherAdjustmentsOrZero() {
+        return otherAdjustments == null ? BigDecimal.ZERO : otherAdjustments;
+    }
 }

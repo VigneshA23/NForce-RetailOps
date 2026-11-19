@@ -122,7 +122,7 @@ class DailyCashCorrectionTest {
 
     private String body(String opening, String reason) {
         return "{\"businessDate\":\"" + day + "\",\"openingDrawerCash\":" + opening
-            + ",\"cashExpenses\":5,\"cashRemoved\":10,\"cashRemaining\":90,\"otherAdjustments\":0"
+            + ",\"cashRemoved\":10,\"cashRemaining\":90,\"otherAdjustments\":0"
             + (reason == null ? "" : ",\"correctionReason\":\"" + reason + "\"") + "}";
     }
 

@@ -6,7 +6,7 @@ import type { StoreMonthlyCashSummary } from '../types/cashSummary';
 function store(overrides: Partial<StoreMonthlyCashSummary> = {}): StoreMonthlyCashSummary {
   return {
     storeId: 1, storeName: 'Store 1', storeCode: 101, daysRecorded: 4, asOfDate: '2026-11-13',
-    totalCashRemoved: 172, cashExpenses: 281, adjustments: 1100,
+    totalCashRemoved: 172, adjustments: 1100,
     expectedCashOnHand: 1700, actualCashCount: 700, variance: -1000, netDailyVariance: -989,
     dailyBreakdown: [], ...overrides,
   };
@@ -21,15 +21,15 @@ describe('StoreBreakdownTable', () => {
   it('lists each store and shows the API’s Combined figures in the footer without summing', () => {
     // Combined deliberately differs from the sum of the rows: the table must show what the API said.
     render(<StoreBreakdownTable
-      stores={[store(), store({ storeId: 2, storeName: 'Store 2', storeCode: 102, cashExpenses: 30 })]}
-      combined={store({ storeId: null, storeName: 'Combined', storeCode: null, daysRecorded: 8, cashExpenses: 9999 })}
+      stores={[store(), store({ storeId: 2, storeName: 'Store 2', storeCode: 102, adjustments: 30 })]}
+      combined={store({ storeId: null, storeName: 'Combined', storeCode: null, daysRecorded: 8, adjustments: 9999 })}
     />);
 
     const table = screen.getByRole('table', { name: 'Store cash breakdown' });
     expect(table.querySelectorAll('tbody tr')).toHaveLength(2);
     expect(within(table).getByText('#101')).toBeInTheDocument();
     const footer = table.querySelector('tfoot tr') as HTMLElement;
-    expect(within(footer).getByText('$9,999.00')).toBeInTheDocument();
+    expect(within(footer).getByText('+$9,999.00')).toBeInTheDocument();
     expect(within(footer).getByText('(2 stores)')).toBeInTheDocument();
   });
 });

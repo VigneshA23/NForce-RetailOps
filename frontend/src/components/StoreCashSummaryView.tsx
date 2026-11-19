@@ -46,7 +46,6 @@ function StoreCashSummaryView({ summary, storeRows = [], emptyMessage }: StoreCa
     <section className="card cash-view" aria-label="Month-end cash summary for the store">
       <div className="stat-card-row cash-view__tiles">
         <StatCard icon={HandCoins} label="Total Cash Removed" value={money(summary.totalCashRemoved)} tone="success" />
-        <StatCard icon={Wallet} label="Cash Expenses" value={money(summary.cashExpenses)} tone="info" />
         <StatCard
           icon={Scale}
           label="Adjustments"

@@ -28,7 +28,6 @@ function column(overrides: Partial<StoreMonthlyCashSummary>): StoreMonthlyCashSu
     daysRecorded: 30,
     asOfDate: '2026-10-31',
     totalCashRemoved: 300,
-    cashExpenses: 70,
     adjustments: -10,
     expectedCashOnHand: 320,
     actualCashCount: 325,
@@ -59,13 +58,13 @@ beforeEach(() => {
 
 const DAYS = [{
   businessDate: '2026-10-31', openingDrawerCash: 150, cashRemoved: 200,
-  cashExpenses: 20, adjustments: -10, expectedCash: 320, cashRemaining: 325, variance: 5,
+  adjustments: -10, expectedCash: 320, cashRemaining: 325, variance: 5,
 }];
 
 function emptyColumn(overrides: Partial<StoreMonthlyCashSummary> = {}): StoreMonthlyCashSummary {
   return column({
     daysRecorded: 0, asOfDate: null, totalCashRemoved: null,
-    cashExpenses: null, adjustments: null, expectedCashOnHand: null, actualCashCount: null,
+    adjustments: null, expectedCashOnHand: null, actualCashCount: null,
     variance: null, netDailyVariance: null, dailyBreakdown: [], ...overrides,
   });
 }
@@ -185,7 +184,7 @@ describe('MonthlyCashSummary', () => {
     render(<MonthlyCashSummary />);
 
     expect(await screen.findByText(/No daily cash entries were recorded/)).toBeInTheDocument();
-    expect(screen.getAllByText('-').length).toBe(6);
+    expect(screen.getAllByText('-').length).toBe(5);
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
@@ -199,7 +198,7 @@ describe('MonthlyCashSummary', () => {
     render(<MonthlyCashSummary scope="super-admin" />);
 
     expect(await screen.findByText(/No daily cash entries were recorded/)).toBeInTheDocument();
-    expect(screen.getAllByText('-').length).toBe(6);
+    expect(screen.getAllByText('-').length).toBe(5);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 

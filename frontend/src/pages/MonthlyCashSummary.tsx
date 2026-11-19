@@ -25,7 +25,7 @@ type StoreSelection = typeof NO_SELECTION | string;
 // Nothing to show yet -- every amount null, so the tiles read "-", never $0.00.
 const NOTHING_SELECTED: StoreMonthlyCashSummary = {
   storeId: null, storeName: '', storeCode: null, daysRecorded: 0, asOfDate: null,
-  totalCashRemoved: null, cashExpenses: null, adjustments: null,
+  totalCashRemoved: null, adjustments: null,
   expectedCashOnHand: null, actualCashCount: null, variance: null, netDailyVariance: null, dailyBreakdown: [],
 };
 

@@ -60,7 +60,6 @@ function StoreBreakdownTable({ stores, combined }: StoreBreakdownTableProps) {
                 <th scope="col">Days</th>
                 <th scope="col">As Of</th>
                 <th scope="col">Cash Removed</th>
-                <th scope="col">Cash Expenses</th>
                 <th scope="col">Adjustments</th>
                 <th scope="col">Expected Cash</th>
                 <th scope="col">Actual Count</th>
@@ -78,7 +77,6 @@ function StoreBreakdownTable({ stores, combined }: StoreBreakdownTableProps) {
                   <td>{store.daysRecorded}</td>
                   <td>{dayLabel(store.asOfDate)}</td>
                   <td>{money(store.totalCashRemoved)}</td>
-                  <td>{money(store.cashExpenses)}</td>
                   <td className={signClass(store.adjustments).trim()}>{signed(store.adjustments)}</td>
                   <td>{money(store.expectedCashOnHand)}</td>
                   <td>{money(store.actualCashCount)}</td>
@@ -98,7 +96,6 @@ function StoreBreakdownTable({ stores, combined }: StoreBreakdownTableProps) {
                 <td>{combined.daysRecorded}</td>
                 <td>{dayLabel(combined.asOfDate)}</td>
                 <td>{money(combined.totalCashRemoved)}</td>
-                <td>{money(combined.cashExpenses)}</td>
                 <td className={signClass(combined.adjustments).trim()}>{signed(combined.adjustments)}</td>
                 <td>{money(combined.expectedCashOnHand)}</td>
                 <td>{money(combined.actualCashCount)}</td>

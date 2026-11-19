@@ -72,14 +72,15 @@ interface FieldSpec {
   // for a reason none of the other fields cover), matching RTS-291.
   signed?: boolean;
   hint?: string;
+  // Optional fields may be left blank; a blank one is saved as 0.
+  optional?: boolean;
 }
 
 const FIELDS: FieldSpec[] = [
   { key: 'openingDrawerCash', label: 'Opening drawer cash', description: 'Cash physically in the drawer at the start of the day.' },
-  { key: 'cashExpenses', label: 'Cash expenses', description: 'Cash paid directly from the drawer for expenses during this business date.' },
-  { key: 'cashRemoved', label: 'Cash removed', description: 'Cash taken out of the drawer during the day, other than amounts recorded as cash expenses.' },
+  { key: 'cashRemoved', label: 'Cash removed', description: 'Cash taken out of the drawer during the day.' },
   { key: 'cashRemaining', label: 'Cash remaining', description: 'Cash physically counted in the drawer at the end of the day. This is compared with Expected Cash on Hand to show the variance.' },
-  { key: 'otherAdjustments', label: 'Other adjustments', description: 'A cash increase or decrease not captured by the other fields. Use a negative amount for cash taken out.', signed: true, hint: 'Use a minus sign for money taken out. Enter 0 if none.' },
+  { key: 'otherAdjustments', label: 'Other adjustments', description: 'A cash increase or decrease not captured by the other fields. Use a negative amount for cash taken out.', signed: true, optional: true, hint: 'Optional. Use a minus sign for money taken out; leave blank for 0.' },
 ];
 
 // Shown to Owner/Admin and Super Admin only (employees never see expected cash).
@@ -93,7 +94,6 @@ const EMPTY_VALUES: Values = {
   openingDrawerCash: '',
   cashRemoved: '',
   cashRemaining: '',
-  cashExpenses: '',
   otherAdjustments: '',
 };
 
@@ -176,9 +176,10 @@ function valuesFrom(entry: DailyCashEntry): Values {
 }
 
 function validateField(field: FieldSpec, raw: string): string | undefined {
+  if (field.optional && raw.trim() === '') return undefined;
   return validateAmount(field.label, raw, {
     signed: field.signed,
-    requiredMessage: field.signed ? `${field.label} is required (enter 0 if none)` : undefined,
+
   });
 }
 
@@ -283,6 +284,7 @@ function DailyCash({
   function handleBlur(field: FieldSpec) {
     const raw = values[field.key];
     if (validateField(field, raw)) return;
+    if (field.optional && raw.trim() === '') return;
     setValues((current) => ({ ...current, [field.key]: formatAmount(parseAmount(raw)) }));
   }
 
@@ -463,7 +465,7 @@ function DailyCash({
                       label={field.label}
                       htmlFor={id}
                       description={field.description}
-                      required
+                      required={!field.optional}
                       error={error}
                     >
                       <div className="daily-cash-page__money">

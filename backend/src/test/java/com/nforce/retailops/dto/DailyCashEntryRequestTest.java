@@ -32,7 +32,7 @@ class DailyCashEntryRequestTest {
 
     private static DailyCashEntryRequest requestFor(LocalDate businessDate) {
         BigDecimal ten = new BigDecimal("10.00");
-        return new DailyCashEntryRequest(businessDate, ten, ten, ten, ten, BigDecimal.ZERO, null);
+        return new DailyCashEntryRequest(businessDate, ten, ten, ten, BigDecimal.ZERO, null);
     }
 
     @Test
@@ -44,6 +44,18 @@ class DailyCashEntryRequestTest {
             assertThat(violation.getPropertyPath().toString()).isEqualTo("businessDate");
             assertThat(violation.getMessage()).isEqualTo("Business date cannot be in the future");
         });
+    }
+
+    @Test
+    void nullOtherAdjustmentsIsValidAndCountsAsZeroButNullCashRemovedIsStillRejected() {
+        BigDecimal ten = new BigDecimal("10.00");
+        DailyCashEntryRequest noAdjust = new DailyCashEntryRequest(null, ten, ten, ten, null, null);
+        assertThat(validator.validate(noAdjust)).isEmpty();
+        assertThat(noAdjust.otherAdjustmentsOrZero()).isEqualByComparingTo(BigDecimal.ZERO);
+
+        DailyCashEntryRequest noRemoved = new DailyCashEntryRequest(null, ten, null, ten, null, null);
+        assertThat(validator.validate(noRemoved)).singleElement().satisfies(v ->
+            assertThat(v.getPropertyPath().toString()).isEqualTo("cashRemoved"));
     }
 
     @Test

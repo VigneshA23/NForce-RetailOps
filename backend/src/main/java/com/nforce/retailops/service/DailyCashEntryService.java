@@ -246,12 +246,11 @@ public class DailyCashEntryService {
         entry.setOpeningDrawerCash(request.openingDrawerCash());
         entry.setCashRemoved(request.cashRemoved());
         entry.setCashRemaining(request.cashRemaining());
-        entry.setCashExpenses(request.cashExpenses());
-        entry.setOtherAdjustments(request.otherAdjustments());
+        entry.setOtherAdjustments(request.otherAdjustmentsOrZero());
         // Spec: daily expected cash = cash remaining + other adjustments
         // (signed). Persisted on the entry so the running sum is a single-
         // column SUM and the response can carry the saved figure.
-        entry.setDailyExpectedCash(request.cashRemaining().add(request.otherAdjustments()));
+        entry.setDailyExpectedCash(request.cashRemaining().add(request.otherAdjustmentsOrZero()));
         entry.setUpdatedByUser(user);
         entry.setUpdatedBySuperAdmin(superAdmin);
         entry.setUpdatedAt(now);
@@ -272,8 +271,7 @@ public class DailyCashEntryService {
         return same(e.getOpeningDrawerCash(), r.openingDrawerCash())
             && same(e.getCashRemoved(), r.cashRemoved())
             && same(e.getCashRemaining(), r.cashRemaining())
-            && same(e.getCashExpenses(), r.cashExpenses())
-            && same(e.getOtherAdjustments(), r.otherAdjustments());
+            && same(e.getOtherAdjustments(), r.otherAdjustmentsOrZero());
     }
 
     private static boolean same(java.math.BigDecimal a, java.math.BigDecimal b) {
@@ -319,7 +317,6 @@ public class DailyCashEntryService {
             .map(c -> new DailyCashEntryResponse.Correction(
                 c.getId(),
                 c.getPreviousOpeningDrawerCash(),
-                c.getPreviousCashExpenses(),
                 c.getPreviousCashRemoved(),
                 c.getPreviousCashRemaining(),
                 c.getPreviousOtherAdjustments(),
@@ -333,7 +330,6 @@ public class DailyCashEntryService {
                 name(c.getCorrectedByUser(), c.getCorrectedBySuperAdmin()),
                 c.getReason(),
                 c.getNewOpeningDrawerCash(),
-                c.getNewCashExpenses(),
                 c.getNewCashRemoved(),
                 c.getNewCashRemaining(),
                 c.getNewOtherAdjustments()))
@@ -351,7 +347,6 @@ public class DailyCashEntryService {
             e.getStore().getId(),
             e.getBusinessDate(),
             e.getOpeningDrawerCash(),
-            e.getCashExpenses(),
             e.getCashRemoved(),
             e.getCashRemaining(),
             e.getOtherAdjustments(),

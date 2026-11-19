@@ -157,7 +157,7 @@ public class CashHistoryService {
         for (int i = 0; i < corrections.size(); i++) {
             DailyCashEntryCorrection c = corrections.get(i);
             Figures after = c.getNewCashRemaining() != null
-                ? new Figures(c.getNewOpeningDrawerCash(), c.getNewCashExpenses(), c.getNewCashRemoved(),
+                ? new Figures(c.getNewOpeningDrawerCash(), c.getNewCashRemoved(),
                     c.getNewCashRemaining(), c.getNewOtherAdjustments())
                 : i + 1 < corrections.size() ? previousOf(corrections.get(i + 1)) : figuresOf(entry);
             String role = actorRole(c.getCorrectedByUser(), c.getCorrectedBySuperAdmin());
@@ -187,12 +187,12 @@ public class CashHistoryService {
     }
 
     private static Figures figuresOf(DailyCashEntry e) {
-        return new Figures(e.getOpeningDrawerCash(), e.getCashExpenses(), e.getCashRemoved(),
+        return new Figures(e.getOpeningDrawerCash(), e.getCashRemoved(),
             e.getCashRemaining(), e.getOtherAdjustments());
     }
 
     private static Figures previousOf(DailyCashEntryCorrection c) {
-        return new Figures(c.getPreviousOpeningDrawerCash(), c.getPreviousCashExpenses(),
+        return new Figures(c.getPreviousOpeningDrawerCash(),
             c.getPreviousCashRemoved(), c.getPreviousCashRemaining(), c.getPreviousOtherAdjustments());
     }
 

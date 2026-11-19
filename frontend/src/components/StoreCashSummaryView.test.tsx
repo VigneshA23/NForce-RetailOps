@@ -6,11 +6,11 @@ import type { StoreMonthlyCashSummary } from '../types/cashSummary';
 function summary(overrides: Partial<StoreMonthlyCashSummary> = {}): StoreMonthlyCashSummary {
   return {
     storeId: 1, storeName: 'Store 1', storeCode: 101, daysRecorded: 1, asOfDate: '2026-11-12',
-    totalCashRemoved: 84, cashExpenses: 9, adjustments: -17,
+    totalCashRemoved: 84, adjustments: -17,
     expectedCashOnHand: 55, actualCashCount: 10, variance: -45, netDailyVariance: -3085,
     dailyBreakdown: [{
       businessDate: '2026-11-12', openingDrawerCash: 30, cashRemoved: 20,
-      cashExpenses: 5, adjustments: -30, expectedCash: 55, cashRemaining: 10, variance: -45,
+      adjustments: -30, expectedCash: 55, cashRemaining: 10, variance: -45,
     }],
     ...overrides,
   };
@@ -21,20 +21,20 @@ describe('StoreCashSummaryView', () => {
     render(<StoreCashSummaryView summary={summary()} />);
     for (const [label, value] of [
       ['Total Cash Removed', '$84.00'],
-      ['Cash Expenses', '$9.00'], ['Adjustments', '-$17.00'],
+      ['Adjustments', '-$17.00'],
     ]) {
       const tile = screen.getByText(label, { selector: '.stat-card__label' }).closest('.stat-card') as HTMLElement;
       expect(within(tile).getByText(value)).toBeInTheDocument();
     }
   });
 
-  it('shows six tiles, three per row, with the closing figures explained and no Net Daily Variance tile', () => {
+  it('shows five tiles, with the closing figures explained and no Net Daily Variance tile', () => {
     render(<StoreCashSummaryView summary={summary()} />);
     const tiles = document.querySelectorAll('.cash-view__tiles .stat-card');
-    expect(tiles).toHaveLength(6);
+    expect(tiles).toHaveLength(5);
     const labels = Array.from(tiles).map((t) => t.querySelector('.stat-card__label')?.textContent);
     expect(labels).toEqual([
-      'Total Cash Removed', 'Cash Expenses',
+      'Total Cash Removed',
       'Adjustments', 'Expected Cash on Hand', 'Actual Cash Count', 'Variance',
     ]);
     expect(screen.queryByText('Net Daily Variance', { selector: '.stat-card__label' })).not.toBeInTheDocument();

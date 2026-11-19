@@ -57,7 +57,6 @@ class ExpectedCashOnHandTest {
         return new DailyCashEntryRequest(
             date,
             new BigDecimal("100"),              // openingDrawerCash
-            new BigDecimal("5"),                // cashExpenses
             new BigDecimal("10"),               // cashRemoved
             new BigDecimal(cashRemaining),      // cashRemaining
             new BigDecimal(otherAdj),           // otherAdjustments (signed)
@@ -142,7 +141,6 @@ class ExpectedCashOnHandTest {
         // Correct day 10's cash_remaining from 100 to 180 (adjustments unchanged).
         SuperAdminCashCorrectionRequest correction = new SuperAdminCashCorrectionRequest(
             new BigDecimal("100"),      // openingDrawerCash
-            new BigDecimal("5"),        // cashExpenses
             new BigDecimal("10"),       // cashRemoved
             new BigDecimal("180.00"),   // cashRemaining (was 100)
             new BigDecimal("0"),        // otherAdjustments

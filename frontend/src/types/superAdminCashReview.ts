@@ -17,7 +17,6 @@ export interface SuperAdminCashReviewEntry {
   storeId: number;
   businessDate: string;
   openingDrawerCash: string;
-  cashExpenses: string;
   cashRemoved: string;
   cashRemaining: string;
   otherAdjustments: string;
@@ -39,7 +38,6 @@ export interface SuperAdminCashReviewFlag {
 export interface SuperAdminCashReviewCorrection {
   id: number;
   previousOpeningDrawerCash: string;
-  previousCashExpenses: string;
   previousCashRemoved: string;
   previousCashRemaining: string;
   previousOtherAdjustments: string;
@@ -62,7 +60,6 @@ export interface SuperAdminCashReview {
 
 export interface SuperAdminCashCorrectionRequest {
   openingDrawerCash: number;
-  cashExpenses: number;
   cashRemoved: number;
   cashRemaining: number;
   otherAdjustments: number;

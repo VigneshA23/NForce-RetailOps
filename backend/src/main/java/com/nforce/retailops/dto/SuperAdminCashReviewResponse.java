@@ -42,7 +42,6 @@ public record SuperAdminCashReviewResponse(
         // deposits) are kept here for completeness and not displayed by the
         // review page.
         BigDecimal openingDrawerCash,
-        BigDecimal cashExpenses,
         BigDecimal cashRemoved,
         BigDecimal cashRemaining,
         BigDecimal otherAdjustments,
@@ -70,7 +69,6 @@ public record SuperAdminCashReviewResponse(
     public record CorrectionHistoryEntry(
         Long id,
         BigDecimal previousOpeningDrawerCash,
-        BigDecimal previousCashExpenses,
         BigDecimal previousCashRemoved,
         BigDecimal previousCashRemaining,
         BigDecimal previousOtherAdjustments,

@@ -32,7 +32,6 @@ const EVENT_LABELS: Record<CashHistoryEventType, string> = {
 
 const FIGURE_LABELS: Array<[keyof CashFigures, string]> = [
   ['openingDrawerCash', 'Opening drawer cash'],
-  ['cashExpenses', 'Cash expenses'],
   ['cashRemoved', 'Cash removed'],
   ['cashRemaining', 'Cash remaining'],
   ['otherAdjustments', 'Other adjustments'],

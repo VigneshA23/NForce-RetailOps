@@ -88,7 +88,7 @@ describe('SuperAdminCash', () => {
     expect(storeCashApi.getSuperAdminExpectedCashAsOf).toHaveBeenCalledWith(2, expect.any(String), expect.anything());
     expect(storeCashApi.getExpectedCashAsOf).not.toHaveBeenCalled();
 
-    for (const label of ['Opening drawer cash', 'Cash expenses', 'Cash removed', 'Cash remaining', 'Other adjustments']) {
+    for (const label of ['Opening drawer cash', 'Cash removed', 'Cash remaining', 'Other adjustments']) {
       await user.type(screen.getByLabelText(new RegExp(`^${label}`)), '5');
     }
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));

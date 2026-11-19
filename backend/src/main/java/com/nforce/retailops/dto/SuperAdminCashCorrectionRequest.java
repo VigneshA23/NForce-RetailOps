@@ -12,11 +12,14 @@ import java.math.BigDecimal;
 // otherAdjustments which is signed.
 public record SuperAdminCashCorrectionRequest(
     @NotNull BigDecimal openingDrawerCash,
-    @NotNull BigDecimal cashExpenses,
     @NotNull BigDecimal cashRemoved,
     @NotNull BigDecimal cashRemaining,
-    @NotNull BigDecimal otherAdjustments,
+    // Optional: a blank one is recorded as 0.
+    BigDecimal otherAdjustments,
     @NotNull @Size(min = 5, max = 2000, message = "Reason is required")
     String reason
 ) {
+    public BigDecimal otherAdjustmentsOrZero() {
+        return otherAdjustments == null ? BigDecimal.ZERO : otherAdjustments;
+    }
 }

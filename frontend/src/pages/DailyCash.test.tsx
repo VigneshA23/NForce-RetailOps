@@ -38,7 +38,6 @@ vi.mock('../utils/toast', () => ({
 
 const LABELS = [
   'Opening drawer cash',
-  'Cash expenses',
   'Cash removed',
   'Cash remaining',
   'Other adjustments',
@@ -52,7 +51,6 @@ function entry(overrides: Partial<DailyCashEntry> = {}): DailyCashEntry {
     openingDrawerCash: 200,
     cashRemoved: 500,
     cashRemaining: 934.5,
-    cashExpenses: 0,
     otherAdjustments: -12.25,
     enteredByUserId: 3,
     enteredBySuperAdminId: null,
@@ -163,7 +161,7 @@ describe('DailyCash', () => {
     expect(await screen.findByText(/^Entered by Unknown ·/)).toBeInTheDocument();
   });
 
-  it('shows exactly the five fields, in the agreed order', async () => {
+  it('shows exactly the four fields, in the agreed order', async () => {
     render(<DailyCash storeId={7} storesLoading={false} />);
     await screen.findByText('No entry saved for this date yet');
 
@@ -171,7 +169,6 @@ describe('DailyCash', () => {
       .filter((input) => input.id !== 'daily-cash-date');
     expect(inputs.map((input) => input.id)).toEqual([
       'daily-cash-openingDrawerCash',
-      'daily-cash-cashExpenses',
       'daily-cash-cashRemoved',
       'daily-cash-cashRemaining',
       'daily-cash-otherAdjustments',
@@ -213,9 +210,9 @@ describe('DailyCash', () => {
       history: [{
         id: 1,
         previousOpeningDrawerCash: 200, previousCashRemoved: 500,
-        previousCashRemaining: 934.5, previousCashExpenses: 0, previousOtherAdjustments: -12.25,
+        previousCashRemaining: 934.5, previousOtherAdjustments: -12.25,
         newOpeningDrawerCash: 1300, newCashRemoved: 500,
-        newCashRemaining: 934.5, newCashExpenses: 0, newOtherAdjustments: -12.25,
+        newCashRemaining: 934.5, newOtherAdjustments: -12.25,
         correctedByName: 'Priya Admin', correctedAt: '2026-11-10T09:30:00Z', reason: 'Opening cash keyed in wrong',
       }],
     }));
@@ -264,8 +261,50 @@ describe('DailyCash', () => {
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
     expect(screen.getByText('Opening drawer cash is required')).toBeInTheDocument();
-    expect(screen.getByText('Other adjustments is required (enter 0 if none)')).toBeInTheDocument();
-    expect(screen.getByText('Fix the 5 highlighted fields to save.')).toBeInTheDocument();
+    expect(screen.getByText('Fix the 3 highlighted fields to save.')).toBeInTheDocument();
+    expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
+  });
+
+  it('saves with Other adjustments left blank, sending 0 and showing no required message', async () => {
+    const user = userEvent.setup();
+    vi.mocked(storeCashApi.saveDailyCashEntry).mockImplementation(async (request) => entry({ ...request }));
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText('No entry saved for this date yet');
+
+    for (const label of ['Opening drawer cash', 'Cash removed', 'Cash remaining']) {
+      await user.type(field(label), '10');
+    }
+    expect(field('Other adjustments')).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Save Entry' }));
+
+    expect(screen.queryByText(/Other adjustments is required/)).not.toBeInTheDocument();
+    expect(storeCashApi.saveDailyCashEntry).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0].otherAdjustments).toBe(0);
+  });
+
+  it('marks Other adjustments as optional while the other three amounts are required', async () => {
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText('No entry saved for this date yet');
+
+    const marker = (label: string) =>
+      (field(label).closest('.form-field') as HTMLElement).querySelector('.form-field__required');
+    for (const label of ['Opening drawer cash', 'Cash removed', 'Cash remaining']) {
+      expect(marker(label)).not.toBeNull();
+    }
+    expect(marker('Other adjustments')).toBeNull();
+  });
+
+  it('still rejects a typed non-numeric Other adjustments', async () => {
+    const user = userEvent.setup();
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText('No entry saved for this date yet');
+
+    await fillAll(user);
+    await user.clear(field('Other adjustments'));
+    await user.type(field('Other adjustments'), 'abc');
+    await user.click(screen.getByRole('button', { name: 'Save Entry' }));
+
+    expect(screen.getByText('Other adjustments must be a number, e.g. 125.50')).toBeInTheDocument();
     expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
   });
 
@@ -279,8 +318,8 @@ describe('DailyCash', () => {
     await user.type(field('Opening drawer cash'), 'abc');
     await user.clear(field('Cash removed'));
     await user.type(field('Cash removed'), '-5');
-    await user.clear(field('Cash expenses'));
-    await user.type(field('Cash expenses'), '1.234');
+    await user.clear(field('Cash remaining'));
+    await user.type(field('Cash remaining'), '1.234');
     await user.clear(field('Other adjustments'));
     await user.type(field('Other adjustments'), '-5');
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
@@ -362,7 +401,7 @@ describe('DailyCash', () => {
     const user = userEvent.setup();
     vi.mocked(storeCashApi.saveDailyCashEntry).mockRejectedValue(
       new ApiError(400, 'Something went wrong. Please try again.', {
-        cashExpenses: 'Cash expenses cannot be negative',
+        cashRemaining: 'Cash remaining looks wrong',
         businessDate: 'Business date is invalid',
       }),
     );
@@ -372,8 +411,8 @@ describe('DailyCash', () => {
     await fillAll(user);
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
-    expect(await screen.findByText('Cash expenses cannot be negative')).toBeInTheDocument();
-    expect(field('Cash expenses')).toHaveAttribute('aria-invalid', 'true');
+    expect(await screen.findByText('Cash remaining looks wrong')).toBeInTheDocument();
+    expect(field('Cash remaining')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('Not saved: Business date is invalid')).toBeInTheDocument();
     expect(screen.queryByText(/Something went wrong/)).not.toBeInTheDocument();
     expect(screen.getByText('No entry saved for this date yet')).toBeInTheDocument();

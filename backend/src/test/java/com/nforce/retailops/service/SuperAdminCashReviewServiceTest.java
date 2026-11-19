@@ -202,7 +202,7 @@ class SuperAdminCashReviewServiceTest {
         when(entryRepository.sumExpectedCashOnHandUpTo(STORE_ID, date)).thenReturn(BigDecimal.ZERO);
 
         SuperAdminCashCorrectionRequest req = new SuperAdminCashCorrectionRequest(
-            new BigDecimal("250"), new BigDecimal("30"), new BigDecimal("40"),
+            new BigDecimal("250"), new BigDecimal("40"),
             new BigDecimal("180"), new BigDecimal("-10"), "Opening count was off  ");
 
         service.correct(SA_ID, STORE_ID, ENTRY_ID, req);
@@ -411,7 +411,6 @@ class SuperAdminCashReviewServiceTest {
         entry.setOpeningDrawerCash(new BigDecimal("200"));
         entry.setCashRemoved(new BigDecimal("50"));
         entry.setCashRemaining(new BigDecimal("450"));
-        entry.setCashExpenses(new BigDecimal("20"));
         entry.setOtherAdjustments(new BigDecimal("10"));
         entry.setDailyExpectedCash(new BigDecimal("460")); // cashRemaining + otherAdjustments
         entry.setEnteredByUser(enteredBy);
@@ -438,10 +437,8 @@ class SuperAdminCashReviewServiceTest {
         DailyCashEntryCorrection c = new DailyCashEntryCorrection();
         ReflectionTestUtils.setField(c, "id", 8L);
         ReflectionTestUtils.setField(c, "previousOpeningDrawerCash", new BigDecimal("100"));
-        ReflectionTestUtils.setField(c, "previousCashExpenses", new BigDecimal("0"));
         ReflectionTestUtils.setField(c, "previousCashRemoved", new BigDecimal("0"));
         ReflectionTestUtils.setField(c, "previousCashRemaining", new BigDecimal("100"));
-        ReflectionTestUtils.setField(c, "previousCashExpenses", new BigDecimal("0"));
         ReflectionTestUtils.setField(c, "previousOtherAdjustments", new BigDecimal("0"));
         ReflectionTestUtils.setField(c, "previousUpdatedAt", OffsetDateTime.now());
         ReflectionTestUtils.setField(c, "correctedAt", OffsetDateTime.now());
@@ -451,7 +448,7 @@ class SuperAdminCashReviewServiceTest {
 
     private SuperAdminCashCorrectionRequest validCorrection() {
         return new SuperAdminCashCorrectionRequest(
-            new BigDecimal("210"), new BigDecimal("25"), new BigDecimal("45"),
+            new BigDecimal("210"), new BigDecimal("45"),
             new BigDecimal("190"), BigDecimal.ZERO, "Updating based on recount");
     }
 }

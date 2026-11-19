@@ -4,7 +4,6 @@
 
 export type CashAmountField =
   | 'openingDrawerCash'
-  | 'cashExpenses'
   | 'cashRemoved'
   | 'cashRemaining'
   | 'otherAdjustments';
@@ -25,12 +24,10 @@ export interface DailyCashCorrection {
   previousOpeningDrawerCash: number;
   previousCashRemoved: number;
   previousCashRemaining: number;
-  previousCashExpenses: number;
   previousOtherAdjustments: number;
   newOpeningDrawerCash: number | null;
   newCashRemoved: number | null;
   newCashRemaining: number | null;
-  newCashExpenses: number | null;
   newOtherAdjustments: number | null;
   correctedByName: string | null;
   correctedAt: string;
@@ -108,7 +105,6 @@ export type CashHistoryEventType =
 
 export interface CashFigures {
   openingDrawerCash: number;
-  cashExpenses: number;
   cashRemoved: number;
   cashRemaining: number;
   otherAdjustments: number;

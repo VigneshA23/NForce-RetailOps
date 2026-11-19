@@ -30,15 +30,15 @@ import { usePersistedState, nullableNumber } from '../hooks/usePersistedState';
 import { nfToast } from '../utils/toast';
 import './SuperAdminCashReview.css';
 
-// The five review fields, in the spec order. The entry still holds total
+// The review fields, in the spec order (Other adjustments is optional, blank = 0).
+// The entry still holds total
 // cash sales and bank deposits -- they're kept on the model but not shown
 // in the review view.
 const REVIEW_FIELDS = [
-  { key: 'openingDrawerCash', label: 'Opening drawer cash', signed: false },
-  { key: 'cashExpenses', label: 'Cash expenses', signed: false },
-  { key: 'cashRemoved', label: 'Cash removed', signed: false },
-  { key: 'cashRemaining', label: 'Cash remaining', signed: false },
-  { key: 'otherAdjustments', label: 'Other adjustments', signed: true },
+  { key: 'openingDrawerCash', label: 'Opening drawer cash', signed: false, optional: false },
+  { key: 'cashRemoved', label: 'Cash removed', signed: false, optional: false },
+  { key: 'cashRemaining', label: 'Cash remaining', signed: false, optional: false },
+  { key: 'otherAdjustments', label: 'Other adjustments', signed: true, optional: true },
 ] as const;
 
 type ReviewFieldKey = (typeof REVIEW_FIELDS)[number]['key'];
@@ -68,7 +68,6 @@ function statusPillClass(status: CashEntryStatus): string {
 function entryToCorrectionValues(entry: SuperAdminCashReviewEntry): CorrectionValues {
   return {
     openingDrawerCash: entry.openingDrawerCash,
-    cashExpenses: entry.cashExpenses,
     cashRemoved: entry.cashRemoved,
     cashRemaining: entry.cashRemaining,
     otherAdjustments: entry.otherAdjustments,
@@ -189,7 +188,7 @@ function SuperAdminCashReview() {
       const field = REVIEW_FIELDS.find((f) => f.key === key)!;
       setCorrectErrors((err) => ({
         ...err,
-        [key]: validateAmount(field.label, raw, { signed: field.signed }),
+        [key]: field.optional && raw.trim() === '' ? undefined : validateAmount(field.label, raw, { signed: field.signed }),
       }));
     }
   }
@@ -199,7 +198,7 @@ function SuperAdminCashReview() {
     if (!review?.entry || !correctValues || storeId === null) return;
     const errors: CorrectionErrors = {};
     for (const field of REVIEW_FIELDS) {
-      const msg = validateAmount(field.label, correctValues[field.key], { signed: field.signed });
+      const msg = field.optional && correctValues[field.key].trim() === '' ? undefined : validateAmount(field.label, correctValues[field.key], { signed: field.signed });
       if (msg) errors[field.key] = msg;
     }
     const reason = correctReason.trim();
@@ -212,7 +211,6 @@ function SuperAdminCashReview() {
     try {
       const refreshed = await correctSuperAdminCashEntry(storeId, review.entry.id, {
         openingDrawerCash: parseAmount(correctValues.openingDrawerCash),
-        cashExpenses: parseAmount(correctValues.cashExpenses),
         cashRemoved: parseAmount(correctValues.cashRemoved),
         cashRemaining: parseAmount(correctValues.cashRemaining),
         otherAdjustments: parseAmount(correctValues.otherAdjustments),
@@ -434,7 +432,6 @@ function SuperAdminCashReview() {
                         </p>
                         <div className="cash-review__field-grid">
                           <PrevField label="Opening drawer cash" value={entry.previousOpeningDrawerCash} />
-                          <PrevField label="Cash expenses" value={entry.previousCashExpenses} />
                           <PrevField label="Cash removed" value={entry.previousCashRemoved} />
                           <PrevField label="Cash remaining" value={entry.previousCashRemaining} />
                           <PrevField label="Other adjustments" value={entry.previousOtherAdjustments} />
@@ -478,7 +475,7 @@ function SuperAdminCashReview() {
                   label={field.label}
                   htmlFor={`correct-${field.key}`}
                   error={correctErrors[field.key]}
-                  required
+                  required={!field.optional}
                 >
                   <div className="cash-review__money-input">
                     <span aria-hidden>$</span>

@@ -111,14 +111,13 @@ public class SuperAdminCashReviewService {
             DailyCashEntryCorrection.snapshotOf(entry, null, superAdmin, now);
 
         entry.setOpeningDrawerCash(request.openingDrawerCash());
-        entry.setCashExpenses(request.cashExpenses());
         entry.setCashRemoved(request.cashRemoved());
         entry.setCashRemaining(request.cashRemaining());
-        entry.setOtherAdjustments(request.otherAdjustments());
+        entry.setOtherAdjustments(request.otherAdjustmentsOrZero());
         // A correction recomputes the day's expected cash; the running sum
         // then shifts automatically because sumExpectedCashOnHandUpTo reads
         // this stored column.
-        entry.setDailyExpectedCash(request.cashRemaining().add(request.otherAdjustments()));
+        entry.setDailyExpectedCash(request.cashRemaining().add(request.otherAdjustmentsOrZero()));
         entry.setUpdatedByUser(null);
         entry.setUpdatedBySuperAdmin(superAdmin);
         entry.setUpdatedAt(now);
@@ -304,7 +303,6 @@ public class SuperAdminCashReviewService {
                 entry.getStore().getId(),
                 entry.getBusinessDate(),
                 entry.getOpeningDrawerCash(),
-                entry.getCashExpenses(),
                 entry.getCashRemoved(),
                 entry.getCashRemaining(),
                 entry.getOtherAdjustments(),
@@ -322,7 +320,6 @@ public class SuperAdminCashReviewService {
             corrections.stream().map(c -> new SuperAdminCashReviewResponse.CorrectionHistoryEntry(
                 c.getId(),
                 c.getPreviousOpeningDrawerCash(),
-                c.getPreviousCashExpenses(),
                 c.getPreviousCashRemoved(),
                 c.getPreviousCashRemaining(),
                 c.getPreviousOtherAdjustments(),

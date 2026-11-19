@@ -33,9 +33,6 @@ public class DailyCashEntry {
     @Column(name = "cash_remaining", nullable = false)
     private BigDecimal cashRemaining;
 
-    @Column(name = "cash_expenses", nullable = false)
-    private BigDecimal cashExpenses;
-
     // Signed: the only field allowed to be negative.
     @Column(name = "other_adjustments", nullable = false)
     private BigDecimal otherAdjustments;
@@ -85,8 +82,6 @@ public class DailyCashEntry {
     public void setCashRemoved(BigDecimal v) { this.cashRemoved = v; }
     public BigDecimal getCashRemaining() { return cashRemaining; }
     public void setCashRemaining(BigDecimal v) { this.cashRemaining = v; }
-    public BigDecimal getCashExpenses() { return cashExpenses; }
-    public void setCashExpenses(BigDecimal v) { this.cashExpenses = v; }
     public BigDecimal getOtherAdjustments() { return otherAdjustments; }
     public void setOtherAdjustments(BigDecimal v) { this.otherAdjustments = v; }
     public BigDecimal getDailyExpectedCash() { return dailyExpectedCash; }

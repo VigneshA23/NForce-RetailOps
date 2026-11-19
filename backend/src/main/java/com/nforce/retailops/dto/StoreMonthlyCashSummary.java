@@ -30,7 +30,6 @@ public record StoreMonthlyCashSummary(
     int daysRecorded,
     LocalDate asOfDate,
     BigDecimal totalCashRemoved,
-    BigDecimal cashExpenses,
     BigDecimal adjustments,
     BigDecimal expectedCashOnHand,
     BigDecimal actualCashCount,
@@ -45,7 +44,7 @@ public record StoreMonthlyCashSummary(
     public static StoreMonthlyCashSummary empty(Long storeId, String storeName, Long storeCode) {
         return new StoreMonthlyCashSummary(
             storeId, storeName, storeCode, 0, null,
-            null, null, null, null, null, null, null,
+            null, null, null, null, null, null,
             List.of()
         );
     }
