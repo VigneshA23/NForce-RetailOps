@@ -119,6 +119,15 @@ function todayKey(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+// Employees can look back at most this many days from today.
+const EMPLOYEE_LOOKBACK_DAYS = 7;
+
+function earliestEmployeeKey(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - EMPLOYEE_LOOKBACK_DAYS);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const FUTURE_DATE_MESSAGE = 'Business date cannot be in the future';
 
 // YYYY-MM-DD strings compare correctly as text. Typing into the native date
@@ -464,7 +473,7 @@ function DailyCash({
             {storeSelector && <div className="daily-cash-page__store">{storeSelector}</div>}
             <div className="daily-cash-page__date">
               <FormField label="Business date" htmlFor="daily-cash-date" error={dateIsFuture ? FUTURE_DATE_MESSAGE : undefined}>
-                <PopoverDateField id="daily-cash-date" value={businessDate} max={todayKey()} onChange={(value) => { if (value) setBusinessDate(value); }} />
+                <PopoverDateField id="daily-cash-date" value={businessDate} min={isEmployee ? earliestEmployeeKey() : undefined} max={todayKey()} onChange={(value) => { if (value) setBusinessDate(value); }} />
               </FormField>
             </div>
           </div>
