@@ -1,7 +1,5 @@
 import { ApiError, apiRequest } from './client';
 import type {
-  CashHistory,
-  CashHistoryStatusFilter,
   DailyCashEntry,
   DailyCashEntryRequest,
 } from '../types/storeCash';
@@ -23,17 +21,4 @@ export async function getMyCashEntry(storeId: number, date: string, signal?: Abo
 // Create or update an entry. `correctionReason` is an optional note here.
 export async function saveMyCashEntry(storeId: number, request: DailyCashEntryRequest): Promise<DailyCashEntry> {
   return apiRequest<DailyCashEntry>(`/me/cash?storeId=${storeId}`, { method: 'PUT', body: request });
-}
-
-// History of the entries this employee entered.
-export async function getMyCashHistory(
-  storeId: number,
-  from: string,
-  to: string,
-  status: CashHistoryStatusFilter,
-  signal?: AbortSignal,
-): Promise<CashHistory> {
-  const params = new URLSearchParams({ storeId: String(storeId), from, to });
-  if (status !== 'ALL') params.set('status', status);
-  return apiRequest<CashHistory>(`/me/cash/history?${params.toString()}`, { signal });
 }

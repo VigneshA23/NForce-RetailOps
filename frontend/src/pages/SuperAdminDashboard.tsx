@@ -39,7 +39,6 @@ import SuperAdminInventory from '../pages/SuperAdminInventory';
 import SuperAdminOrders, { type OrderStoreFocus } from '../pages/SuperAdminOrders';
 import SuperAdminActivity from '../pages/SuperAdminActivity';
 import SuperAdminCash from '../pages/SuperAdminCash';
-import SuperAdminCashReview from '../pages/SuperAdminCashReview';
 import MonthlyCashSummary from '../pages/MonthlyCashSummary';
 import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
@@ -553,8 +552,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminOrders focusStore={orderStoreFocus} />
       ) : activeTab === 'cash' ? (
         <SuperAdminCash />
-      ) : activeTab === 'cash-review' ? (
-        <SuperAdminCashReview />
       ) : activeTab === 'cash-summary' ? (
         <MonthlyCashSummary scope="super-admin" />
       ) : (

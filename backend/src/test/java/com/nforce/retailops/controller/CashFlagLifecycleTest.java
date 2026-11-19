@@ -333,16 +333,10 @@ class CashFlagLifecycleTest {
     }
 
     @Test
-    void employeeHistoryShowsOnlyTheirOwnEntries() throws Exception {
-        employeePut(authorToken, body(today, "10.00", null)).andExpect(status().isOk());
+    void employeesHaveNoCashHistoryEndpoint() throws Exception {
         mockMvc.perform(get("/api/me/cash/history").param("storeId", store.getId().toString())
                 .header("Authorization", "Bearer " + authorToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.events.length()").value(1));
-        mockMvc.perform(get("/api/me/cash/history").param("storeId", store.getId().toString())
-                .header("Authorization", "Bearer " + colleagueToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.events.length()").value(0));
+            .andExpect(status().is4xxClientError());
     }
 
     @Test

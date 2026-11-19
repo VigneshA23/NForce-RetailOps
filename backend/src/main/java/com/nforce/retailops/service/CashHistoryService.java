@@ -81,16 +81,6 @@ public class CashHistoryService {
         return build(storeId, from, to, status, null);
     }
 
-    // Employees see the history of entries they entered themselves, in a
-    // store they work at (anything else is a 404).
-    @Transactional(readOnly = true)
-    public CashHistoryResponse forEmployee(Long employeeId, Long storeId, LocalDate from, LocalDate to, String status) {
-        if (!storeEmployeeRepository.existsByEmployeeIdAndActiveStoreId(employeeId, storeId)) {
-            throw new StoreNotFoundException("Store not found");
-        }
-        return build(storeId, from, to, status, employeeId);
-    }
-
     private CashHistoryResponse build(Long storeId, LocalDate from, LocalDate to, String status, Long onlyEnteredBy) {
         LocalDate end = to != null ? to : LocalDate.now();
         LocalDate start = from != null ? from : end.minusDays(DEFAULT_RANGE_DAYS - 1L);

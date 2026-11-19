@@ -26,7 +26,6 @@ vi.mock('../api/storeCash', () => ({
 vi.mock('../api/meCash', () => ({
   getMyCashEntry: vi.fn(),
   saveMyCashEntry: vi.fn(),
-  getMyCashHistory: vi.fn().mockResolvedValue({ storeId: 7, from: '', to: '', events: [] }),
 }));
 vi.mock('../api/storeCashTarget', () => ({
   getCashTarget: vi.fn().mockResolvedValue({ storeId: 7, targetAmount: 250, updatedByUserId: null, updatedBySuperAdminId: null, updatedAt: '2026-11-01T00:00:00Z' }),

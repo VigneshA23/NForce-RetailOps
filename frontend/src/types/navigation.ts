@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Banknote, Boxes, CalendarCheck, Building2, CheckSquare, ClipboardList, Flag, LayoutGrid, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
+import { Banknote, Boxes, CalendarCheck, Building2, CheckSquare, ClipboardList, LayoutGrid, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -65,7 +65,7 @@ export interface EmployeeNavItem {
   icon: LucideIcon;
 }
 
-export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'tasks' | 'checklist' | 'issues' | 'inventory' | 'orders' | 'cash' | 'cash-review' | 'cash-summary';
+export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'tasks' | 'checklist' | 'issues' | 'inventory' | 'orders' | 'cash' | 'cash-summary';
 
 export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'home', label: 'Home', icon: Home },
@@ -78,7 +78,6 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'inventory', label: 'Inventory', icon: Boxes },
   { key: 'orders', label: 'Orders', icon: ShoppingCart },
   { key: 'cash', label: 'Daily Cash', icon: Banknote },
-  { key: 'cash-review', label: 'Cash Review', icon: Flag },
   { key: 'cash-summary', label: 'Month-End Cash', icon: CalendarCheck },
 ];
 
@@ -104,6 +103,5 @@ export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
   inventory: 'Inventory',
   orders: 'Orders',
   cash: 'Daily Cash Entry',
-  'cash-review': 'Cash Review',
   'cash-summary': 'Month-End Cash Summary',
 };

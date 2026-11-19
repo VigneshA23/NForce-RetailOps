@@ -132,7 +132,7 @@ public class DailyCashEntryService {
     public DailyCashEntryResponse saveForSuperAdmin(Long superAdminId, Long storeId, DailyCashEntryRequest request) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return saveEntry(store, null, superAdminRepository.getReferenceById(superAdminId), request, true, false);
+        return saveEntry(store, null, superAdminRepository.getReferenceById(superAdminId), request, false, false);
     }
 
     @Transactional(readOnly = true)
