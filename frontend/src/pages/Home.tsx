@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, AlertTriangle, ArrowRight, Calendar, CheckCircle2, ListChecks, PackageSearch, Users, Tags } from 'lucide-react';
-import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, type TooltipProps } from 'recharts';
 import { getChecklistHistoryDetail, getChecklistHistorySummary } from '../api/checklistHistory';
 import { getIssues } from '../api/issues';
 import { getNeedsOrderingCount } from '../api/orderList';
@@ -57,6 +57,23 @@ function isoDateDaysAgo(daysAgo: number): string {
 
 // completedTasks/totalTasks as a whole-number percent, 0 for a day/store with
 // no tasks at all rather than NaN or a misleading 100%.
+interface DonutSlice {
+  name: 'Completed' | 'Pending';
+  value: number;
+  tasks: number;
+}
+
+// Hovering a Today's Completion slice shows e.g. "Completed: 20% (7 tasks)".
+export function DonutTooltip({ active, payload }: TooltipProps<number, string>) {
+  if (!active || !payload?.length) return null;
+  const slice = payload[0].payload as DonutSlice;
+  return (
+    <div className="home-page__donut-tooltip" role="tooltip">
+      {slice.name}: {slice.value}% ({slice.tasks} {slice.tasks === 1 ? 'task' : 'tasks'})
+    </div>
+  );
+}
+
 function completionPercent(totalTasks: number, completedTasks: number): number {
   return totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 }
@@ -282,12 +299,17 @@ function Home({
     [categoryBreakdown],
   );
 
-  const completionDonutData = useMemo(
+  // `tasks` rides along so the hover tooltip can show the count beside the share.
+  const completionDonutData = useMemo<DonutSlice[]>(
     () => [
-      { name: 'Completed', value: todayCompletion },
-      { name: 'Remaining', value: Math.max(0, 100 - todayCompletion) },
+      { name: 'Completed', value: todayCompletion, tasks: todayTotals.completedTasks },
+      {
+        name: 'Pending',
+        value: Math.max(0, 100 - todayCompletion),
+        tasks: todayTotals.totalTasks - todayTotals.completedTasks,
+      },
     ],
-    [todayCompletion],
+    [todayCompletion, todayTotals],
   );
 
   const issuesLoading = issues === null;
@@ -405,6 +427,11 @@ function Home({
                     <Cell fill="var(--color-accent)" />
                     <Cell fill="var(--color-border)" />
                   </Pie>
+                  <Tooltip
+                    content={<DonutTooltip />}
+                    isAnimationActive={false}
+                    wrapperStyle={{ zIndex: 2 }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className="home-page__donut-label">
