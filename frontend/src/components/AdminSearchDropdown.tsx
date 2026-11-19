@@ -203,7 +203,11 @@ function AdminSearchDropdown({ onNavigate, onMobileOpenChange }: AdminSearchDrop
             ref={inputRef}
             type="search"
             className="adrop__input"
-            placeholder="Search tasks, categories, employees…"
+            // Short on purpose: the header bar is narrow (it also holds Switch
+            // Store), and the long text was clipped mid-word. The tooltip and
+            // the open dropdown say what can be searched.
+            placeholder="Search"
+            title="Search tasks, categories and employees"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setOpen(true)}

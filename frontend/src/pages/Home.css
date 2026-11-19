@@ -2,6 +2,27 @@
 
 .home-page {
   padding: var(--space-lg);
+  /* Below-par categories use the page accent. */
+  --home-risk: var(--color-accent);
+}
+
+/* Home uses the Ked's logo colours instead of the old red: pink for the
+   completion graph, one violet for everything else (donut, links, badges,
+   below-par categories). Dark mode uses lighter shades of the same two so
+   they stay readable on dark cards. Scoped to Home on purpose; widening it
+   means moving these values onto :root. */
+.home-page {
+  --color-accent: var(--brand-violet);
+  --chart-fill: var(--brand-orchid);
+  --chart-line-start: var(--brand-orchid);
+  --chart-line-end: var(--brand-orchid);
+}
+
+:root[data-theme='dark'] .home-page {
+  --color-accent: var(--brand-violet-light);
+  --chart-fill: var(--brand-pink-light);
+  --chart-line-start: var(--brand-pink-light);
+  --chart-line-end: var(--brand-pink-light);
 }
 
 .home-page__heading-row {
@@ -213,7 +234,7 @@
 }
 
 .home-page__category-health-dot[data-tier='risk'] {
-  background: var(--color-accent);
+  background: var(--home-risk);
 }
 
 .home-page__category-health-bar-track {
@@ -236,7 +257,7 @@
 }
 
 .home-page__category-health-bar-fill[data-tier='risk'] {
-  background: var(--color-accent);
+  background: var(--home-risk);
 }
 
 .home-page__category-health-percent {
@@ -250,7 +271,7 @@
 }
 
 .home-page__category-health-percent[data-tier='risk'] {
-  color: var(--color-accent);
+  color: var(--home-risk);
 }
 
 .home-page__category-health-empty {
@@ -394,8 +415,8 @@
   flex-shrink: 0;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  background: var(--color-badge-icon-primary-bg);
-  color: var(--color-badge-icon-primary-fg);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
