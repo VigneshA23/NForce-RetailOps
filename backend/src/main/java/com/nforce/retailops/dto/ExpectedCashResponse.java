@@ -17,8 +17,9 @@ import java.time.OffsetDateTime;
  * cutoff (BA decision, RTS-295/296), so clients show this timestamp to let the
  * reader judge freshness.
  *
- * <p>{@code variance} = cashRemaining (physically counted) - expectedCashOnHand:
- * positive is an overage, negative is a shortage.
+ * <p>{@code expectedCashOnHand} is the running sum of daily expected cash
+ * (cash remaining +/- other adjustments) up to {@code asOfDate}. Opening drawer
+ * cash and cash removed are recorded figures only.
  */
 public record ExpectedCashResponse(
     Long storeId,
@@ -27,17 +28,20 @@ public record ExpectedCashResponse(
     LocalDate asOfDate,
     BigDecimal expectedCashOnHand,
     BigDecimal cashRemaining,
-    BigDecimal variance,
     BigDecimal openingDrawerCash,
     BigDecimal cashRemoved,
-    BigDecimal cashExpenses,
     BigDecimal otherAdjustments,
     OffsetDateTime lastUpdatedAt
 ) {
     public static ExpectedCashResponse unavailable(Long storeId) {
         return new ExpectedCashResponse(
             storeId, false, "No cash entries have been recorded for this store yet",
-            null, null, null, null, null, null, null, null, null
+            null, null, null, null, null, null, null
         );
+    }
+
+    public ExpectedCashResponse withExpectedCashOnHand(BigDecimal value) {
+        return new ExpectedCashResponse(storeId, available, message, asOfDate, value, cashRemaining,
+            openingDrawerCash, cashRemoved, otherAdjustments, lastUpdatedAt);
     }
 }

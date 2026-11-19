@@ -234,7 +234,8 @@
   flex: 1;
 }
 
-.lhp__stripe--red { background: #DC1C2E; }
+/* Light pink in place of the old red (class name kept). */
+.lhp__stripe--red { background: #f39cc4; }
 .lhp__stripe--white { background: #F2F2F3; }
 
 /* Screen content area */

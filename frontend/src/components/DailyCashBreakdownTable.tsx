@@ -14,12 +14,12 @@ function dayLabel(value: string): string {
   });
 }
 
-function formatVariance(value: number): string {
+function formatSigned(value: number): string {
   if (value === 0) return formatCurrency(0);
   return value > 0 ? `+${formatCurrency(value)}` : formatCurrency(value);
 }
 
-function varianceClass(value: number | null): string {
+function signClass(value: number | null): string {
   if (value === null || value === 0) return '';
   return value < 0 ? ' daily-cash__amount--short' : ' daily-cash__amount--over';
 }
@@ -47,9 +47,9 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
         </h3>
       </div>
       <p className="daily-cash__lead">
-        Expected cash on hand, Actual cash count and Variance above are taken from{' '}
-        <strong>{dayLabel(closingDate)}</strong>, the last recorded day (highlighted below).
-        Days with no entry are not listed.
+        Expected cash on hand above is the month-to-date total on{' '}
+        <strong>{dayLabel(closingDate)}</strong>, the last recorded day (highlighted below). It starts from the
+        1st of the month; each day adds its cash remaining ± adjustments. Days with no entry are not listed.
       </p>
       {/* Not a .table-card: that class stacks rows into cards on phones. This
           table keeps its columns on every screen and scrolls sideways instead. */}
@@ -61,11 +61,10 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
                 <th scope="col" className="daily-cash__date-col">Date</th>
                 <th scope="col">Opening Drawer</th>
                 <th scope="col">Cash Removed</th>
-                <th scope="col">Cash Expenses</th>
+                <th scope="col">Cash Remaining</th>
                 <th scope="col">Adjustments</th>
-                <th scope="col">Expected Cash</th>
-                <th scope="col">Actual Count</th>
-                <th scope="col">Variance</th>
+                <th scope="col">Day Expected</th>
+                <th scope="col">Expected Cash on Hand</th>
               </tr>
             </thead>
             <tbody>
@@ -81,13 +80,10 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
                   </th>
                   <td>{money(day.openingDrawerCash)}</td>
                   <td>{money(day.cashRemoved)}</td>
-                  <td>{money(day.cashExpenses)}</td>
-                  <td>{money(day.adjustments)}</td>
-                  <td>{money(day.expectedCash)}</td>
                   <td>{money(day.cashRemaining)}</td>
-                  <td className={`daily-cash__variance${varianceClass(day.variance)}`}>
-                    {formatVariance(day.variance)}
-                  </td>
+                  <td className={signClass(day.adjustments).trim()}>{formatSigned(day.adjustments)}</td>
+                  <td>{money(day.dailyExpected)}</td>
+                  <td>{money(day.expectedCashOnHand)}</td>
                 </tr>
               ))}
             </tbody>
@@ -99,23 +95,20 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
                 </th>
                 <td aria-label="Opening drawer is not totalled">-</td>
                 <td>{money(summary.totalCashRemoved)}</td>
-                <td>{money(summary.cashExpenses)}</td>
-                <td className={varianceClass(summary.adjustments).trim()}>
-                  {summary.adjustments === null ? '-' : formatVariance(summary.adjustments)}
+                <td>{money(summary.totalCashRemaining)}</td>
+                <td className={signClass(summary.adjustments).trim()}>
+                  {summary.adjustments === null ? '-' : formatSigned(summary.adjustments)}
                 </td>
-                <td aria-label="Expected cash is not totalled">-</td>
-                <td aria-label="Actual count is not totalled">-</td>
-                <td className={`daily-cash__variance${varianceClass(summary.netDailyVariance)}`}>
-                  {summary.netDailyVariance === null ? '-' : formatVariance(summary.netDailyVariance)}
-                </td>
+                <td aria-label="Day expected is not totalled">-</td>
+                <td>{money(summary.expectedCashOnHand)}</td>
               </tr>
             </tfoot>
           </table>
         </TableScroll>
       </div>
       <p className="daily-cash__note">
-        Opening drawer, expected cash and actual count are balances for each day, so they are not added up.
-        Net daily variance is the sum of the Variance column.
+        Opening drawer cash and cash removed are recorded only; they do not change expected cash. Expected cash on hand
+        is a running balance, so it is not added up.
       </p>
     </section>
   );

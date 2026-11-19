@@ -26,7 +26,6 @@ vi.mock('../api/storeCash', () => ({
 vi.mock('../api/meCash', () => ({
   getMyCashEntry: vi.fn(),
   saveMyCashEntry: vi.fn(),
-  getMyCashHistory: vi.fn().mockResolvedValue({ storeId: 7, from: '', to: '', events: [] }),
 }));
 vi.mock('../api/storeCashTarget', () => ({
   getCashTarget: vi.fn().mockResolvedValue({ storeId: 7, targetAmount: 250, updatedByUserId: null, updatedBySuperAdminId: null, updatedAt: '2026-11-01T00:00:00Z' }),
@@ -38,7 +37,6 @@ vi.mock('../utils/toast', () => ({
 
 const LABELS = [
   'Opening drawer cash',
-  'Cash expenses',
   'Cash removed',
   'Cash remaining',
   'Other adjustments',
@@ -52,7 +50,6 @@ function entry(overrides: Partial<DailyCashEntry> = {}): DailyCashEntry {
     openingDrawerCash: 200,
     cashRemoved: 500,
     cashRemaining: 934.5,
-    cashExpenses: 0,
     otherAdjustments: -12.25,
     enteredByUserId: 3,
     enteredBySuperAdminId: null,
@@ -163,7 +160,7 @@ describe('DailyCash', () => {
     expect(await screen.findByText(/^Entered by Unknown ·/)).toBeInTheDocument();
   });
 
-  it('shows exactly the five fields, in the agreed order', async () => {
+  it('shows exactly the four fields, in the agreed order', async () => {
     render(<DailyCash storeId={7} storesLoading={false} />);
     await screen.findByText('No entry saved for this date yet');
 
@@ -171,7 +168,6 @@ describe('DailyCash', () => {
       .filter((input) => input.id !== 'daily-cash-date');
     expect(inputs.map((input) => input.id)).toEqual([
       'daily-cash-openingDrawerCash',
-      'daily-cash-cashExpenses',
       'daily-cash-cashRemoved',
       'daily-cash-cashRemaining',
       'daily-cash-otherAdjustments',
@@ -187,7 +183,7 @@ describe('DailyCash', () => {
     await screen.findByText('No entry saved for this date yet');
 
     await user.click(screen.getByLabelText('Help for Opening drawer cash'));
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Cash physically in the drawer at the start of the day');
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Cash in the drawer at the start of the day');
     await user.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -213,9 +209,9 @@ describe('DailyCash', () => {
       history: [{
         id: 1,
         previousOpeningDrawerCash: 200, previousCashRemoved: 500,
-        previousCashRemaining: 934.5, previousCashExpenses: 0, previousOtherAdjustments: -12.25,
+        previousCashRemaining: 934.5, previousOtherAdjustments: -12.25,
         newOpeningDrawerCash: 1300, newCashRemoved: 500,
-        newCashRemaining: 934.5, newCashExpenses: 0, newOtherAdjustments: -12.25,
+        newCashRemaining: 934.5, newOtherAdjustments: -12.25,
         correctedByName: 'Priya Admin', correctedAt: '2026-11-10T09:30:00Z', reason: 'Opening cash keyed in wrong',
       }],
     }));
@@ -254,7 +250,7 @@ describe('DailyCash', () => {
     expect(vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0].correctionReason).toBeUndefined();
   });
 
-  it('starts blank when nothing is saved and refuses to save until every field is valid', async () => {
+  it('starts blank, with no mandatory field, and only asks for at least one amount', async () => {
     const user = userEvent.setup();
     render(<DailyCash storeId={7} storesLoading={false} />);
 
@@ -263,9 +259,64 @@ describe('DailyCash', () => {
 
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
-    expect(screen.getByText('Opening drawer cash is required')).toBeInTheDocument();
-    expect(screen.getByText('Other adjustments is required (enter 0 if none)')).toBeInTheDocument();
-    expect(screen.getByText('Fix the 5 highlighted fields to save.')).toBeInTheDocument();
+    expect(screen.getByText('Enter an amount to save')).toBeInTheDocument();
+    expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
+  });
+
+  it('lets an admin save just one amount, sending only what was filled in', async () => {
+    const user = userEvent.setup();
+    vi.mocked(storeCashApi.saveDailyCashEntry).mockImplementation(async (request) =>
+      entry({ ...request, cashRemoved: null, otherAdjustments: 0 }));
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText('No entry saved for this date yet');
+
+    await user.type(field('Cash remaining'), '10');
+    await user.click(screen.getByRole('button', { name: 'Save Entry' }));
+
+    expect(storeCashApi.saveDailyCashEntry).toHaveBeenCalledTimes(1);
+    const request = vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0];
+    expect(request.cashRemaining).toBe(10);
+    expect(request).not.toHaveProperty('openingDrawerCash');
+    expect(request).not.toHaveProperty('cashRemoved');
+    expect(request).not.toHaveProperty('otherAdjustments');
+  });
+
+  it('does not ask an owner for a reason when filling in a figure that was never recorded', async () => {
+    const user = userEvent.setup();
+    vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry({ cashRemoved: null }));
+    vi.mocked(storeCashApi.saveDailyCashEntry).mockImplementation(async (request) => entry({ ...request }));
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText(/^Saved · last updated/);
+
+    await user.type(field('Cash removed'), '40');
+    await user.click(screen.getByRole('button', { name: 'Update Entry' }));
+
+    expect(screen.queryByText('Enter a reason for this correction')).not.toBeInTheDocument();
+    const request = vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0];
+    expect(request.cashRemoved).toBe(40);
+    expect(request.correctionReason).toBeUndefined();
+  });
+
+  it('marks no field as required for an owner', async () => {
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText('No entry saved for this date yet');
+
+    for (const label of LABELS) {
+      expect((field(label).closest('.form-field') as HTMLElement).querySelector('.form-field__required')).toBeNull();
+    }
+  });
+
+  it('still rejects a typed non-numeric Other adjustments', async () => {
+    const user = userEvent.setup();
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText('No entry saved for this date yet');
+
+    await fillAll(user);
+    await user.clear(field('Other adjustments'));
+    await user.type(field('Other adjustments'), 'abc');
+    await user.click(screen.getByRole('button', { name: 'Save Entry' }));
+
+    expect(screen.getByText('Other adjustments must be a number, e.g. 125.50')).toBeInTheDocument();
     expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
   });
 
@@ -279,8 +330,8 @@ describe('DailyCash', () => {
     await user.type(field('Opening drawer cash'), 'abc');
     await user.clear(field('Cash removed'));
     await user.type(field('Cash removed'), '-5');
-    await user.clear(field('Cash expenses'));
-    await user.type(field('Cash expenses'), '1.234');
+    await user.clear(field('Cash remaining'));
+    await user.type(field('Cash remaining'), '1.234');
     await user.clear(field('Other adjustments'));
     await user.type(field('Other adjustments'), '-5');
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
@@ -362,7 +413,7 @@ describe('DailyCash', () => {
     const user = userEvent.setup();
     vi.mocked(storeCashApi.saveDailyCashEntry).mockRejectedValue(
       new ApiError(400, 'Something went wrong. Please try again.', {
-        cashExpenses: 'Cash expenses cannot be negative',
+        cashRemaining: 'Cash remaining looks wrong',
         businessDate: 'Business date is invalid',
       }),
     );
@@ -372,8 +423,8 @@ describe('DailyCash', () => {
     await fillAll(user);
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
-    expect(await screen.findByText('Cash expenses cannot be negative')).toBeInTheDocument();
-    expect(field('Cash expenses')).toHaveAttribute('aria-invalid', 'true');
+    expect(await screen.findByText('Cash remaining looks wrong')).toBeInTheDocument();
+    expect(field('Cash remaining')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('Not saved: Business date is invalid')).toBeInTheDocument();
     expect(screen.queryByText(/Something went wrong/)).not.toBeInTheDocument();
     expect(screen.getByText('No entry saved for this date yet')).toBeInTheDocument();
@@ -465,16 +516,15 @@ describe('DailyCash', () => {
     expect(screen.getByRole('button', { name: 'Remove flag' })).toBeInTheDocument();
   });
 
-  it('requires at least five words to flag an entry, then flags it', async () => {
+  it('requires a comment to flag an entry, then flags it', async () => {
     const user = userEvent.setup();
     vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry());
     vi.mocked(storeCashApi.flagCashEntry).mockResolvedValue(entry({ status: 'Flagged', flag: FLAG }));
     render(<DailyCash storeId={7} storesLoading={false} />);
 
     await user.click(await screen.findByRole('button', { name: 'Flag entry' }));
-    await user.type(screen.getByLabelText(/Flag comment/), 'too short');
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Flag entry' }));
-    expect(await screen.findByText('Please give at least 5 words of context.')).toBeInTheDocument();
+    expect(await screen.findByText('Please enter a comment.')).toBeInTheDocument();
     expect(storeCashApi.flagCashEntry).not.toHaveBeenCalled();
 
     await user.clear(screen.getByLabelText(/Flag comment/));
@@ -502,19 +552,67 @@ describe('DailyCash', () => {
 
   // ---- Employee view (RTS-557) --------------------------------------------------
 
-  it('lets an employee record today without a reason, and never shows expected cash or the target', async () => {
+  it('gives an employee two separate forms: opening drawer on its own, then the rest', async () => {
     const user = userEvent.setup();
-    vi.mocked(meCashApi.saveMyCashEntry).mockImplementation(async (_storeId, request) => entry({ ...request, canEdit: true }));
+    vi.mocked(meCashApi.saveMyCashEntry).mockImplementation(async (_storeId, request) =>
+      entry({ cashRemoved: null, cashRemaining: null, otherAdjustments: 0, ...request, canEdit: true }));
+    render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
+    await screen.findAllByRole('button', { name: 'Save Entry' });
+
+    const opening = screen.getByRole('form', { name: 'Opening drawer cash' });
+    const rest = screen.getByRole('form', { name: 'Cash removed, cash remaining and adjustments' });
+    expect(within(opening).getAllByRole('textbox')).toHaveLength(1);
+    expect(within(opening).getByLabelText(/^Opening drawer cash/)).toBeInTheDocument();
+    expect(within(rest).getAllByRole('textbox')).toHaveLength(3);
+    expect(within(rest).queryByLabelText(/^Opening drawer cash/)).not.toBeInTheDocument();
+
+    // Saving the opening form sends only the opening drawer cash.
+    await user.type(within(opening).getByLabelText(/^Opening drawer cash/), '150');
+    await user.click(within(opening).getByRole('button', { name: 'Save Entry' }));
+    expect(meCashApi.saveMyCashEntry).toHaveBeenCalledTimes(1);
+    const first = vi.mocked(meCashApi.saveMyCashEntry).mock.calls[0][1];
+    expect(first.openingDrawerCash).toBe(150);
+    expect(first).not.toHaveProperty('cashRemoved');
+    expect(first).not.toHaveProperty('cashRemaining');
+    expect(first).not.toHaveProperty('otherAdjustments');
+
+    // The other form requires cash removed and cash remaining, not adjustments.
+    await user.click(within(rest).getByRole('button', { name: /Save Entry|Update Entry/ }));
+    expect(within(rest).getByText('Cash removed is required')).toBeInTheDocument();
+    expect(within(rest).getByText('Cash remaining is required')).toBeInTheDocument();
+    expect(within(rest).queryByText(/Other adjustments is required/)).not.toBeInTheDocument();
+    expect(meCashApi.saveMyCashEntry).toHaveBeenCalledTimes(1);
+
+    await user.type(within(rest).getByLabelText(/^Cash removed/), '30');
+    await user.type(within(rest).getByLabelText(/^Cash remaining/), '120');
+    await user.click(within(rest).getByRole('button', { name: /Save Entry|Update Entry/ }));
+    expect(meCashApi.saveMyCashEntry).toHaveBeenCalledTimes(2);
+    const second = vi.mocked(meCashApi.saveMyCashEntry).mock.calls[1][1];
+    expect(second.cashRemoved).toBe(30);
+    expect(second.cashRemaining).toBe(120);
+    expect(second).not.toHaveProperty('openingDrawerCash');
+    expect(second).not.toHaveProperty('otherAdjustments');
+  });
+
+  it('requires the opening drawer cash in the employee opening form', async () => {
+    const user = userEvent.setup();
+    render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
+    await screen.findAllByRole('button', { name: 'Save Entry' });
+
+    const opening = screen.getByRole('form', { name: 'Opening drawer cash' });
+    await user.click(within(opening).getByRole('button', { name: 'Save Entry' }));
+
+    expect(within(opening).getByText('Opening drawer cash is required')).toBeInTheDocument();
+    expect(meCashApi.saveMyCashEntry).not.toHaveBeenCalled();
+  });
+
+  it('never shows an employee expected cash or the target', async () => {
     render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
 
-    expect(await screen.findByRole('button', { name: 'Save Entry' })).toBeEnabled();
+    expect(await screen.findAllByRole('button', { name: 'Save Entry' })).toHaveLength(2);
     expect(screen.queryByText('Expected Cash on Hand')).not.toBeInTheDocument();
     expect(screen.queryByText('Cash target')).not.toBeInTheDocument();
     expect(storeCashApi.getExpectedCashAsOf).not.toHaveBeenCalled();
-
-    await fillAll(user);
-    await user.click(screen.getByRole('button', { name: 'Save Entry' }));
-    expect(meCashApi.saveMyCashEntry).toHaveBeenCalledWith(7, expect.objectContaining({ openingDrawerCash: 10 }));
   });
 
   it('shows a flagged entry read-only to an employee who did not enter it', async () => {
@@ -523,7 +621,8 @@ describe('DailyCash', () => {
 
     expect(await screen.findByText(/Only they can correct it/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Update Entry|Save & resolve flag/ })).not.toBeInTheDocument();
-    expect(field('Cash removed')).toBeDisabled();
+    const rest = screen.getByRole('form', { name: 'Cash removed, cash remaining and adjustments' });
+    expect(within(rest).getByLabelText(/^Cash removed/)).toBeDisabled();
   });
 
   it('lets the entering employee fix a flagged entry with an optional note, which resolves it', async () => {
@@ -534,18 +633,21 @@ describe('DailyCash', () => {
     render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
 
     expect(await screen.findByText(/Cash removed looks too high for a Tuesday/)).toBeInTheDocument();
-    await user.clear(field('Cash removed'));
-    await user.type(field('Cash removed'), '450');
-    await user.type(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[1], 'Recounted the drawer');
-    await user.click(screen.getAllByRole('button', { name: 'Save & resolve flag' })[1]);
+    const rest = screen.getByRole('form', { name: 'Cash removed, cash remaining and adjustments' });
+    await user.clear(within(rest).getByLabelText(/^Cash removed/));
+    await user.type(within(rest).getByLabelText(/^Cash removed/), '450');
+    await user.type(within(rest).getByRole('textbox', { name: /Note \(optional\)/ }), 'Recounted the drawer');
+    await user.click(within(rest).getByRole('button', { name: 'Save & resolve flag' }));
 
     expect(meCashApi.saveMyCashEntry).toHaveBeenCalledWith(7, expect.objectContaining({
       cashRemoved: 450,
       correctionReason: 'Recounted the drawer',
     }));
+    const request = vi.mocked(meCashApi.saveMyCashEntry).mock.calls[0][1];
+    expect(request).not.toHaveProperty('openingDrawerCash');
   });
 
-  it('keeps employee section notes separate and shows loading only on the submitted section', async () => {
+  it('keeps employee section notes and loading indicators independent', async () => {
     const user = userEvent.setup();
     vi.mocked(meCashApi.getMyCashEntry).mockResolvedValue(entry({ canEdit: true }));
     let resolveSave: ((saved: DailyCashEntry) => void) | undefined;
@@ -553,50 +655,51 @@ describe('DailyCash', () => {
       new Promise((resolve) => { resolveSave = resolve; }));
     render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
 
-    expect(await screen.findAllByRole('button', { name: 'Update Entry' })).toHaveLength(2);
-    const notes = screen.getAllByRole('textbox', { name: /Note \(optional\)/ });
-    await user.type(notes[0], 'Opening note');
-    await user.type(notes[1], 'Cash note');
-    expect(notes[0]).toHaveValue('Opening note');
-    expect(notes[1]).toHaveValue('Cash note');
+    const opening = await screen.findByRole('form', { name: 'Opening drawer cash' });
+    const rest = screen.getByRole('form', { name: 'Cash removed, cash remaining and adjustments' });
+    const openingNote = within(opening).getByRole('textbox', { name: /Note \(optional\)/ });
+    const restNote = within(rest).getByRole('textbox', { name: /Note \(optional\)/ });
+    await user.type(openingNote, 'Opening note');
+    await user.type(restNote, 'Cash note');
+    expect(openingNote).toHaveValue('Opening note');
+    expect(restNote).toHaveValue('Cash note');
 
-    await user.clear(field('Opening drawer cash'));
-    await user.type(field('Opening drawer cash'), '210');
-    await user.click(screen.getAllByRole('button', { name: 'Update Entry' })[0]);
+    await user.clear(within(opening).getByLabelText(/^Opening drawer cash/));
+    await user.type(within(opening).getByLabelText(/^Opening drawer cash/), '210');
+    await user.click(within(opening).getByRole('button', { name: 'Update Entry' }));
 
-    expect(await screen.findByRole('button', { name: 'Saving' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Update Entry' })).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Update Entry' })).toBeDisabled();
+    expect(await within(opening).findByRole('button', { name: 'Saving' })).toBeInTheDocument();
+    expect(within(rest).getByRole('button', { name: 'Update Entry' })).toBeDisabled();
     expect(meCashApi.saveMyCashEntry).toHaveBeenCalledWith(7, expect.objectContaining({
       openingDrawerCash: 210,
-      cashRemoved: 500,
       correctionReason: 'Opening note',
     }));
+    const firstRequest = vi.mocked(meCashApi.saveMyCashEntry).mock.calls[0][1];
+    expect(firstRequest).not.toHaveProperty('cashRemoved');
 
     resolveSave?.(entry({ openingDrawerCash: 210, canEdit: true }));
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Update Entry' })).toHaveLength(2));
-    expect(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[0]).toHaveValue('');
-    expect(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[1]).toHaveValue('Cash note');
+    await waitFor(() => expect(within(opening).getByRole('button', { name: 'Update Entry' })).toBeInTheDocument());
+    expect(openingNote).toHaveValue('');
+    expect(restNote).toHaveValue('Cash note');
 
-    await user.clear(field('Cash removed'));
-    await user.type(field('Cash removed'), '450');
-    await user.click(screen.getAllByRole('button', { name: 'Update Entry' })[1]);
-    expect(await screen.findByRole('button', { name: 'Saving' })).toBeInTheDocument();
+    await user.clear(within(rest).getByLabelText(/^Cash removed/));
+    await user.type(within(rest).getByLabelText(/^Cash removed/), '450');
+    await user.click(within(rest).getByRole('button', { name: 'Update Entry' }));
+    expect(await within(rest).findByRole('button', { name: 'Saving' })).toBeInTheDocument();
     expect(meCashApi.saveMyCashEntry).toHaveBeenLastCalledWith(7, expect.objectContaining({
-      openingDrawerCash: 210,
       cashRemoved: 450,
       correctionReason: 'Cash note',
     }));
 
     resolveSave?.(entry({ openingDrawerCash: 210, cashRemoved: 450, canEdit: true }));
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Update Entry' })).toHaveLength(2));
-    expect(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[0]).toHaveValue('');
-    expect(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[1]).toHaveValue('');
+    await waitFor(() => expect(within(rest).getByRole('button', { name: 'Update Entry' })).toBeInTheDocument());
+    expect(openingNote).toHaveValue('');
+    expect(restNote).toHaveValue('');
   });
 
-  it('reloads the selected cash date when a notification for that date is opened again', async () => {
+  it('reloads Daily Cash when a notification is opened for the selected date', async () => {
     const { rerender } = render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
-    await screen.findByRole('button', { name: 'Save Entry' });
+    await screen.findAllByRole('button', { name: 'Save Entry' });
     expect(meCashApi.getMyCashEntry).toHaveBeenCalledTimes(1);
 
     rerender(<DailyCash

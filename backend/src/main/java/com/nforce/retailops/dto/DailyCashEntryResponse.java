@@ -17,7 +17,6 @@ public record DailyCashEntryResponse(
     Long storeId,
     LocalDate businessDate,
     BigDecimal openingDrawerCash,
-    BigDecimal cashExpenses,
     BigDecimal cashRemoved,
     BigDecimal cashRemaining,
     BigDecimal otherAdjustments,
@@ -58,7 +57,7 @@ public record DailyCashEntryResponse(
     // (those are for Owner/Admin and Super Admin only).
     public DailyCashEntryResponse forEmployee() {
         return new DailyCashEntryResponse(
-            id, storeId, businessDate, openingDrawerCash, cashExpenses, cashRemoved, cashRemaining,
+            id, storeId, businessDate, openingDrawerCash, cashRemoved, cashRemaining,
             otherAdjustments, null, null, enteredByUserId, enteredBySuperAdminId, enteredByName, enteredAt,
             updatedByUserId, updatedBySuperAdminId, updatedByName, updatedAt, history, correctedByName, correctedAt,
             correctedByRole, status, flag, resolvedFlag, canEdit);
@@ -66,7 +65,7 @@ public record DailyCashEntryResponse(
 
     public DailyCashEntryResponse withCanEdit(boolean editable) {
         return new DailyCashEntryResponse(
-            id, storeId, businessDate, openingDrawerCash, cashExpenses, cashRemoved, cashRemaining,
+            id, storeId, businessDate, openingDrawerCash, cashRemoved, cashRemaining,
             otherAdjustments, dailyExpectedCash, expectedCashOnHand, enteredByUserId, enteredBySuperAdminId,
             enteredByName, enteredAt, updatedByUserId, updatedBySuperAdminId, updatedByName, updatedAt, history,
             correctedByName, correctedAt, correctedByRole, status, flag, resolvedFlag, editable);
@@ -96,7 +95,6 @@ public record DailyCashEntryResponse(
     public record Correction(
         Long id,
         BigDecimal previousOpeningDrawerCash,
-        BigDecimal previousCashExpenses,
         BigDecimal previousCashRemoved,
         BigDecimal previousCashRemaining,
         BigDecimal previousOtherAdjustments,
@@ -111,7 +109,6 @@ public record DailyCashEntryResponse(
         String correctedByName,
         String reason,
         BigDecimal newOpeningDrawerCash,
-        BigDecimal newCashExpenses,
         BigDecimal newCashRemoved,
         BigDecimal newCashRemaining,
         BigDecimal newOtherAdjustments

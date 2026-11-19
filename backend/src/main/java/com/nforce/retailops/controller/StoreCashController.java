@@ -65,7 +65,7 @@ public class StoreCashController {
         return ResponseEntity.ok(service.getExpectedAsOf(principal.getUser().getId(), date));
     }
 
-    // Flag an entry with a comment (at least 5 words); the entering employee,
+    // Flag an entry with a comment (at least 1 character); the entering employee,
     // and only they, is notified.
     @PostMapping("/entries/{entryId}/flag")
     public ResponseEntity<DailyCashEntryResponse> raiseFlag(

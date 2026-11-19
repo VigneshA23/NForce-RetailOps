@@ -270,10 +270,30 @@
 .daily-cash-page__expected > * {
   flex: 1 1 240px;
   max-width: 320px;
+  display: flex;
+}
+
+/* Both tiles fill their cell so they are always the same size, even though
+   only Expected Cash on Hand has a caption line. */
+.daily-cash-page__expected > * > .stat-card {
+  flex: 1;
 }
 
 @media (--mobile) {
   .daily-cash-page__expected > * {
     max-width: none;
   }
+}
+
+/* Employees see two forms (opening drawer, then the rest); stack them. */
+.daily-cash-page__forms {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl, 32px);
+}
+
+.daily-cash-page__form-title {
+  margin: 0 0 var(--space-md);
+  font-size: 15px;
+  font-weight: 600;
 }

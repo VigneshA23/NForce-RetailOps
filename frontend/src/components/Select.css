@@ -44,6 +44,45 @@
   min-width: max-content;
 }
 
+/* Searchable variant: search box stays put, list shows 5 rows then scrolls. */
+.custom-select__panel--searchable {
+  overflow: hidden;
+  max-height: none;
+}
+
+.custom-select__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 4px;
+  color: var(--color-text-secondary);
+}
+
+.custom-select__search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  padding: 4px 0;
+}
+
+.custom-select__list {
+  max-height: 170px; /* 5 options x ~34px */
+  overflow-y: auto;
+}
+
+.custom-select__empty {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
 .custom-select__option {
   display: flex;
   align-items: center;

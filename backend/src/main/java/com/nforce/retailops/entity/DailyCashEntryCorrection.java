@@ -22,14 +22,12 @@ public class DailyCashEntryCorrection {
     @JoinColumn(name = "daily_cash_entry_id", nullable = false)
     private DailyCashEntry entry;
 
-    @Column(name = "previous_opening_drawer_cash", nullable = false)
+    @Column(name = "previous_opening_drawer_cash")
     private BigDecimal previousOpeningDrawerCash;
-    @Column(name = "previous_cash_removed", nullable = false)
+    @Column(name = "previous_cash_removed")
     private BigDecimal previousCashRemoved;
-    @Column(name = "previous_cash_remaining", nullable = false)
+    @Column(name = "previous_cash_remaining")
     private BigDecimal previousCashRemaining;
-    @Column(name = "previous_cash_expenses", nullable = false)
-    private BigDecimal previousCashExpenses;
     @Column(name = "previous_other_adjustments", nullable = false)
     private BigDecimal previousOtherAdjustments;
 
@@ -71,8 +69,6 @@ public class DailyCashEntryCorrection {
     private BigDecimal newCashRemoved;
     @Column(name = "new_cash_remaining")
     private BigDecimal newCashRemaining;
-    @Column(name = "new_cash_expenses")
-    private BigDecimal newCashExpenses;
     @Column(name = "new_other_adjustments")
     private BigDecimal newOtherAdjustments;
 
@@ -89,7 +85,6 @@ public class DailyCashEntryCorrection {
         c.previousOpeningDrawerCash = e.getOpeningDrawerCash();
         c.previousCashRemoved = e.getCashRemoved();
         c.previousCashRemaining = e.getCashRemaining();
-        c.previousCashExpenses = e.getCashExpenses();
         c.previousOtherAdjustments = e.getOtherAdjustments();
         c.previousDailyExpectedCash = e.getDailyExpectedCash();
         c.previousUpdatedByUser = e.getUpdatedByUser();
@@ -107,7 +102,6 @@ public class DailyCashEntryCorrection {
         this.newOpeningDrawerCash = corrected.getOpeningDrawerCash();
         this.newCashRemoved = corrected.getCashRemoved();
         this.newCashRemaining = corrected.getCashRemaining();
-        this.newCashExpenses = corrected.getCashExpenses();
         this.newOtherAdjustments = corrected.getOtherAdjustments();
     }
 
@@ -116,14 +110,12 @@ public class DailyCashEntryCorrection {
     public BigDecimal getPreviousOpeningDrawerCash() { return previousOpeningDrawerCash; }
     public BigDecimal getPreviousCashRemoved() { return previousCashRemoved; }
     public BigDecimal getPreviousCashRemaining() { return previousCashRemaining; }
-    public BigDecimal getPreviousCashExpenses() { return previousCashExpenses; }
     public BigDecimal getPreviousOtherAdjustments() { return previousOtherAdjustments; }
     public BigDecimal getPreviousDailyExpectedCash() { return previousDailyExpectedCash; }
     public String getReason() { return reason; }
     public BigDecimal getNewOpeningDrawerCash() { return newOpeningDrawerCash; }
     public BigDecimal getNewCashRemoved() { return newCashRemoved; }
     public BigDecimal getNewCashRemaining() { return newCashRemaining; }
-    public BigDecimal getNewCashExpenses() { return newCashExpenses; }
     public BigDecimal getNewOtherAdjustments() { return newOtherAdjustments; }
     public User getPreviousUpdatedByUser() { return previousUpdatedByUser; }
     public SuperAdmin getPreviousUpdatedBySuperAdmin() { return previousUpdatedBySuperAdmin; }

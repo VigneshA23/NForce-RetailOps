@@ -1,5 +1,12 @@
-import { useState, type FormEvent } from 'react';
-import { editCashFlag, flagCashEntry, removeCashFlag } from '../api/storeCash';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  editCashFlag,
+  editSuperAdminCashFlag,
+  flagCashEntry,
+  flagSuperAdminCashEntry,
+  removeCashFlag,
+  removeSuperAdminCashFlag,
+} from '../api/storeCash';
 import type { CashFlag, DailyCashEntry } from '../types/storeCash';
 import FormField from './FormField';
 import Modal from './Modal';
@@ -10,14 +17,20 @@ import './CashEntryFlagSection.css';
 
 interface CashEntryFlagSectionProps {
   entry: DailyCashEntry;
-  // Owner/Admin only: may raise, edit and remove flags. Everyone else (an
-  // employee, or Super Admin on this tab) sees the flag read-only.
+  // Owner/Admin and Super Admin: may raise, edit and remove flags. An employee
+  // sees the flag read-only.
   canManage: boolean;
+  // Which API flags are sent to. A Super Admin names the store explicitly.
+  scope?: 'owner' | 'super-admin';
+  storeId?: number | null;
+  // Super Admin raises a flag from a button beside Update Entry instead of
+  // from here: the parent bumps this counter to open the flag popup.
+  raiseRequest?: number;
+  hideRaiseButton?: boolean;
   // Called with the refreshed entry after a flag change.
   onEntryChange: (entry: DailyCashEntry) => void;
 }
 
-const MIN_WORDS = 5;
 
 function formatWhen(value: string): string {
   return new Date(value).toLocaleString(undefined, {
@@ -36,7 +49,15 @@ function resolvedLine(flag: CashFlag): string {
 // Status, the flag and its comment (RTS-556/557). An open flag shows who
 // flagged it and when; once the employee fixes the entry it shows "Resolved"
 // so the admin can accept it or flag it again.
-function CashEntryFlagSection({ entry, canManage, onEntryChange }: CashEntryFlagSectionProps) {
+function CashEntryFlagSection({
+  entry,
+  canManage,
+  scope = 'owner',
+  storeId = null,
+  raiseRequest = 0,
+  hideRaiseButton = false,
+  onEntryChange,
+}: CashEntryFlagSectionProps) {
   const [mode, setMode] = useState<'raise' | 'edit' | null>(null);
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +66,19 @@ function CashEntryFlagSection({ entry, canManage, onEntryChange }: CashEntryFlag
   const [removing, setRemoving] = useState(false);
 
   const flag = entry.flag;
+  const lastRaiseRequest = useRef(raiseRequest);
+
+  useEffect(() => {
+    if (raiseRequest === lastRaiseRequest.current) return;
+    lastRaiseRequest.current = raiseRequest;
+    if (!entry.flag) {
+      setMode('raise');
+      setComment('');
+      setError(null);
+    }
+  }, [raiseRequest, entry.flag]);
+
+  const superAdmin = scope === 'super-admin' && storeId !== null;
 
   function openModal(next: 'raise' | 'edit') {
     setMode(next);
@@ -61,14 +95,18 @@ function CashEntryFlagSection({ entry, canManage, onEntryChange }: CashEntryFlag
   async function submit(event: FormEvent) {
     event.preventDefault();
     const trimmed = comment.trim();
-    if (trimmed.split(/\s+/).filter(Boolean).length < MIN_WORDS) {
-      setError(`Please give at least ${MIN_WORDS} words of context.`);
+    if (trimmed.length < 1) {
+      setError('Please enter a comment.');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      const refreshed = mode === 'raise' ? await flagCashEntry(entry.id, trimmed) : await editCashFlag(entry.id, trimmed);
+      const refreshed = superAdmin
+        ? mode === 'raise'
+          ? await flagSuperAdminCashEntry(storeId, entry.id, trimmed)
+          : await editSuperAdminCashFlag(storeId, entry.id, trimmed)
+        : mode === 'raise' ? await flagCashEntry(entry.id, trimmed) : await editCashFlag(entry.id, trimmed);
       onEntryChange(refreshed);
       closeModal();
       nfToast.success(mode === 'raise' ? 'Entry flagged and the employee notified.' : 'Flag comment updated.');
@@ -82,7 +120,7 @@ function CashEntryFlagSection({ entry, canManage, onEntryChange }: CashEntryFlag
   async function confirmRemove() {
     setRemoving(true);
     try {
-      onEntryChange(await removeCashFlag(entry.id));
+      onEntryChange(superAdmin ? await removeSuperAdminCashFlag(storeId, entry.id) : await removeCashFlag(entry.id));
       setRemoveOpen(false);
       nfToast.success('Flag removed.');
     } catch (cause) {
@@ -118,14 +156,14 @@ function CashEntryFlagSection({ entry, canManage, onEntryChange }: CashEntryFlag
         </div>
       )}
 
-      {canManage && (
+      {canManage && (flag || !hideRaiseButton) && (
         <div className="cash-flag__actions">
           {flag ? (
             <>
               <button type="button" className="btn btn--secondary" onClick={() => openModal('edit')}>Edit flag comment</button>
               <button type="button" className="btn btn--secondary" onClick={() => setRemoveOpen(true)}>Remove flag</button>
             </>
-          ) : (
+          ) : hideRaiseButton ? null : (
             <button type="button" className="btn btn--secondary" onClick={() => openModal('raise')}>
               {entry.resolvedFlag?.resolution === 'EMPLOYEE_FIXED' ? 'Flag again' : 'Flag entry'}
             </button>
@@ -138,12 +176,12 @@ function CashEntryFlagSection({ entry, canManage, onEntryChange }: CashEntryFlag
         onClose={closeModal}
         title={mode === 'edit' ? 'Edit flag comment' : 'Flag cash entry'}
         subtitle={mode === 'raise'
-          ? 'The employee who entered this is notified with your comment. Use at least five words.'
+          ? 'The employee who entered this is notified with your comment.'
           : undefined}
         centered
       >
         <form onSubmit={submit} noValidate>
-          <FormField label="Flag comment" htmlFor="cash-flag-comment" error={error ?? undefined} required>
+          <FormField label={superAdmin ? 'Note' : 'Flag comment'} htmlFor="cash-flag-comment" error={error ?? undefined} required>
             <textarea
               id="cash-flag-comment"
               className="input cash-flag__textarea"

@@ -39,7 +39,6 @@ public record CashHistoryResponse(
 
     public record Figures(
         BigDecimal openingDrawerCash,
-        BigDecimal cashExpenses,
         BigDecimal cashRemoved,
         BigDecimal cashRemaining,
         BigDecimal otherAdjustments

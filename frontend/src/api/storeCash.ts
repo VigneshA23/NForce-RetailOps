@@ -72,6 +72,23 @@ export async function removeCashFlag(entryId: number): Promise<DailyCashEntry> {
   return apiRequest<DailyCashEntry>(`/stores/cash/entries/${entryId}/flag`, { method: 'DELETE' });
 }
 
+// Super Admin flags an entry in any store; the entering employee is told.
+export async function flagSuperAdminCashEntry(storeId: number, entryId: number, comment: string): Promise<DailyCashEntry> {
+  return apiRequest<DailyCashEntry>(`/super-admin/stores/${storeId}/cash/entries/${entryId}/flag`, {
+    method: 'POST', body: { comment },
+  });
+}
+
+export async function editSuperAdminCashFlag(storeId: number, entryId: number, comment: string): Promise<DailyCashEntry> {
+  return apiRequest<DailyCashEntry>(`/super-admin/stores/${storeId}/cash/entries/${entryId}/flag`, {
+    method: 'PATCH', body: { comment },
+  });
+}
+
+export async function removeSuperAdminCashFlag(storeId: number, entryId: number): Promise<DailyCashEntry> {
+  return apiRequest<DailyCashEntry>(`/super-admin/stores/${storeId}/cash/entries/${entryId}/flag`, { method: 'DELETE' });
+}
+
 function historyQuery(from: string, to: string, status: CashHistoryStatusFilter): string {
   const params = new URLSearchParams({ from, to });
   if (status !== 'ALL') params.set('status', status);

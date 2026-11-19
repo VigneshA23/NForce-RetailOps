@@ -191,7 +191,7 @@ class CashSaveConcurrencyTest {
     }
 
     private static DailyCashEntryRequest cashRequest(LocalDate date, String openingDrawerCash) {
-        return new DailyCashEntryRequest(date, new BigDecimal(openingDrawerCash), new BigDecimal("5"),
+        return new DailyCashEntryRequest(date, new BigDecimal(openingDrawerCash),
                 new BigDecimal("10"), new BigDecimal("90"), BigDecimal.ZERO, "Concurrent correction");
     }
 

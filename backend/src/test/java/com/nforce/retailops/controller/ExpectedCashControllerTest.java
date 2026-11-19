@@ -95,16 +95,15 @@ class ExpectedCashControllerTest {
         return superAdminRepository.save(sa);
     }
 
-    // opening, removed, remaining, expenses, adjustments
+    // opening, removed, remaining, adjustments
     private void entry(Store store, LocalDate date, String opening, String removed,
-                       String remaining, String expenses, String adjust) {
+                       String remaining, String adjust) {
         DailyCashEntry e = new DailyCashEntry();
         e.setStore(store);
         e.setBusinessDate(date);
         e.setOpeningDrawerCash(new BigDecimal(opening));
         e.setCashRemoved(new BigDecimal(removed));
         e.setCashRemaining(new BigDecimal(remaining));
-        e.setCashExpenses(new BigDecimal(expenses));
         e.setOtherAdjustments(new BigDecimal(adjust));
         e.setDailyExpectedCash(e.getCashRemaining().add(e.getOtherAdjustments()));
         e.setEnteredAt(OffsetDateTime.now());
@@ -181,7 +180,6 @@ class ExpectedCashControllerTest {
             .andExpect(jsonPath("$.storeId").value(s.getId()))
             .andExpect(jsonPath("$.message").isNotEmpty())
             .andExpect(jsonPath("$.expectedCashOnHand").doesNotExist())
-            .andExpect(jsonPath("$.variance").doesNotExist())
             .andExpect(jsonPath("$.asOfDate").doesNotExist())
             .andExpect(jsonPath("$.lastUpdatedAt").doesNotExist());
     }
@@ -190,14 +188,14 @@ class ExpectedCashControllerTest {
 
     @Test
     @Transactional
-    void ownerGetsFigureAndVarianceForTheirLatestEntry() throws Exception {
+    void ownerGetsTheRunningTotalUpToTheirLatestEntry() throws Exception {
         User owner = user("cash-owner-b@nforce.test", "OWNER_ADMIN");
         Store s = store("Cash Store B", 9103L);
         link(owner, s);
-        // Older day must be ignored: the figure is the latest entry only.
-        entry(s, LocalDate.of(2026, 11, 8), "100.00", "0.00", "1.00", "0.00", "0.00");
-        // 200 - 50 - 100 + (-10) = 40 ; counted 30 -> variance -10
-        entry(s, LocalDate.of(2026, 11, 9), "200.00", "100.00", "30.00", "50.00", "-10.00");
+        // Expected cash on hand is the running total of (cash remaining + adjustments).
+        entry(s, LocalDate.of(2026, 11, 8), "100.00", "0.00", "1.00", "0.00");
+        // Day 8 adds 1; day 9 adds 30 + (-10) = 20; opening and removed are ignored. Total 21.
+        entry(s, LocalDate.of(2026, 11, 9), "200.00", "100.00", "30.00", "-10.00");
         String token = login("cash-owner-b@nforce.test");
 
         mockMvc.perform(get(OWNER_URL).header("Authorization", "Bearer " + token))
@@ -206,9 +204,8 @@ class ExpectedCashControllerTest {
             .andExpect(jsonPath("$.asOfDate").value("2026-11-09"))
             // When the latest entry was saved, for the "last updated" label (RTS-296).
             .andExpect(jsonPath("$.lastUpdatedAt").isNotEmpty())
-            .andExpect(jsonPath("$.expectedCashOnHand").value(40.00))
+            .andExpect(jsonPath("$.expectedCashOnHand").value(21.00))
             .andExpect(jsonPath("$.cashRemaining").value(30.00))
-            .andExpect(jsonPath("$.variance").value(-10.00))
             .andExpect(jsonPath("$.otherAdjustments").value(-10.00));
     }
 
@@ -219,15 +216,14 @@ class ExpectedCashControllerTest {
         Store mine = store("Cash Store I", 9109L);
         Store other = store("Cash Store J", 9110L);
         link(owner, mine);
-        entry(mine, LocalDate.of(2026, 11, 9), "100.00", "0.00", "100.00", "0.00", "0.00");
-        entry(other, LocalDate.of(2026, 11, 9), "5000.00", "0.00", "0.00", "0.00", "0.00");
+        entry(mine, LocalDate.of(2026, 11, 9), "100.00", "0.00", "100.00", "0.00");
+        entry(other, LocalDate.of(2026, 11, 9), "5000.00", "0.00", "0.00", "0.00");
         String token = login("cash-owner-g@nforce.test");
 
         mockMvc.perform(get(OWNER_URL).header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.storeId").value(mine.getId()))
-            .andExpect(jsonPath("$.expectedCashOnHand").value(100.00))
-            .andExpect(jsonPath("$.variance").value(0.00));
+            .andExpect(jsonPath("$.expectedCashOnHand").value(100.00));
     }
 
     // ---- super admin --------------------------------------------------------
@@ -237,13 +233,12 @@ class ExpectedCashControllerTest {
     void superAdminCanReadAnyStore() throws Exception {
         superAdmin("cash-superadmin@nforce.test");
         Store s = store("Cash Store F", 9106L);
-        entry(s, LocalDate.of(2026, 11, 9), "100.00", "0.00", "105.00", "0.00", "0.00");
+        entry(s, LocalDate.of(2026, 11, 9), "100.00", "0.00", "105.00", "0.00");
         String token = login("cash-superadmin@nforce.test");
 
         mockMvc.perform(get(superUrl(s)).header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.expectedCashOnHand").value(100.00))
-            .andExpect(jsonPath("$.variance").value(5.00));
+            .andExpect(jsonPath("$.expectedCashOnHand").value(105.00));
     }
 
     @Test

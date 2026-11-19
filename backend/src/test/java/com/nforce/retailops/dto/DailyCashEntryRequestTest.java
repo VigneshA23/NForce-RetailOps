@@ -32,7 +32,7 @@ class DailyCashEntryRequestTest {
 
     private static DailyCashEntryRequest requestFor(LocalDate businessDate) {
         BigDecimal ten = new BigDecimal("10.00");
-        return new DailyCashEntryRequest(businessDate, ten, ten, ten, ten, BigDecimal.ZERO, null);
+        return new DailyCashEntryRequest(businessDate, ten, ten, ten, BigDecimal.ZERO, null);
     }
 
     @Test
@@ -44,6 +44,30 @@ class DailyCashEntryRequestTest {
             assertThat(violation.getPropertyPath().toString()).isEqualTo("businessDate");
             assertThat(violation.getMessage()).isEqualTo("Business date cannot be in the future");
         });
+    }
+
+    @Test
+    void everyAmountIsOptionalButAtLeastOneIsNeeded() {
+        BigDecimal ten = new BigDecimal("10.00");
+        DailyCashEntryRequest openingOnly = new DailyCashEntryRequest(null, ten, null, null, null, null);
+        assertThat(validator.validate(openingOnly)).isEmpty();
+        assertThat(openingOnly.hasAnyAmount()).isTrue();
+
+        DailyCashEntryRequest rest = new DailyCashEntryRequest(null, null, ten, ten, null, null);
+        assertThat(validator.validate(rest)).isEmpty();
+        assertThat(rest.hasAnyAmount()).isTrue();
+
+        DailyCashEntryRequest empty = new DailyCashEntryRequest(null, null, null, null, null, null);
+        assertThat(validator.validate(empty)).isEmpty();
+        assertThat(empty.hasAnyAmount()).isFalse();
+    }
+
+    @Test
+    void negativeAmountsAreRejectedExceptOtherAdjustments() {
+        BigDecimal minus = new BigDecimal("-1.00");
+        DailyCashEntryRequest bad = new DailyCashEntryRequest(null, minus, null, null, minus, null);
+        assertThat(validator.validate(bad)).singleElement().satisfies(v ->
+            assertThat(v.getPropertyPath().toString()).isEqualTo("openingDrawerCash"));
     }
 
     @Test

@@ -57,14 +57,13 @@ class MonthlyCashSummaryServiceTest {
     }
 
     private static DailyCashEntry entry(Store store, String date, String opening, String removed,
-                                        String remaining, String expenses, String adjust) {
+                                        String remaining, String adjust) {
         DailyCashEntry e = new DailyCashEntry();
         e.setStore(store);
         e.setBusinessDate(LocalDate.parse(date));
         e.setOpeningDrawerCash(new BigDecimal(opening));
         e.setCashRemoved(new BigDecimal(removed));
         e.setCashRemaining(new BigDecimal(remaining));
-        e.setCashExpenses(new BigDecimal(expenses));
         e.setOtherAdjustments(new BigDecimal(adjust));
         return e;
     }
@@ -79,12 +78,10 @@ class MonthlyCashSummaryServiceTest {
         when(storeRepository.findAllById(any())).thenReturn(List.of(store2, store1));
         when(entryRepository.findForStoresBetween(any(), eq(LocalDate.parse("2026-10-01")), eq(LocalDate.parse("2026-10-31"))))
             .thenReturn(List.of(
-                // Store 1, day 1: expected 500-50-100+0 = 350, counted 340 -> -10
-                entry(store1, "2026-10-01", "500", "100", "340", "50", "0"),
-                // Store 1, day 31: expected 500-20-200+(-10) = 270, counted 275 -> +5
-                entry(store1, "2026-10-31", "500", "200", "275", "20", "-10"),
-                // Store 2, one day: expected 450-0-0+0 = 450, counted 450 -> 0
-                entry(store2, "2026-10-15", "450", "0", "450", "0", "0")
+                // Cash remaining +/- adjustments: day 1 = 340, day 31 = 275 - 10 = 265
+                entry(store1, "2026-10-01", "500", "100", "340", "0"),
+                entry(store1, "2026-10-31", "500", "200", "275", "-10"),
+                entry(store2, "2026-10-15", "450", "0", "450", "0")
             ));
 
         MonthlyCashSummaryResponse r = service.getForSuperAdmin("2026-10", List.of(1L, 2L));
@@ -96,31 +93,25 @@ class MonthlyCashSummaryServiceTest {
         assertEquals(2, s1.daysRecorded());
         assertEquals(LocalDate.parse("2026-10-31"), s1.asOfDate());
         assertMoney("300", s1.totalCashRemoved());
-        assertMoney("70", s1.cashExpenses());
+        assertMoney("615", s1.totalCashRemaining());
         assertMoney("-10", s1.adjustments());
-        assertMoney("270", s1.expectedCashOnHand());
-        assertMoney("275", s1.actualCashCount());
-        assertMoney("5", s1.variance());
-        assertMoney("-5", s1.netDailyVariance());
+        assertMoney("605", s1.expectedCashOnHand()); // 340 + 265, running total
 
         StoreMonthlyCashSummary c = r.combined();
         assertNull(c.storeId());
         assertEquals("Combined", c.storeName());
         assertEquals(3, c.daysRecorded());
         assertMoney("300", c.totalCashRemoved());
-        assertMoney("70", c.cashExpenses());
+        assertMoney("1065", c.totalCashRemaining());
         assertMoney("-10", c.adjustments());
-        assertMoney("720", c.expectedCashOnHand());
-        assertMoney("725", c.actualCashCount());
-        assertMoney("5", c.variance());
-        assertMoney("-5", c.netDailyVariance());
+        assertMoney("1055", c.expectedCashOnHand()); // 605 + 450
     }
 
     @Test
     void storeWithNoEntries_isNullNotZero_andExcludedFromCombined() {
         when(storeRepository.findAllById(any())).thenReturn(List.of(store1, store2));
         when(entryRepository.findForStoresBetween(any(), any(), any())).thenReturn(List.of(
-            entry(store1, "2026-10-05", "250", "0", "250", "0", "0")
+            entry(store1, "2026-10-05", "250", "0", "250", "0")
         ));
 
         MonthlyCashSummaryResponse r = service.getForSuperAdmin("2026-10", List.of(1L, 2L));
@@ -128,9 +119,9 @@ class MonthlyCashSummaryServiceTest {
         StoreMonthlyCashSummary empty = r.stores().get(1);
         assertEquals(0, empty.daysRecorded());
         assertNull(empty.totalCashRemoved());
-        assertNull(empty.variance());
+        assertNull(empty.expectedCashOnHand());
         assertMoney("0", r.combined().totalCashRemoved());
-        assertMoney("250", r.combined().actualCashCount());
+        assertMoney("250", r.combined().totalCashRemaining());
     }
 
     @Test
@@ -190,9 +181,9 @@ class MonthlyCashSummaryServiceTest {
         when(storeRepository.findAllById(any())).thenReturn(List.of(store1));
         // Deliberately out of order and with gaps: only recorded days appear.
         when(entryRepository.findForStoresBetween(any(), any(), any())).thenReturn(List.of(
-            entry(store1, "2026-10-31", "500", "200", "275", "20", "-10"),
-            entry(store1, "2026-10-01", "500", "100", "340", "50", "0"),
-            entry(store1, "2026-10-12", "450", "0", "450", "0", "0")
+            entry(store1, "2026-10-31", "500", "200", "275", "-10"),
+            entry(store1, "2026-10-01", "500", "100", "340", "0"),
+            entry(store1, "2026-10-12", "450", "0", "450", "0")
         ));
 
         StoreMonthlyCashSummary s = service.getForSuperAdmin("2026-10", List.of(1L)).stores().get(0);
@@ -205,54 +196,48 @@ class MonthlyCashSummaryServiceTest {
         DailyCashBreakdown first = days.get(0);
         assertMoney("500", first.openingDrawerCash());
         assertMoney("100", first.cashRemoved());
-        assertMoney("50", first.cashExpenses());
-        assertMoney("0", first.adjustments());
-        assertMoney("350", first.expectedCash());
         assertMoney("340", first.cashRemaining());
-        assertMoney("-10", first.variance());
+        assertMoney("0", first.adjustments());
+        assertMoney("340", first.dailyExpected());
+        assertMoney("340", first.expectedCashOnHand());
+        assertMoney("790", days.get(1).expectedCashOnHand());
 
         // Totals are the column sums of the rows.
         assertMoney(columnSum(days, DailyCashBreakdown::cashRemoved).toPlainString(), s.totalCashRemoved());
-        assertMoney(columnSum(days, DailyCashBreakdown::cashExpenses).toPlainString(), s.cashExpenses());
+        assertMoney(columnSum(days, DailyCashBreakdown::cashRemaining).toPlainString(), s.totalCashRemaining());
         assertMoney(columnSum(days, DailyCashBreakdown::adjustments).toPlainString(), s.adjustments());
-        assertMoney(columnSum(days, DailyCashBreakdown::variance).toPlainString(), s.netDailyVariance());
 
-        // Headline position figures are the last row.
+        // The headline position is the last row's running total.
         DailyCashBreakdown last = days.get(days.size() - 1);
         assertEquals(s.asOfDate(), last.businessDate());
-        assertMoney(last.expectedCash().toPlainString(), s.expectedCashOnHand());
-        assertMoney(last.cashRemaining().toPlainString(), s.actualCashCount());
-        assertMoney(last.variance().toPlainString(), s.variance());
+        assertMoney("1055", last.expectedCashOnHand());
+        assertMoney(last.expectedCashOnHand().toPlainString(), s.expectedCashOnHand());
     }
 
     @Test
-    void dailyBreakdown_rts519Scenario_lastDayNov12_expected55_actual10() {
+    void expectedCashOnHand_isMonthToDateOnly_notCarriedFromEarlierMonths_andIgnoresCashRemoved() {
         when(storeRepository.findAllById(any())).thenReturn(List.of(store1));
         when(entryRepository.findForStoresBetween(any(), any(), any())).thenReturn(List.of(
-            entry(store1, "2026-11-03", "100", "0", "100", "0", "0"),
-            entry(store1, "2026-11-05", "100", "0", "100", "0", "0"),
-            entry(store1, "2026-11-10", "100", "0", "100", "0", "0"),
-            // expected 100 - 0 - 45 + 0 = 55, counted 10 -> -45
-            entry(store1, "2026-11-12", "100", "45", "10", "0", "0")
+            entry(store1, "2026-11-03", "100", "0", "100", "0"),
+            // a large opening drawer and cash removed change nothing
+            entry(store1, "2026-11-12", "9000", "4500", "10", "5")
         ));
 
         StoreMonthlyCashSummary s = service.getForSuperAdmin("2026-11", List.of(1L)).stores().get(0);
 
-        assertEquals(4, s.dailyBreakdown().size());
-        DailyCashBreakdown last = s.dailyBreakdown().get(3);
-        assertEquals(LocalDate.parse("2026-11-12"), last.businessDate());
-        assertMoney("55", last.expectedCash());
-        assertMoney("10", last.cashRemaining());
-        assertMoney("55", s.expectedCashOnHand());
-        assertMoney("10", s.actualCashCount());
-        assertMoney("45", s.totalCashRemoved());
+        assertEquals(2, s.dailyBreakdown().size());
+        DailyCashBreakdown last = s.dailyBreakdown().get(1);
+        assertMoney("15", last.dailyExpected());
+        assertMoney("115", last.expectedCashOnHand());
+        assertMoney("115", s.expectedCashOnHand());
+        assertMoney("4500", s.totalCashRemoved());
     }
 
     @Test
     void dailyBreakdown_isEmptyForNoEntriesAndForCombined() {
         when(storeRepository.findAllById(any())).thenReturn(List.of(store1, store2));
         when(entryRepository.findForStoresBetween(any(), any(), any())).thenReturn(List.of(
-            entry(store1, "2026-10-05", "250", "0", "250", "0", "0")
+            entry(store1, "2026-10-05", "250", "0", "250", "0")
         ));
 
         MonthlyCashSummaryResponse r = service.getForSuperAdmin("2026-10", List.of(1L, 2L));

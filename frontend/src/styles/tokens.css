@@ -18,6 +18,20 @@
 
   --color-accent: #e11d33;
   --color-accent-contrast: #ffffff;
+
+  /* Ked's logo palette (same stops as the header gradient). The light stops
+     are for graphics only; brand-violet and brand-pink are deep enough
+     (5:1+ on white) for text and links. */
+  --brand-blue: #64a0dc;
+  --brand-periwinkle: #8a8ad6;
+  --brand-lavender: #a58cd0;
+  --brand-orchid: #c25aa6;
+  --brand-violet: #6a55c8;
+  --brand-pink: #b03f8f;
+  /* Lighter violet/pink for dark surfaces (about 6:1 on the dark card). */
+  --brand-violet-light: #9f8cf0;
+  --brand-pink-light: #d877bf;
+  --brand-gradient: linear-gradient(90deg, #64a0dc, #8a8ad6 40%, #a58cd0 58%, #c25aa6 88%, #c84d9c);
   --color-focus-ring: #1d6fd6;
 
   /* The logo's own palette (black badge, white lettering, red accent) rather

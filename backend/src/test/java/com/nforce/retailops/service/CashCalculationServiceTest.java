@@ -50,15 +50,13 @@ class CashCalculationServiceTest {
         ReflectionTestUtils.setField(store, "id", STORE_ID);
     }
 
-    private DailyCashEntry entry(String date, String opening, String removed, String remaining,
-                                 String expenses, String adjust) {
+    private DailyCashEntry entry(String date, String opening, String removed, String remaining, String adjust) {
         DailyCashEntry e = new DailyCashEntry();
         e.setStore(store);
         e.setBusinessDate(LocalDate.parse(date));
         e.setOpeningDrawerCash(new BigDecimal(opening));
         e.setCashRemoved(new BigDecimal(removed));
         e.setCashRemaining(new BigDecimal(remaining));
-        e.setCashExpenses(new BigDecimal(expenses));
         e.setOtherAdjustments(new BigDecimal(adjust));
         return e;
     }
@@ -70,58 +68,40 @@ class CashCalculationServiceTest {
     // ---- the formula --------------------------------------------------------
 
     @Test
-    void formula_appliesEveryTerm() {
-        // 200 - 50 - 100 + 25 = 75
-        DailyCashEntry e = entry("2026-11-09", "200", "100", "75", "50", "25");
-        assertMoney("75.00", service.calculateExpectedCash(e));
+    void formula_isCashRemainingPlusAdjustments() {
+        DailyCashEntry e = entry("2026-11-09", "200", "100", "75", "25");
+        assertMoney("100.00", service.calculateExpectedCash(e));
+        assertMoney("100.00", CashCalculationService.dailyExpected(new BigDecimal("75"), new BigDecimal("25")));
     }
 
     @Test
     void formula_negativeOtherAdjustmentReducesExpectedCash() {
-        // 200 - 50 - 100 + (-10) = 40
-        DailyCashEntry e = entry("2026-11-09", "200", "100", "40", "50", "-10");
-        assertMoney("40.00", service.calculateExpectedCash(e));
+        DailyCashEntry e = entry("2026-11-09", "200", "100", "40", "-10");
+        assertMoney("30.00", service.calculateExpectedCash(e));
     }
 
     @Test
-    void formula_canGoNegative_whenOutflowsExceedCash() {
-        // 0 - 0 - 50 + 0 = -50
-        DailyCashEntry e = entry("2026-11-09", "0", "50", "0", "0", "0");
-        assertMoney("-50.00", service.calculateExpectedCash(e));
+    void formula_ignoresOpeningDrawerAndCashRemoved() {
+        DailyCashEntry a = entry("2026-11-09", "0", "0", "80", "0");
+        DailyCashEntry b = entry("2026-11-09", "9999", "5000", "80", "0");
+        assertMoney("80.00", service.calculateExpectedCash(a));
+        assertMoney("80.00", service.calculateExpectedCash(b));
     }
 
     @Test
-    void formula_ignoresCashRemaining() {
-        DailyCashEntry a = entry("2026-11-09", "100", "0", "0", "0", "0");
-        DailyCashEntry b = entry("2026-11-09", "100", "0", "9999", "0", "0");
-        assertMoney("100.00", service.calculateExpectedCash(a));
-        assertMoney("100.00", service.calculateExpectedCash(b));
+    void formula_missingAmountsCountAsZero() {
+        assertMoney("0.00", CashCalculationService.dailyExpected(null, null));
+        assertMoney("7.00", CashCalculationService.dailyExpected(null, new BigDecimal("7")));
+        assertMoney("5.00", CashCalculationService.dailyExpected(new BigDecimal("5"), null));
     }
 
-    // ---- variance -----------------------------------------------------------
-
     @Test
-    void variance_shortage_isNegative() {
-        // expected 75, counted 60 -> -15
-        ExpectedCashResponse r = service.calculate(
-            entry("2026-11-09", "200", "100", "60", "50", "25"));
-        assertMoney("75.00", r.expectedCashOnHand());
+    void calculate_exposesTheRecordedFiguresWithoutAVariance() {
+        ExpectedCashResponse r = service.calculate(entry("2026-11-09", "200", "100", "60", "25"));
+        assertMoney("85.00", r.expectedCashOnHand());
         assertMoney("60.00", r.cashRemaining());
-        assertMoney("-15.00", r.variance());
-    }
-
-    @Test
-    void variance_overage_isPositive() {
-        ExpectedCashResponse r = service.calculate(
-            entry("2026-11-09", "200", "100", "100", "50", "25"));
-        assertMoney("25.00", r.variance());
-    }
-
-    @Test
-    void variance_exactMatch_isZero() {
-        ExpectedCashResponse r = service.calculate(
-            entry("2026-11-09", "200", "100", "75", "50", "25"));
-        assertMoney("0.00", r.variance());
+        assertMoney("200.00", r.openingDrawerCash());
+        assertMoney("100.00", r.cashRemoved());
     }
 
     // The "live" lookup: latest entry on or before today (RTS-471).
@@ -157,17 +137,19 @@ class CashCalculationServiceTest {
         // validation existed) must not mask the real current figure.
         LocalDate today = LocalDate.now();
         storeHoldsEntries(
-            entry(today.minusDays(2).toString(), "200", "100", "75", "50", "25"),
-            entry(today.plusYears(5).toString(), "0", "0", "0", "0", "0"));
+            entry(today.minusDays(2).toString(), "200", "100", "75", "25"),
+            entry(today.plusYears(5).toString(), "0", "0", "0", "0"));
+        when(entryRepository.sumExpectedCashOnHandUpTo(STORE_ID, today.minusDays(2)))
+            .thenReturn(new BigDecimal("100.00"));
         ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
         assertTrue(r.available());
         assertEquals(today.minusDays(2), r.asOfDate());
-        assertMoney("75.00", r.expectedCashOnHand());
+        assertMoney("100.00", r.expectedCashOnHand());
     }
 
     @Test
     void onlyFutureDatedEntries_isNotAvailable() {
-        storeHoldsEntries(entry(LocalDate.now().plusDays(30).toString(), "200", "100", "75", "50", "25"));
+        storeHoldsEntries(entry(LocalDate.now().plusDays(30).toString(), "200", "100", "75", "25"));
         ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
         assertFalse(r.available());
         assertNull(r.asOfDate());
@@ -176,7 +158,8 @@ class CashCalculationServiceTest {
     @Test
     void anEntryDatedToday_isLive() {
         LocalDate today = LocalDate.now();
-        storeHoldsEntries(entry(today.toString(), "200", "100", "75", "50", "25"));
+        storeHoldsEntries(entry(today.toString(), "200", "100", "75", "25"));
+        when(entryRepository.sumExpectedCashOnHandUpTo(STORE_ID, today)).thenReturn(new BigDecimal("100"));
         assertEquals(today, service.getExpectedCashForStore(STORE_ID).asOfDate());
     }
 
@@ -188,14 +171,13 @@ class CashCalculationServiceTest {
         assertEquals(STORE_ID, r.storeId());
         assertNotNull(r.message());
         assertNull(r.expectedCashOnHand());
-        assertNull(r.variance());
         assertNull(r.asOfDate());
         assertNull(r.lastUpdatedAt());
     }
 
     @Test
     void lastUpdatedAt_isWhenTheLatestEntryWasLastSaved() {
-        DailyCashEntry e = entry("2026-11-09", "200", "100", "75", "50", "25");
+        DailyCashEntry e = entry("2026-11-09", "200", "100", "75", "25");
         OffsetDateTime savedAt = OffsetDateTime.parse("2026-11-09T21:15:00+05:30");
         e.setUpdatedAt(savedAt);
         ExpectedCashResponse r = service.calculate(e);
@@ -206,24 +188,28 @@ class CashCalculationServiceTest {
     @Test
     void singleEntry_usesThatDay_andReportsAsOfDate() {
         when(latestOnOrBeforeToday()).thenReturn(Optional.of(
-            entry("2026-11-09", "200", "100", "75", "50", "25")));
+            entry("2026-11-09", "200", "100", "75", "25")));
+        when(entryRepository.sumExpectedCashOnHandUpTo(STORE_ID, LocalDate.of(2026, 11, 9)))
+            .thenReturn(new BigDecimal("100.00"));
         ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
         assertTrue(r.available());
         assertEquals(LocalDate.of(2026, 11, 9), r.asOfDate());
-        assertMoney("75.00", r.expectedCashOnHand());
+        assertMoney("100.00", r.expectedCashOnHand());
     }
 
     @Test
     void oldEntry_isStillShownAsLive_withLastUpdatedAt() {
         // BA decision: no staleness cutoff. A 6-day-old entry is still the live figure.
-        DailyCashEntry old = entry("2020-01-01", "200", "100", "75", "50", "25");
+        DailyCashEntry old = entry("2020-01-01", "200", "100", "75", "25");
         java.time.OffsetDateTime saved = java.time.OffsetDateTime.parse("2020-01-01T21:30:00Z");
         ReflectionTestUtils.setField(old, "updatedAt", saved);
         when(latestOnOrBeforeToday()).thenReturn(Optional.of(old));
+        when(entryRepository.sumExpectedCashOnHandUpTo(STORE_ID, LocalDate.parse("2020-01-01")))
+            .thenReturn(new BigDecimal("100.00"));
         ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
         assertTrue(r.available());
         assertEquals(saved, r.lastUpdatedAt());
-        assertMoney("75.00", r.expectedCashOnHand());
+        assertMoney("100.00", r.expectedCashOnHand());
     }
 
     @Test
@@ -233,14 +219,13 @@ class CashCalculationServiceTest {
     }
 
     @Test
-    void multipleDays_figureComesFromTheLatestEntryOnly_notARunningSum() {
-        // The repository hands back only the latest day; earlier days must not
-        // be added in (each day's opening cash already carries them forward).
+    void multipleDays_figureIsTheRunningSumUpToTheLatestEntry() {
         when(latestOnOrBeforeToday()).thenReturn(Optional.of(
-            entry("2026-11-09", "400", "0", "355", "50", "5")));
+            entry("2026-11-09", "400", "0", "405", "5")));
+        when(entryRepository.sumExpectedCashOnHandUpTo(STORE_ID, LocalDate.of(2026, 11, 9)))
+            .thenReturn(new BigDecimal("900.00"));
         ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
-        assertMoney("355.00", r.expectedCashOnHand()); // 400 - 50 + 5
-        assertMoney("0.00", r.variance());
+        assertMoney("900.00", r.expectedCashOnHand());
         verify(entryRepository, never()).findAll();
     }
 
@@ -277,7 +262,9 @@ class CashCalculationServiceTest {
     void superAdmin_existingStore_isAllowed() {
         when(storeRepository.existsById(STORE_ID)).thenReturn(true);
         when(latestOnOrBeforeToday()).thenReturn(Optional.of(
-            entry("2026-11-09", "100", "0", "100", "0", "0")));
+            entry("2026-11-09", "100", "0", "100", "0")));
+        when(entryRepository.sumExpectedCashOnHandUpTo(STORE_ID, LocalDate.of(2026, 11, 9)))
+            .thenReturn(new BigDecimal("100.00"));
         assertMoney("100.00", service.getExpectedCashForSuperAdmin(STORE_ID).expectedCashOnHand());
     }
 
@@ -287,16 +274,11 @@ class CashCalculationServiceTest {
     // snapshot, the plain response mapper, and CashCalculationService. Anything
     // else reading them is how a second copy of the arithmetic would start, so
     // new callers must go through CashCalculationService instead.
-    // SuperAdminCashReviewService is allowed because it reads those getters
-    // only to populate its review DTO -- its "expected cash on hand" is a
-    // separate, DB-aggregated figure (sum of cash_remaining + other_adjustments
-    // per the Super Admin spec) and never re-implements the formula.
     private static final Set<String> MAY_READ_FORMULA_INPUTS = Set.of(
         "DailyCashEntry.java",
         "DailyCashEntryCorrection.java",
         "DailyCashEntryService.java",
         "CashCalculationService.java",
-        "SuperAdminCashReviewService.java",
         // Maps entries to history figures for display; no arithmetic.
         "CashHistoryService.java"
     );
@@ -313,7 +295,7 @@ class CashCalculationServiceTest {
                 .filter(p -> {
                     try {
                         String src = Files.readString(p);
-                        return src.contains(".getOpeningDrawerCash()") || src.contains(".getCashExpenses()");
+                        return src.contains(".getOpeningDrawerCash()");
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }

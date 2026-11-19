@@ -14,6 +14,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.CashEntryAmountsRequiredException;
 import com.nforce.retailops.exception.CorrectionReasonRequiredException;
 import com.nforce.retailops.exception.DailyCashEntryNotEditableException;
 import com.nforce.retailops.exception.DailyCashEntryNotFoundException;
@@ -37,7 +38,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
-// Daily cash entry (five fields). Owner/Admin writes to their own active store; an
+// Daily cash entry (opening drawer, cash removed, cash remaining, other adjustments). Owner/Admin writes to their own active store; an
 // employee to a store they work at (today only, no reason asked); Super Admin
 // picks a store explicitly. One row per store + date, never deleted. Changing
 // an existing entry is a direct correction: it needs a reason, updates the row
@@ -132,7 +133,7 @@ public class DailyCashEntryService {
     public DailyCashEntryResponse saveForSuperAdmin(Long superAdminId, Long storeId, DailyCashEntryRequest request) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return saveEntry(store, null, superAdminRepository.getReferenceById(superAdminId), request, true, false);
+        return saveEntry(store, null, superAdminRepository.getReferenceById(superAdminId), request, false, false);
     }
 
     @Transactional(readOnly = true)
@@ -203,10 +204,19 @@ public class DailyCashEntryService {
     // ---- shared ------------------------------------------------------------
 
     // Exactly one of user / superAdmin is non-null.
+    //
+    // Amounts the request leaves null are not touched, so the opening drawer
+    // cash and the other figures can be saved separately, and an admin can
+    // change one figure without re-entering the rest. Filling in a figure that
+    // was never recorded is not a correction (no reason, no audit row); only
+    // overwriting a recorded figure with a different one is.
     private DailyCashEntryResponse saveEntry(
         Store store, User user, SuperAdmin superAdmin, DailyCashEntryRequest request, boolean reasonRequired,
         boolean byEmployee
     ) {
+        if (!request.hasAnyAmount()) {
+            throw new CashEntryAmountsRequiredException("Enter at least one cash amount to save");
+        }
         CashActor actor = new CashActor(user, superAdmin);
         store = storeRepository.lockByStoreId(store.getId())
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
@@ -218,16 +228,18 @@ public class DailyCashEntryService {
 
         DailyCashEntryCorrection correction = null;
         String reason = null;
+        boolean existed = entry != null;
         if (entry == null) {
             entry = new DailyCashEntry();
             entry.setStore(store);
             entry.setBusinessDate(date);
+            entry.setOtherAdjustments(BigDecimal.ZERO);
             entry.setEnteredByUser(user);
             entry.setEnteredBySuperAdmin(superAdmin);
             entry.setEnteredAt(now);
         } else {
             reason = request.correctionReason() == null ? "" : request.correctionReason().trim();
-            if (sameFigures(entry, request)) {
+            if (!changes(entry, request)) {
                 // Nothing to correct, so no audit row. The entering employee
                 // may still confirm a flagged entry as right.
                 if (byEmployee) {
@@ -236,48 +248,65 @@ public class DailyCashEntryService {
                 }
                 return toResponse(entry);
             }
-            if (reason.isEmpty() && reasonRequired) {
-                throw new CorrectionReasonRequiredException("A reason is required to correct this entry");
+            if (overwrites(entry, request)) {
+                if (reason.isEmpty() && reasonRequired) {
+                    throw new CorrectionReasonRequiredException("A reason is required to correct this entry");
+                }
+                // Old values now; the new values and reason are added once applied.
+                correction = DailyCashEntryCorrection.snapshotOf(entry, user, superAdmin, now);
             }
-            // Old values now; the new values and reason are added once applied.
-            correction = DailyCashEntryCorrection.snapshotOf(entry, user, superAdmin, now);
         }
 
-        entry.setOpeningDrawerCash(request.openingDrawerCash());
-        entry.setCashRemoved(request.cashRemoved());
-        entry.setCashRemaining(request.cashRemaining());
-        entry.setCashExpenses(request.cashExpenses());
-        entry.setOtherAdjustments(request.otherAdjustments());
-        // Spec: daily expected cash = cash remaining + other adjustments
-        // (signed). Persisted on the entry so the running sum is a single-
-        // column SUM and the response can carry the saved figure.
-        entry.setDailyExpectedCash(request.cashRemaining().add(request.otherAdjustments()));
+        if (request.openingDrawerCash() != null) entry.setOpeningDrawerCash(request.openingDrawerCash());
+        if (request.cashRemoved() != null) entry.setCashRemoved(request.cashRemoved());
+        if (request.cashRemaining() != null) entry.setCashRemaining(request.cashRemaining());
+        if (request.otherAdjustments() != null) entry.setOtherAdjustments(request.otherAdjustments());
+        // Daily expected cash = cash remaining + other adjustments (signed);
+        // see CashCalculationService. Persisted on the entry so the running sum
+        // is a single-column SUM and the response can carry the saved figure.
+        entry.setDailyExpectedCash(CashCalculationService.dailyExpected(
+            entry.getCashRemaining(), entry.getOtherAdjustments()));
         entry.setUpdatedByUser(user);
         entry.setUpdatedBySuperAdmin(superAdmin);
         entry.setUpdatedAt(now);
         entry = entryRepository.save(entry);
-        if (correction != null) {
-            String note = reason == null || reason.isEmpty() ? null : reason;
-            correction.recordCorrection(entry, note);
-            correctionRepository.save(correction);
-            // Correcting a flagged entry resolves its flag, whoever corrects it.
+        if (existed) {
+            if (correction != null) {
+                correction.recordCorrection(entry, reason.isEmpty() ? null : reason);
+                correctionRepository.save(correction);
+            }
+            // Changing a flagged entry resolves its flag, whoever changes it.
             flagService.resolveOnCorrection(entry, actor,
                 byEmployee ? CashFlagService.RESOLUTION_EMPLOYEE_FIXED : CashFlagService.RESOLUTION_CORRECTED,
-                note, now);
+                reason.isEmpty() ? null : reason, now);
         }
         return toResponse(entry);
     }
 
-    private static boolean sameFigures(DailyCashEntry e, DailyCashEntryRequest r) {
-        return same(e.getOpeningDrawerCash(), r.openingDrawerCash())
-            && same(e.getCashRemoved(), r.cashRemoved())
-            && same(e.getCashRemaining(), r.cashRemaining())
-            && same(e.getCashExpenses(), r.cashExpenses())
-            && same(e.getOtherAdjustments(), r.otherAdjustments());
+    // Does the request give any amount a different value from what is saved
+    // (a figure never recorded counts as different)?
+    private static boolean changes(DailyCashEntry e, DailyCashEntryRequest r) {
+        return differs(e.getOpeningDrawerCash(), r.openingDrawerCash(), false)
+            || differs(e.getCashRemoved(), r.cashRemoved(), false)
+            || differs(e.getCashRemaining(), r.cashRemaining(), false)
+            || differs(e.getOtherAdjustments(), r.otherAdjustments(), false);
     }
 
-    private static boolean same(java.math.BigDecimal a, java.math.BigDecimal b) {
-        return a.compareTo(b) == 0;
+    // Does it replace a figure that was already recorded? Other adjustments
+    // always has a stored value (0 by default), but a 0 nobody typed is not a
+    // recorded figure, so only a non-zero one counts.
+    private static boolean overwrites(DailyCashEntry e, DailyCashEntryRequest r) {
+        return differs(e.getOpeningDrawerCash(), r.openingDrawerCash(), true)
+            || differs(e.getCashRemoved(), r.cashRemoved(), true)
+            || differs(e.getCashRemaining(), r.cashRemaining(), true)
+            || (r.otherAdjustments() != null && e.getOtherAdjustments().signum() != 0
+                && e.getOtherAdjustments().compareTo(r.otherAdjustments()) != 0);
+    }
+
+    private static boolean differs(BigDecimal saved, BigDecimal given, boolean savedMustExist) {
+        if (given == null) return false;
+        if (saved == null) return !savedMustExist;
+        return saved.compareTo(given) != 0;
     }
 
     private static String name(User u, SuperAdmin s) {
@@ -319,7 +348,6 @@ public class DailyCashEntryService {
             .map(c -> new DailyCashEntryResponse.Correction(
                 c.getId(),
                 c.getPreviousOpeningDrawerCash(),
-                c.getPreviousCashExpenses(),
                 c.getPreviousCashRemoved(),
                 c.getPreviousCashRemaining(),
                 c.getPreviousOtherAdjustments(),
@@ -333,7 +361,6 @@ public class DailyCashEntryService {
                 name(c.getCorrectedByUser(), c.getCorrectedBySuperAdmin()),
                 c.getReason(),
                 c.getNewOpeningDrawerCash(),
-                c.getNewCashExpenses(),
                 c.getNewCashRemoved(),
                 c.getNewCashRemaining(),
                 c.getNewOtherAdjustments()))
@@ -351,7 +378,6 @@ public class DailyCashEntryService {
             e.getStore().getId(),
             e.getBusinessDate(),
             e.getOpeningDrawerCash(),
-            e.getCashExpenses(),
             e.getCashRemoved(),
             e.getCashRemaining(),
             e.getOtherAdjustments(),

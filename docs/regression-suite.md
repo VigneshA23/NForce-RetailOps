@@ -147,12 +147,12 @@ The first run on `f3e65707` had 28 failing tests; all were test-side or a flaky 
 | SA-11 | SA checklist and home with no store picked | Stats show dashes | Auto `SuperAdminChecklist.test`, `SuperAdminHome.test` |
 | SA-12 | Activity log | Entries recorded and filtered | Auto `ActivityLogControllerTest` |
 
-## 8. Cash — Daily Cash (five fields) (P0)
+## 8. Cash — Daily Cash (four fields) (P0)
 
 | ID | Scenario | Role | Expected | Cover |
 |---|---|---|---|---|
-| CASH-01 | Enter an entry with the five fields only | OA/SA/EMP | Fields: opening drawer, expenses, cash removed, cash remaining, other adjustments (signed). Others ≥0, 2 dp | Auto `DailyCashEntryRequestTest`, `DailyCashEntryServiceTest`, `DailyCash.test` |
-| CASH-02 | Expected = opening − expenses − removed + other; variance = remaining − expected | all | One implementation only | Auto `CashCalculationServiceTest` |
+| CASH-01 | Enter an entry with the four fields only | OA/SA/EMP | Fields: opening drawer, cash removed, cash remaining, other adjustments (signed, optional; blank = 0). The others are required, ≥0, 2 dp | Auto `DailyCashEntryRequestTest`, `DailyCashEntryServiceTest`, `DailyCash.test` |
+| CASH-02 | Expected = opening − removed + other; variance = remaining − expected | all | One implementation only | Auto `CashCalculationServiceTest` |
 | CASH-03 | Concurrent saves same store/day | all | One row, no duplicate | Auto `CashSaveConcurrencyTest` |
 | CASH-04 | Edit a saved day | all | Row updated; old+new appended to `daily_cash_entry_corrections`; first save writes none | Auto `DailyCashCorrectionTest` |
 | CASH-05 | OA/SA correction without a reason | OA/SA | Rejected | Auto `DailyCashCorrectionTest` |

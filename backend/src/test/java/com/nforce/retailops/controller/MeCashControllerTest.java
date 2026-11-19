@@ -95,10 +95,10 @@ class MeCashControllerTest {
         return objectMapper.readTree(json).get("token").asText();
     }
 
-    // Distinct values so a swapped field shows up: opening 100, expenses 5, removed N, remaining 90.
+    // Distinct values so a swapped field shows up: opening 100, removed N, remaining 90.
     private static String body(LocalDate date, String removed, String adjustments) {
         return "{" + (date == null ? "" : "\"businessDate\":\"" + date + "\",")
-            + "\"openingDrawerCash\":100.00,\"cashExpenses\":5.00,\"cashRemoved\":" + removed
+            + "\"openingDrawerCash\":100.00,\"cashRemoved\":" + removed
             + ",\"cashRemaining\":90.00,\"otherAdjustments\":" + adjustments + "}";
     }
 
@@ -120,7 +120,6 @@ class MeCashControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.businessDate").value(LocalDate.now().toString()))
             .andExpect(jsonPath("$.openingDrawerCash").value(100.00))
-            .andExpect(jsonPath("$.cashExpenses").value(5.00))
             .andExpect(jsonPath("$.cashRemoved").value(10.00))
             .andExpect(jsonPath("$.cashRemaining").value(90.00))
             .andExpect(jsonPath("$.otherAdjustments").value(-3.50))
@@ -151,7 +150,6 @@ class MeCashControllerTest {
             .andExpect(jsonPath("$.cashRemoved").value(20.00))
             .andExpect(jsonPath("$.history.length()").value(1))
             .andExpect(jsonPath("$.history[0].previousCashRemoved").value(10.00))
-            .andExpect(jsonPath("$.history[0].previousCashExpenses").value(5.00))
             .andExpect(jsonPath("$.history[0].correctedByName").value("Second Employee"));
     }
 
@@ -214,6 +212,49 @@ class MeCashControllerTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body(null, "10.00", "-25.00")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.otherAdjustments").value(-25.00));
+    }
+
+    @Test
+    void omittedOtherAdjustmentsIsAcceptedAndReadsBackAsZero() throws Exception {
+        Store s = store("Me Cash Store H", 9508L);
+        employeeAt("me-cash-h@nforce.test", "Erin Employee", s);
+        String token = login("me-cash-h@nforce.test");
+        String noAdjust = "{\"openingDrawerCash\":100.00,\"cashRemoved\":10.00,\"cashRemaining\":90.00}";
+        String nullAdjust = "{\"openingDrawerCash\":100.00,\"cashRemoved\":10.00,\"cashRemaining\":90.00,\"otherAdjustments\":null}";
+
+        mockMvc.perform(put(URL).param("storeId", s.getId().toString())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(noAdjust))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.otherAdjustments").value(0));
+        mockMvc.perform(get(URL).param("storeId", s.getId().toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.otherAdjustments").value(0));
+        // An explicit null behaves the same as an omitted field.
+        mockMvc.perform(put(URL).param("storeId", s.getId().toString())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(nullAdjust))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.otherAdjustments").value(0));
+    }
+
+    @Test
+    void oldStyleBodyStillCarryingCashExpensesIsAcceptedAndTheFieldIgnored() throws Exception {
+        // Jackson is on Spring Boot defaults (FAIL_ON_UNKNOWN_PROPERTIES off): a stale client is not rejected.
+        Store s = store("Me Cash Store I", 9509L);
+        employeeAt("me-cash-i@nforce.test", "Erin Employee", s);
+        String token = login("me-cash-i@nforce.test");
+        String old = "{\"openingDrawerCash\":100.00,\"cashExpenses\":5.00,\"cashRemoved\":10.00,"
+            + "\"cashRemaining\":90.00,\"otherAdjustments\":0}";
+
+        mockMvc.perform(put(URL).param("storeId", s.getId().toString())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(old))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.cashExpenses").doesNotExist())
+            .andExpect(jsonPath("$.openingDrawerCash").value(100.00))
+            .andExpect(jsonPath("$.cashRemoved").value(10.00));
     }
 
     private record LoginPayload(String email, String password) {

@@ -137,7 +137,7 @@ class CashFlagLifecycleTest {
     }
 
     private static String body(LocalDate date, String removed, String note) {
-        return "{\"businessDate\":\"" + date + "\",\"openingDrawerCash\":100.00,\"cashExpenses\":5.00,"
+        return "{\"businessDate\":\"" + date + "\",\"openingDrawerCash\":100.00,"
             + "\"cashRemoved\":" + removed + ",\"cashRemaining\":90.00,\"otherAdjustments\":0"
             + (note == null ? "" : ",\"correctionReason\":\"" + note + "\"") + "}";
     }
@@ -280,9 +280,11 @@ class CashFlagLifecycleTest {
     }
 
     @Test
-    void flagNeedsAFiveWordComment() throws Exception {
+    void flagRequiresANonEmptyComment() throws Exception {
         employeePut(authorToken, body(today, "10.00", null)).andExpect(status().isOk());
-        ownerFlag(entryId(), "too short").andExpect(status().isConflict());
+        long id = entryId();
+        ownerFlag(id, "   ").andExpect(status().isBadRequest());
+        ownerFlag(id, "too short").andExpect(status().isOk());
     }
 
     @Test
@@ -296,7 +298,6 @@ class CashFlagLifecycleTest {
         old.setStore(store);
         old.setBusinessDate(past);
         old.setOpeningDrawerCash(new java.math.BigDecimal("100"));
-        old.setCashExpenses(new java.math.BigDecimal("5"));
         old.setCashRemoved(new java.math.BigDecimal("10"));
         old.setCashRemaining(new java.math.BigDecimal("90"));
         old.setOtherAdjustments(java.math.BigDecimal.ZERO);
@@ -334,16 +335,10 @@ class CashFlagLifecycleTest {
     }
 
     @Test
-    void employeeHistoryShowsOnlyTheirOwnEntries() throws Exception {
-        employeePut(authorToken, body(today, "10.00", null)).andExpect(status().isOk());
+    void employeesHaveNoCashHistoryEndpoint() throws Exception {
         mockMvc.perform(get("/api/me/cash/history").param("storeId", store.getId().toString())
                 .header("Authorization", "Bearer " + authorToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.events.length()").value(1));
-        mockMvc.perform(get("/api/me/cash/history").param("storeId", store.getId().toString())
-                .header("Authorization", "Bearer " + colleagueToken))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.events.length()").value(0));
+            .andExpect(status().is4xxClientError());
     }
 
     @Test

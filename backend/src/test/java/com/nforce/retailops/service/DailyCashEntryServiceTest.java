@@ -85,8 +85,8 @@ class DailyCashEntryServiceTest {
     }
 
     private static DailyCashEntryRequest req(LocalDate date, String opening, String adj, String reason) {
-        // opening, expenses 5, removed 10, remaining 90, adjustments
-        return new DailyCashEntryRequest(date, new BigDecimal(opening), new BigDecimal("5"),
+        // opening, removed 10, remaining 90, adjustments
+        return new DailyCashEntryRequest(date, new BigDecimal(opening),
             new BigDecimal("10"), new BigDecimal("90"), new BigDecimal(adj), reason);
     }
 
@@ -97,7 +97,6 @@ class DailyCashEntryServiceTest {
         existing.setOpeningDrawerCash(new BigDecimal("500"));
         existing.setCashRemoved(BigDecimal.ZERO);
         existing.setCashRemaining(BigDecimal.ZERO);
-        existing.setCashExpenses(BigDecimal.ZERO);
         existing.setOtherAdjustments(BigDecimal.ZERO);
         existing.setEnteredByUser(owner);
         existing.setUpdatedByUser(owner);
@@ -128,7 +127,6 @@ class DailyCashEntryServiceTest {
         existing.setOpeningDrawerCash(new BigDecimal("500"));
         existing.setCashRemoved(BigDecimal.ZERO);
         existing.setCashRemaining(BigDecimal.ZERO);
-        existing.setCashExpenses(BigDecimal.ZERO);
         existing.setOtherAdjustments(BigDecimal.ZERO);
         existing.setEnteredByUser(owner);
         existing.setUpdatedByUser(owner);
@@ -169,7 +167,6 @@ class DailyCashEntryServiceTest {
         DailyCashEntry existing = existingEntry(d);
         existing.setCashRemoved(new BigDecimal("10"));
         existing.setCashRemaining(new BigDecimal("90"));
-        existing.setCashExpenses(new BigDecimal("5"));
         when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.of(existing));
 
         service.save(9L, req(d, "500.00", "0"));
@@ -277,7 +274,6 @@ class DailyCashEntryServiceTest {
         existing.setOpeningDrawerCash(new BigDecimal("200"));
         existing.setCashRemoved(BigDecimal.ZERO);
         existing.setCashRemaining(BigDecimal.ZERO);
-        existing.setCashExpenses(BigDecimal.ZERO);
         existing.setOtherAdjustments(BigDecimal.ZERO);
         existing.setEnteredByUser(first);
         existing.setUpdatedByUser(first);

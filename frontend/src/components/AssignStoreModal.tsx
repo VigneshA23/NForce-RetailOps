@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Store as StoreIcon, MapPin } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import { getNextStoreCode, getReassignableStores } from '../api/owners';
@@ -8,7 +8,7 @@ import FormField from './FormField';
 import Select from './Select';
 import ButtonDots from './ButtonDots';
 import './AssignStoreModal.css';
-
+
 import IconField from './IconField';
 interface AssignStoreModalProps {
   isOpen: boolean;
@@ -180,6 +180,8 @@ function AssignStoreModal({
                 <Select
                   id="assign-existing-store"
                   value={values.existingStoreId != null ? String(values.existingStoreId) : ''}
+                  searchable
+                  placeholder="Choose a store…"
                   onChange={(value) => updateField('existingStoreId', Number(value))}
                   options={reassignableStores.map((store) => ({
                     value: String(store.storeId),

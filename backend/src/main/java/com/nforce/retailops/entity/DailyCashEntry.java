@@ -23,18 +23,15 @@ public class DailyCashEntry {
     @Column(name = "business_date", nullable = false)
     private LocalDate businessDate;
 
-    @Column(name = "opening_drawer_cash", nullable = false)
+    @Column(name = "opening_drawer_cash")
     private BigDecimal openingDrawerCash;
 
-    @Column(name = "cash_removed", nullable = false)
+    @Column(name = "cash_removed")
     private BigDecimal cashRemoved;
 
     // The physically counted end-of-day drawer amount (the "actual cash count").
-    @Column(name = "cash_remaining", nullable = false)
+    @Column(name = "cash_remaining")
     private BigDecimal cashRemaining;
-
-    @Column(name = "cash_expenses", nullable = false)
-    private BigDecimal cashExpenses;
 
     // Signed: the only field allowed to be negative.
     @Column(name = "other_adjustments", nullable = false)
@@ -85,8 +82,6 @@ public class DailyCashEntry {
     public void setCashRemoved(BigDecimal v) { this.cashRemoved = v; }
     public BigDecimal getCashRemaining() { return cashRemaining; }
     public void setCashRemaining(BigDecimal v) { this.cashRemaining = v; }
-    public BigDecimal getCashExpenses() { return cashExpenses; }
-    public void setCashExpenses(BigDecimal v) { this.cashExpenses = v; }
     public BigDecimal getOtherAdjustments() { return otherAdjustments; }
     public void setOtherAdjustments(BigDecimal v) { this.otherAdjustments = v; }
     public BigDecimal getDailyExpectedCash() { return dailyExpectedCash; }

@@ -285,10 +285,10 @@ const SUPER_ADMIN_SECTIONS: HelpSection[] = [
     bullets: [
       'Move between months with the Previous month / Next month arrows.',
       'All Stores (the default) shows the combined totals of every store that recorded cash that month.',
-      'Select a store to see its totals, closing variance, and Daily Breakdown.',
+      'Select a store to see its totals, Expected Cash on Hand, and Daily Breakdown.',
     ],
     important: [
-      'Negative variance is a shortage; positive variance is an overage.',
+      'Expected Cash on Hand adds up every day’s Cash Remaining ± Adjustments. Cash Removed and Opening Drawer Cash are recorded only.',
       'This page is read-only. Make changes from Daily Cash.',
     ],
   },
@@ -488,15 +488,15 @@ const OWNER_ADMIN_SECTIONS: HelpSection[] = [
     description: "Record each day's cash drawer figures for your store.",
     steps: [
       'Open Daily Cash and choose the business date (today by default).',
-      'Enter the five fields in order: opening drawer cash, cash expenses, cash removed, cash remaining (your end-of-day count), and other adjustments.',
+      'Enter the four fields in order: opening drawer cash, cash removed, cash remaining (your end-of-day count), and other adjustments (optional).',
       'Select Save Entry, or Update Entry if the date already has one.',
       'Your store’s Cash target is shown beside Expected Cash on Hand. It is read-only here.',
     ],
     important: [
-      'Every field is required. Enter 0 if there is nothing to record.',
+      'Opening drawer cash, cash removed and cash remaining are required. Enter 0 if there is nothing to record. Other adjustments is optional and counts as 0 when left blank.',
       'Only Other adjustments can be negative. Use a minus sign for money taken out.',
       'Future dates cannot be entered. You can update a past date, which overwrites the saved figures.',
-      'Expected Cash on Hand = Opening Cash − Cash Expenses − Cash Removed ± Other Adjustments. It turns amber if the last entry is 2 or more days old.',
+      'Daily expected cash = Cash remaining ± Other adjustments. Expected Cash on Hand adds up every day’s figure. It turns amber if the last entry is 2 or more days old.',
       'The page shows who first entered each day (older entries show Unknown). Every later edit is kept in an audit trail with who made it and when.',
     ],
   },
@@ -507,12 +507,12 @@ const OWNER_ADMIN_SECTIONS: HelpSection[] = [
     description: "Review a month's cash totals and how the closing figures reconcile.",
     bullets: [
       'Move between months with the Previous month / Next month arrows.',
-      'See monthly totals for cash removed, cash expenses, and adjustments.',
-      'Compare Expected Cash on Hand with the Actual Cash Count on the last recorded day (Variance), and see every day’s over/short added up (Net Daily Variance).',
+      'See monthly totals for cash removed, cash remaining (dropped into the safe), and adjustments.',
+      'Expected Cash on Hand is the total of each day’s Cash Remaining ± Adjustments from the 1st of the month to the last recorded day. Earlier months are not carried forward.',
       'Use the Daily Breakdown table to see each recorded day. The closing day is marked.',
     ],
     important: [
-      'Negative variance is a shortage; positive variance is an overage.',
+      'Expected Cash on Hand adds up every day’s Cash Remaining ± Adjustments. Cash Removed and Opening Drawer Cash are recorded only.',
       'This page is read-only. Make changes from Daily Cash.',
     ],
   },

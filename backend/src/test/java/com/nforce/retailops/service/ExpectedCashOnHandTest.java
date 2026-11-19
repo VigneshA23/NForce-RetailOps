@@ -3,7 +3,6 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.DailyCashEntryRequest;
 import com.nforce.retailops.dto.DailyCashEntryResponse;
 import com.nforce.retailops.dto.ExpectedCashRangeResponse;
-import com.nforce.retailops.dto.SuperAdminCashCorrectionRequest;
 import com.nforce.retailops.entity.DailyCashEntry;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.SuperAdmin;
@@ -32,7 +31,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ExpectedCashOnHandTest {
 
     @Autowired DailyCashEntryService entryService;
-    @Autowired SuperAdminCashReviewService reviewService;
     @Autowired DailyCashEntryRepository entryRepository;
     @Autowired StoreRepository storeRepository;
     @Autowired SuperAdminRepository superAdminRepository;
@@ -57,7 +55,6 @@ class ExpectedCashOnHandTest {
         return new DailyCashEntryRequest(
             date,
             new BigDecimal("100"),              // openingDrawerCash
-            new BigDecimal("5"),                // cashExpenses
             new BigDecimal("10"),               // cashRemoved
             new BigDecimal(cashRemaining),      // cashRemaining
             new BigDecimal(otherAdj),           // otherAdjustments (signed)
@@ -140,14 +137,8 @@ class ExpectedCashOnHandTest {
         assertThat(day11.expectedCashOnHand()).isEqualByComparingTo("300.00");
 
         // Correct day 10's cash_remaining from 100 to 180 (adjustments unchanged).
-        SuperAdminCashCorrectionRequest correction = new SuperAdminCashCorrectionRequest(
-            new BigDecimal("100"),      // openingDrawerCash
-            new BigDecimal("5"),        // cashExpenses
-            new BigDecimal("10"),       // cashRemoved
-            new BigDecimal("180.00"),   // cashRemaining (was 100)
-            new BigDecimal("0"),        // otherAdjustments
-            "Owner found an extra 80 in the drawer");
-        reviewService.correct(f.superAdminId(), f.storeId(), day10.id(), correction);
+        entryService.saveForSuperAdmin(f.superAdminId(), f.storeId(),
+            req(LocalDate.of(2026, 11, 10), "180.00", "0"));
 
         // After correction: day 10 = 180, day 11 unchanged at 200. Running at
         // day 10 = 180; running at day 11 = 380. The stored daily figure for

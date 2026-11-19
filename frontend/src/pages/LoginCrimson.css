@@ -931,3 +931,33 @@
     color: rgba(10, 10, 11, 0.4);
   }
 }
+
+/* ---- Ked's logo colours ---------------------------------------
+   Last in the file so they win over the red in the base and
+   screen-size blocks above (same plain selectors). Logo blue is
+   #38a8f0; it is too light for white or small text, so text uses a
+   deeper shade of the same blue (#1677c4, 4.7:1 on white) and the
+   button runs from logo blue into it. The success state's doubled
+   selector still beats the button background. */
+.login3-heading-underline {
+  background: #d01088; /* logo pink */
+}
+
+.login3-forgot-link {
+  color: #1677c4;
+}
+
+.login3-submit {
+  background: linear-gradient(135deg, #38a8f0 0%, #1677c4 100%);
+  box-shadow: 0 12px 24px -8px rgba(22, 119, 196, 0.45);
+}
+
+.login3-submit:hover:not(:disabled) {
+  box-shadow: 0 16px 28px -8px rgba(22, 119, 196, 0.55);
+}
+
+/* Required-field asterisk: a lighter shade of the logo pink (3.2:1 on
+   white, enough for a marker; the field is also marked required). */
+.login3-label-required {
+  color: #e85aa8;
+}
