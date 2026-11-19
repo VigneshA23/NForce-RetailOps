@@ -5,9 +5,11 @@ import com.nforce.retailops.dto.DailyCashEntryRequest;
 import com.nforce.retailops.dto.ExpectedCashAsOfResponse;
 import com.nforce.retailops.dto.DailyCashEntryResponse;
 import com.nforce.retailops.dto.ExpectedCashRangeResponse;
+import com.nforce.retailops.dto.SuperAdminCashFlagRequest;
 import com.nforce.retailops.security.SuperAdminUserDetails;
 import com.nforce.retailops.service.CashHistoryService;
 import com.nforce.retailops.service.DailyCashEntryService;
+import com.nforce.retailops.service.SuperAdminCashFlagService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -26,10 +28,50 @@ public class SuperAdminStoreCashController {
 
     private final DailyCashEntryService service;
     private final CashHistoryService historyService;
+    private final SuperAdminCashFlagService flagService;
 
-    public SuperAdminStoreCashController(DailyCashEntryService service, CashHistoryService historyService) {
+    public SuperAdminStoreCashController(
+        DailyCashEntryService service,
+        CashHistoryService historyService,
+        SuperAdminCashFlagService flagService
+    ) {
         this.service = service;
         this.historyService = historyService;
+        this.flagService = flagService;
+    }
+
+    // Flag an entry with a note (at least 5 words); the entering employee, and
+    // only they, is notified.
+    @PostMapping("/entries/{entryId}/flag")
+    public ResponseEntity<DailyCashEntryResponse> raiseFlag(
+        @AuthenticationPrincipal SuperAdminUserDetails principal,
+        @PathVariable Long storeId,
+        @PathVariable Long entryId,
+        @Valid @RequestBody SuperAdminCashFlagRequest request
+    ) {
+        return ResponseEntity.ok(
+            flagService.raise(principal.getSuperAdmin().getId(), storeId, entryId, request.comment()));
+    }
+
+    @PatchMapping("/entries/{entryId}/flag")
+    public ResponseEntity<DailyCashEntryResponse> editFlag(
+        @AuthenticationPrincipal SuperAdminUserDetails principal,
+        @PathVariable Long storeId,
+        @PathVariable Long entryId,
+        @Valid @RequestBody SuperAdminCashFlagRequest request
+    ) {
+        return ResponseEntity.ok(
+            flagService.editComment(principal.getSuperAdmin().getId(), storeId, entryId, request.comment()));
+    }
+
+    @DeleteMapping("/entries/{entryId}/flag")
+    public ResponseEntity<DailyCashEntryResponse> removeFlag(
+        @AuthenticationPrincipal SuperAdminUserDetails principal,
+        @PathVariable Long storeId,
+        @PathVariable Long entryId
+    ) {
+        return ResponseEntity.ok(
+            flagService.remove(principal.getSuperAdmin().getId(), storeId, entryId));
     }
 
     @PutMapping

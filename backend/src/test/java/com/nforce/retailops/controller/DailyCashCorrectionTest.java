@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** A Super Admin corrects a past day's cash entry directly, with a reason. */
+/** A Super Admin corrects a past day's cash entry directly; the UI confirms it, no reason is asked. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -76,24 +76,20 @@ class DailyCashCorrectionTest {
     }
 
     @Test
-    void aCorrectionNeedsAReasonIsAuditedAndRecalculatesExpectedCash() throws Exception {
+    void aCorrectionNeedsNoReasonIsAuditedAndRecalculatesExpectedCash() throws Exception {
         save(body("500", null)).andExpect(status().isOk())
             .andExpect(jsonPath("$.correctedByName").doesNotExist());
         long notificationsBefore = notificationRepository.count();
         String expectedBefore = expected();
 
-        // No reason: refused, nothing changes.
-        save(body("650", "  ")).andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("A reason is required to correct this entry"));
-        assertThat(correctionRepository.count()).isZero();
-
-        save(body("650", "Opening cash was keyed in twice"))
+        // No reason is needed: the page asks the Super Admin to confirm instead.
+        save(body("650", null))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.openingDrawerCash").value(650))
             .andExpect(jsonPath("$.correctedByName").value("Sam Super"))
             .andExpect(jsonPath("$.correctedAt").exists())
             .andExpect(jsonPath("$.history.length()").value(1))
-            .andExpect(jsonPath("$.history[0].reason").value("Opening cash was keyed in twice"))
+            .andExpect(jsonPath("$.history[0].reason").doesNotExist())
             .andExpect(jsonPath("$.history[0].previousOpeningDrawerCash").value(500))
             .andExpect(jsonPath("$.history[0].newOpeningDrawerCash").value(650))
             .andExpect(jsonPath("$.history[0].correctedByName").value("Sam Super"));

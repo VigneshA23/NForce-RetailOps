@@ -7,7 +7,7 @@ import {
   saveDailyCashEntry,
   saveSuperAdminDailyCashEntry,
 } from '../api/storeCash';
-import { getMyCashEntry, getMyCashHistory, saveMyCashEntry } from '../api/meCash';
+import { getMyCashEntry, saveMyCashEntry } from '../api/meCash';
 import { ApiError } from '../api/client';
 import type {
   CashAmountField,
@@ -18,6 +18,7 @@ import type {
   DailyCashEntryRequest,
 } from '../types/storeCash';
 import FormField from '../components/FormField';
+import ConfirmDialog from '../components/ConfirmDialog';
 import PopoverDateField from '../components/PopoverDateField';
 import ButtonDots from '../components/ButtonDots';
 import ExpectedCashOnHandStat from '../components/ExpectedCashOnHandStat';
@@ -222,6 +223,10 @@ function DailyCash({
   // Bumped after each successful save so Expected Cash on Hand refetches.
   const [expectedRefreshKey, setExpectedRefreshKey] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
+  // Super Admin: Update Entry asks for confirmation before saving, and Flag
+  // opens the note popup (CashEntryFlagSection owns the popup itself).
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [flagRequest, setFlagRequest] = useState(0);
 
   // A notification asked for a specific day (the flagged entry's date).
   useEffect(() => {
@@ -231,7 +236,7 @@ function DailyCash({
   const loadHistory = useCallback(
     (from: string, to: string, status: CashHistoryStatusFilter, signal: AbortSignal) => {
       if (storeId === null) return Promise.reject(new Error('No store selected'));
-      if (scope === 'employee') return getMyCashHistory(storeId, from, to, status, signal);
+      if (scope === 'employee') return Promise.reject(new Error('History is not available'));
       return scope === 'super-admin'
         ? getSuperAdminCashHistory(storeId, from, to, status, signal)
         : getCashHistory(from, to, status, signal);
@@ -296,11 +301,20 @@ function DailyCash({
     setErrors(nextErrors);
     // A changed figure on a day that is already saved is a correction.
     const isCorrection = entry !== null && Object.keys(nextErrors).length === 0 && figuresChanged(entry, values);
-    // Employees are never asked for a reason: theirs is an optional note.
-    const nextReasonError = isCorrection && scope !== 'employee' && !reason.trim() ? REASON_REQUIRED : undefined;
+    // Employees give an optional note and Super Admins confirm in a popup; only
+    // an Owner/Admin must state a reason.
+    const nextReasonError = isCorrection && scope === 'owner' && !reason.trim() ? REASON_REQUIRED : undefined;
     setReasonError(nextReasonError);
     if (Object.keys(nextErrors).length > 0 || nextReasonError || storeId === null || isFutureDate(businessDate)) return;
+    if (scope === 'super-admin' && isCorrection) {
+      setConfirmOpen(true);
+      return;
+    }
+    await performSave(isCorrection);
+  }
 
+  async function performSave(isCorrection: boolean) {
+    if (storeId === null) return;
     const amounts = {} as CashAmounts;
     for (const field of FIELDS) amounts[field.key] = parseAmount(values[field.key]);
 
@@ -363,6 +377,11 @@ function DailyCash({
     );
   }
 
+  const pendingChanges = entry
+    ? FIELDS.filter((field) => parseAmount(values[field.key]) !== entry[field.key]).map(
+        (field) => `${field.label}: ${formatCurrency(entry[field.key])} → ${formatCurrency(parseAmount(values[field.key]))}`,
+      )
+    : [];
   const errorCount = Object.values(errors).filter(Boolean).length;
   const dateIsFuture = isFutureDate(businessDate);
   const isEmployee = scope === 'employee';
@@ -428,7 +447,15 @@ function DailyCash({
         )}
 
         {storeId !== null && !isLoading && !loadError && !dateIsFuture && entry && (
-          <CashEntryFlagSection entry={entry} canManage={scope === 'owner'} onEntryChange={applyEntry} />
+          <CashEntryFlagSection
+            entry={entry}
+            canManage={scope === 'owner' || scope === 'super-admin'}
+            scope={scope === 'super-admin' ? 'super-admin' : 'owner'}
+            storeId={storeId}
+            hideRaiseButton={scope === 'super-admin'}
+            raiseRequest={flagRequest}
+            onEntryChange={applyEntry}
+          />
         )}
 
         {readOnly && !loadError && !dateIsFuture && (
@@ -489,7 +516,7 @@ function DailyCash({
                 })}
               </div>
 
-              {entry && !readOnly && (
+              {entry && !readOnly && scope !== 'super-admin' && (
                 <div className="daily-cash-page__reason">
                   <FormField
                     label={isEmployee ? 'Note (optional)' : 'Reason for correction'}
@@ -535,17 +562,42 @@ function DailyCash({
                     : entry?.flag && isEmployee ? 'Save & resolve flag' : entry ? 'Update Entry' : 'Save Entry'}
                 </button>
               )}
-              <button type="button" className="btn btn--secondary" onClick={() => setShowHistory((open) => !open)}>
-                {showHistory ? 'Hide history' : 'View history'}
-              </button>
+              {scope === 'super-admin' && entry && !entry.flag && (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={isLoading || isSaving || dateIsFuture}
+                  onClick={() => setFlagRequest((count) => count + 1)}
+                >
+                  Flag
+                </button>
+              )}
+              {!isEmployee && (
+                <button type="button" className="btn btn--secondary" onClick={() => setShowHistory((open) => !open)}>
+                  {showHistory ? 'Hide history' : 'View history'}
+                </button>
+              )}
             </div>
-            {entry && <CorrectionHistory history={entry.history} />}
-            {showHistory && (
+            {entry && !isEmployee && <CorrectionHistory history={entry.history} />}
+            {showHistory && !isEmployee && (
               <CashHistoryPanel load={loadHistory} reloadKey={`${storeId}-${expectedRefreshKey}`} />
             )}
           </form>
         )}
       </section>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Update cash entry"
+        message={`Update the cash entry for ${formatDateLabel(businessDate)}? The previous figures are kept in the entry's history.`}
+        details={pendingChanges}
+        confirmLabel="Update"
+        danger={false}
+        onConfirm={async () => {
+          setConfirmOpen(false);
+          await performSave(true);
+        }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }
