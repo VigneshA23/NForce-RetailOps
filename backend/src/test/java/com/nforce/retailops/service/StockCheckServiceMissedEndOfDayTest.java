@@ -267,7 +267,7 @@ class StockCheckServiceMissedEndOfDayTest {
     // ---- Answering ----------------------------------------------------------
 
     @Test
-    void anEmployeeCanCountYesterdaysEndOfDayAndIsRecordedWithoutTouchingTheOrderList() {
+    void anEmployeeCanCountYesterdaysEndOfDayAndIsRecordedAndTheOrderListIsResynced() {
         StockCheck row = yesterdayWithStartOnly(10);
         yesterdayRowIs(row);
 
@@ -278,7 +278,8 @@ class StockCheckServiceMissedEndOfDayTest {
         assertThat(row.getEndOfDayDeadStock()).isEqualByComparingTo("1");
         assertThat(row.getEndOfDayEnteredBy()).isEqualTo(employee);
         assertThat(item.answeredByName()).isEqualTo("Sarah");
-        verifyNoInteractions(orderListService);
+        // A counted answer is a normal End of Day, so the order list is re-synced.
+        verify(orderListService).resolveShortageIfPresent(any(), any());
     }
 
     @Test
@@ -289,7 +290,7 @@ class StockCheckServiceMissedEndOfDayTest {
         stockCheckService.answerMissedEndOfDayAsOwner(OWNER_ID, count(5, 0));
 
         assertThat(row.getEndOfDayEnteredBy()).isEqualTo(owner);
-        verifyNoInteractions(orderListService);
+        verify(orderListService).resolveShortageIfPresent(any(), any());
     }
 
     @Test

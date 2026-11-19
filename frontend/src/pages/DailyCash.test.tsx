@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DailyCash from './DailyCash';
@@ -318,27 +318,28 @@ describe('DailyCash', () => {
     expect(screen.getByRole('button', { name: 'Update Entry' })).toBeInTheDocument();
   });
 
-  it('refuses a typed-in future business date and does not save it', async () => {
-    const user = userEvent.setup();
-    render(<DailyCash storeId={7} storesLoading={false} />);
-    await screen.findByText('No entry saved for this date yet');
-    await fillAll(user);
-    vi.mocked(storeCashApi.getDailyCashEntry).mockClear();
+  it('does not let a future business date be picked, so nothing for it is loaded or saved', async () => {
+    // The date field is a themed calendar button (PopoverDateField), not a text
+    // input, so a future date can only be reached through the calendar, whose
+    // cells after `max` (today) are disabled.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 5, 15, 12, 0, 0) });
+    try {
+      const user = userEvent.setup();
+      render(<DailyCash storeId={7} storesLoading={false} />);
+      await screen.findByText('No entry saved for this date yet');
+      vi.mocked(storeCashApi.getDailyCashEntry).mockClear();
 
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowIso = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
-    fireEvent.change(screen.getByLabelText('Business date'), { target: { value: tomorrowIso } });
+      await user.click(screen.getByLabelText('Business date'));
+      const dialog = await screen.findByRole('dialog', { name: 'Choose a date' });
 
-    expect(await screen.findByText('Business date cannot be in the future')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save Entry' })).toBeDisabled();
-    expect(storeCashApi.getDailyCashEntry).not.toHaveBeenCalled();
-    expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
-
-    fireEvent.change(screen.getByLabelText('Business date'), { target: { value: todayIso() } });
-    expect(await screen.findByText('No entry saved for this date yet')).toBeInTheDocument();
-    expect(screen.queryByText('Business date cannot be in the future')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save Entry' })).toBeEnabled();
+      expect(within(dialog).getByRole('button', { name: '15' })).toBeEnabled();
+      expect(within(dialog).getByRole('button', { name: '16' })).toBeDisabled();
+      expect(within(dialog).getByRole('button', { name: '30' })).toBeDisabled();
+      expect(storeCashApi.getDailyCashEntry).not.toHaveBeenCalled();
+      expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows an error and does not mark the day as saved when the save fails', async () => {

@@ -98,6 +98,10 @@ class TaskServiceTest {
         org.mockito.Mockito.lenient()
             .when(taskMakeupLinkService.findMovedUnitsTargetingDate(any(), any()))
             .thenReturn(java.util.List.of());
+        // requireOwnedTask only trusts an owner with a live store link.
+        org.mockito.Mockito.lenient()
+            .when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(OWNER_ID))
+            .thenReturn(true);
 
         category = new Category();
         ReflectionTestUtils.setField(category, "id", CATEGORY_ID);

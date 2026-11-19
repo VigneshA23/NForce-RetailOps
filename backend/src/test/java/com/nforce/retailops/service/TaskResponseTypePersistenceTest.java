@@ -6,10 +6,14 @@ import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.ScheduleType;
+import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +46,12 @@ class TaskResponseTypePersistenceTest {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private StoreOwnerRepository storeOwnerRepository;
+
     private Long ownerId;
     private Long categoryId;
 
@@ -54,6 +64,18 @@ class TaskResponseTypePersistenceTest {
         owner.setFullName("Test Owner");
         owner = userRepository.save(owner);
         ownerId = owner.getId();
+
+        // Task definitions are only manageable through an active store link
+        // (TaskService.requireOwnedTask), so the owner needs one.
+        Store store = new Store();
+        store.setName("Test Store");
+        store.setStoreCode(System.nanoTime());
+        store.setActive(true);
+        store = storeRepository.save(store);
+        StoreOwner link = new StoreOwner();
+        link.setStore(store);
+        link.setOwner(owner);
+        storeOwnerRepository.save(link);
 
         Category category = new Category();
         category.setOwner(owner);

@@ -843,7 +843,10 @@ public class ChecklistHistoryService {
         }
 
         return combined.stream()
-            .sorted(Comparator.comparing(AdminCorrectionEntry::correctedAt).reversed())
+            // Newest first; id breaks a tie between corrections saved in the same
+            // instant (synthesized entries have no id and sort after real ones).
+            .sorted(Comparator.comparing(AdminCorrectionEntry::correctedAt).reversed()
+                .thenComparing(AdminCorrectionEntry::id, Comparator.nullsLast(Comparator.<Long>reverseOrder())))
             .toList();
     }
 
