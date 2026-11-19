@@ -67,7 +67,7 @@ describe('SuperAdminCash', () => {
   it('asks for a store first, then loads and saves that store through the Super Admin API', async () => {
     const user = userEvent.setup();
     vi.mocked(storeCashApi.saveSuperAdminDailyCashEntry).mockImplementation(async (storeId, request) => ({
-      id: 9, storeId, ...request,
+      id: 9, storeId, openingDrawerCash: null, cashRemoved: null, cashRemaining: null, otherAdjustments: 0, ...request,
       enteredByUserId: null, enteredBySuperAdminId: 1, enteredByName: 'Super Admin', enteredAt: '2026-11-09T18:00:00Z',
       updatedByUserId: null, updatedBySuperAdminId: 1, updatedByName: 'Super Admin', updatedAt: '2026-11-09T18:00:00Z',
       history: [], correctedByName: null, correctedAt: null,
