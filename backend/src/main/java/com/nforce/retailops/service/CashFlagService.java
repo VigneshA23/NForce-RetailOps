@@ -23,7 +23,6 @@ import java.util.Optional;
 @Service
 public class CashFlagService {
 
-    public static final int MIN_FLAG_WORDS = 5;
     public static final String RESOLUTION_REMOVED = "REMOVED";
     public static final String RESOLUTION_CORRECTED = "CORRECTED";
     public static final String RESOLUTION_EMPLOYEE_FIXED = "EMPLOYEE_FIXED";
@@ -134,10 +133,6 @@ public class CashFlagService {
         String trimmed = raw == null ? "" : raw.strip();
         if (trimmed.isEmpty()) {
             throw new CashEntryFlagException("A flag comment is required.");
-        }
-        if (trimmed.split("\\s+").length < MIN_FLAG_WORDS) {
-            throw new CashEntryFlagException(
-                "Please give at least " + MIN_FLAG_WORDS + " words of context for the flag.");
         }
         return trimmed;
     }

@@ -116,10 +116,9 @@ public class MonthlyCashSummaryService {
         if (entries.isEmpty()) {
             return StoreMonthlyCashSummary.empty(store.getId(), store.getName(), store.getStoreCode());
         }
-        // Expected cash on hand is a running total from the store's first entry,
-        // so start from everything recorded before this month.
-        BigDecimal running = entryRepository.sumExpectedCashOnHandUpTo(store.getId(), from.minusDays(1));
-        if (running == null) running = BigDecimal.ZERO;
+        // Expected cash on hand is month-to-date only: it starts at zero on the
+        // 1st and nothing from earlier months is carried forward.
+        BigDecimal running = BigDecimal.ZERO;
 
         List<DailyCashBreakdown> days = new ArrayList<>();
         for (DailyCashEntry entry : entries.stream()

@@ -10,7 +10,7 @@ import java.time.LocalDate;
  * only. {@code cashRemaining} is what was dropped into the safe;
  * {@code dailyExpected} = cashRemaining + adjustments, and
  * {@code expectedCashOnHand} is the running total of {@code dailyExpected} from
- * the store's first entry up to this day. Any recorded figure is null when
+ * the 1st of the month up to this day (earlier months are not carried in). Any recorded figure is null when
  * nobody entered it.
  */
 public record DailyCashBreakdown(

@@ -215,10 +215,8 @@ class MonthlyCashSummaryServiceTest {
     }
 
     @Test
-    void expectedCashOnHand_startsFromEverythingRecordedBeforeTheMonth_andIgnoresCashRemoved() {
+    void expectedCashOnHand_isMonthToDateOnly_notCarriedFromEarlierMonths_andIgnoresCashRemoved() {
         when(storeRepository.findAllById(any())).thenReturn(List.of(store1));
-        when(entryRepository.sumExpectedCashOnHandUpTo(1L, LocalDate.parse("2026-10-31")))
-            .thenReturn(new BigDecimal("1000"));
         when(entryRepository.findForStoresBetween(any(), any(), any())).thenReturn(List.of(
             entry(store1, "2026-11-03", "100", "0", "100", "0"),
             // a large opening drawer and cash removed change nothing
@@ -230,8 +228,8 @@ class MonthlyCashSummaryServiceTest {
         assertEquals(2, s.dailyBreakdown().size());
         DailyCashBreakdown last = s.dailyBreakdown().get(1);
         assertMoney("15", last.dailyExpected());
-        assertMoney("1115", last.expectedCashOnHand());
-        assertMoney("1115", s.expectedCashOnHand());
+        assertMoney("115", last.expectedCashOnHand());
+        assertMoney("115", s.expectedCashOnHand());
         assertMoney("4500", s.totalCashRemoved());
     }
 

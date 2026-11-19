@@ -47,9 +47,9 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
         </h3>
       </div>
       <p className="daily-cash__lead">
-        Expected cash on hand above is the running total on{' '}
-        <strong>{dayLabel(closingDate)}</strong>, the last recorded day (highlighted below). Each day adds its
-        cash remaining ± adjustments. Days with no entry are not listed.
+        Expected cash on hand above is the month-to-date total on{' '}
+        <strong>{dayLabel(closingDate)}</strong>, the last recorded day (highlighted below). It starts from the
+        1st of the month; each day adds its cash remaining ± adjustments. Days with no entry are not listed.
       </p>
       {/* Not a .table-card: that class stacks rows into cards on phones. This
           table keeps its columns on every screen and scrolls sideways instead. */}

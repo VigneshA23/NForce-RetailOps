@@ -12,7 +12,8 @@ import java.util.List;
  * totals; cash removed is only recorded, it does not enter expected cash.
  * {@code expectedCashOnHand} is a balance as at {@code asOfDate}, the last day
  * in the month with an entry: the running total of every day's
- * (cash remaining +/- adjustments) from the store's first entry.
+ * (cash remaining +/- adjustments) from the 1st of the month; earlier months
+ * are not carried forward.
  *
  * <p>{@code dailyBreakdown} lists every recorded day, oldest first. Days with
  * no entry are absent, not zero rows; it is empty for a store with no entries

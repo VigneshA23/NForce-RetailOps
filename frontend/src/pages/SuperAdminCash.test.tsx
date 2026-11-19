@@ -142,7 +142,7 @@ describe('SuperAdminCash', () => {
       1, expect.not.objectContaining({ correctionReason: expect.anything() }));
   });
 
-  it('flags an entry from a button beside Update, with a note of at least five words', async () => {
+  it('flags an entry from a button beside Update, with a required note', async () => {
     const user = userEvent.setup();
     localStorage.setItem('nforce-retailops-page:sa-cash-store', '1');
     vi.mocked(storeCashApi.getSuperAdminDailyCashEntry).mockResolvedValue(savedEntry() as never);
@@ -158,9 +158,8 @@ describe('SuperAdminCash', () => {
 
     await screen.findByRole('button', { name: 'Update Entry' });
     await user.click(screen.getByRole('button', { name: 'Flag' }));
-    await user.type(screen.getByRole('textbox', { name: /Note/ }), 'too short');
     await user.click(screen.getByRole('button', { name: 'Flag entry' }));
-    expect(await screen.findByText('Please give at least 5 words of context.')).toBeInTheDocument();
+    expect(await screen.findByText('Please enter a comment.')).toBeInTheDocument();
     expect(storeCashApi.flagSuperAdminCashEntry).not.toHaveBeenCalled();
 
     await user.clear(screen.getByRole('textbox', { name: /Note/ }));
