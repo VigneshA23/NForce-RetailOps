@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DailyCash from './DailyCash';
@@ -536,12 +536,77 @@ describe('DailyCash', () => {
     expect(await screen.findByText(/Cash removed looks too high for a Tuesday/)).toBeInTheDocument();
     await user.clear(field('Cash removed'));
     await user.type(field('Cash removed'), '450');
-    await user.type(screen.getByRole('textbox', { name: /Note \(optional\)/ }), 'Recounted the drawer');
-    await user.click(screen.getByRole('button', { name: 'Save & resolve flag' }));
+    await user.type(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[1], 'Recounted the drawer');
+    await user.click(screen.getAllByRole('button', { name: 'Save & resolve flag' })[1]);
 
     expect(meCashApi.saveMyCashEntry).toHaveBeenCalledWith(7, expect.objectContaining({
       cashRemoved: 450,
       correctionReason: 'Recounted the drawer',
     }));
+  });
+
+  it('keeps employee section notes separate and shows loading only on the submitted section', async () => {
+    const user = userEvent.setup();
+    vi.mocked(meCashApi.getMyCashEntry).mockResolvedValue(entry({ canEdit: true }));
+    let resolveSave: ((saved: DailyCashEntry) => void) | undefined;
+    vi.mocked(meCashApi.saveMyCashEntry).mockImplementation((_storeId, _request) =>
+      new Promise((resolve) => { resolveSave = resolve; }));
+    render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
+
+    expect(await screen.findAllByRole('button', { name: 'Update Entry' })).toHaveLength(2);
+    const notes = screen.getAllByRole('textbox', { name: /Note \(optional\)/ });
+    await user.type(notes[0], 'Opening note');
+    await user.type(notes[1], 'Cash note');
+    expect(notes[0]).toHaveValue('Opening note');
+    expect(notes[1]).toHaveValue('Cash note');
+
+    await user.clear(field('Opening drawer cash'));
+    await user.type(field('Opening drawer cash'), '210');
+    await user.click(screen.getAllByRole('button', { name: 'Update Entry' })[0]);
+
+    expect(await screen.findByRole('button', { name: 'Saving' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Update Entry' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Update Entry' })).toBeDisabled();
+    expect(meCashApi.saveMyCashEntry).toHaveBeenCalledWith(7, expect.objectContaining({
+      openingDrawerCash: 210,
+      cashRemoved: 500,
+      correctionReason: 'Opening note',
+    }));
+
+    resolveSave?.(entry({ openingDrawerCash: 210, canEdit: true }));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Update Entry' })).toHaveLength(2));
+    expect(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[0]).toHaveValue('');
+    expect(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[1]).toHaveValue('Cash note');
+
+    await user.clear(field('Cash removed'));
+    await user.type(field('Cash removed'), '450');
+    await user.click(screen.getAllByRole('button', { name: 'Update Entry' })[1]);
+    expect(await screen.findByRole('button', { name: 'Saving' })).toBeInTheDocument();
+    expect(meCashApi.saveMyCashEntry).toHaveBeenLastCalledWith(7, expect.objectContaining({
+      openingDrawerCash: 210,
+      cashRemoved: 450,
+      correctionReason: 'Cash note',
+    }));
+
+    resolveSave?.(entry({ openingDrawerCash: 210, cashRemoved: 450, canEdit: true }));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Update Entry' })).toHaveLength(2));
+    expect(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[0]).toHaveValue('');
+    expect(screen.getAllByRole('textbox', { name: /Note \(optional\)/ })[1]).toHaveValue('');
+  });
+
+  it('reloads the selected cash date when a notification for that date is opened again', async () => {
+    const { rerender } = render(<DailyCash scope="employee" storeId={7} storesLoading={false} />);
+    await screen.findByRole('button', { name: 'Save Entry' });
+    expect(meCashApi.getMyCashEntry).toHaveBeenCalledTimes(1);
+
+    rerender(<DailyCash
+      scope="employee"
+      storeId={7}
+      storesLoading={false}
+      dateSeed={{ date: todayIso(), id: 1 }}
+    />);
+
+    await waitFor(() => expect(meCashApi.getMyCashEntry).toHaveBeenCalledTimes(2));
+    expect(meCashApi.getMyCashEntry).toHaveBeenLastCalledWith(7, todayIso(), expect.any(AbortSignal));
   });
 });

@@ -68,6 +68,19 @@
   min-width: 0;
 }
 
+.daily-cash-page__employee-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.daily-cash-page__section-title {
+  margin: 0 0 var(--space-md);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
 /* Three columns on a full-width card so the seven fields do not stretch into
    long, thin inputs; two on tablets, one on phones. */
 .daily-cash-page__grid {

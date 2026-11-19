@@ -39,9 +39,9 @@ interface DailyCashProps {
   // storeId is the store they work at; they never see expected cash or the
   // cash target, and may only change today's entry (or one flagged for them).
   scope?: 'owner' | 'super-admin' | 'employee';
-  // A notification click asks for a specific date; `id` changes on every click
-  // so the same date can be requested again.
-  dateSeed?: { date: string; id: number } | null;
+  // A notification click may ask for a specific date; `id` changes on every
+  // click so the current date can be refreshed as well.
+  dateSeed?: { date?: string; id: number } | null;
   // Super Admin's store picker, shown beside the date.
   storeSelector?: ReactNode;
   // Shown in place of the form when storeId is null and stores have loaded.
@@ -81,6 +81,8 @@ const FIELDS: FieldSpec[] = [
   { key: 'cashRemaining', label: 'Cash remaining', description: 'Cash physically counted in the drawer at the end of the day. This is compared with Expected Cash on Hand to show the variance.' },
   { key: 'otherAdjustments', label: 'Other adjustments', description: 'A cash increase or decrease not captured by the other fields. Use a negative amount for cash taken out.', signed: true, hint: 'Use a minus sign for money taken out. Enter 0 if none.' },
 ];
+const OPENING_CASH_FIELDS = FIELDS.filter((field) => field.key === 'openingDrawerCash');
+const OTHER_CASH_FIELDS = FIELDS.filter((field) => field.key !== 'openingDrawerCash');
 
 // Shown to Owner/Admin and Super Admin only (employees never see expected cash).
 const EXPECTED_CASH_FORMULA =
@@ -88,6 +90,7 @@ const EXPECTED_CASH_FORMULA =
 
 type Values = Record<CashAmountField, string>;
 type Errors = Partial<Record<CashAmountField, string>>;
+type SaveSection = 'all' | 'opening' | 'cash';
 
 const EMPTY_VALUES: Values = {
   openingDrawerCash: '',
@@ -191,12 +194,12 @@ function validateAll(values: Values): Errors {
   return errors;
 }
 
-// Daily Cash Entry (RTS-292): one form per store + business date, for an
+// Daily Cash Entry (RTS-292): one row per store + business date, for an
 // Owner/Admin's own store or any store a Super Admin picks. Picking a date
 // loads whatever was saved for it, so reopening a day pre-fills it for review
-// or correction. Changing a saved day is a direct correction: it needs a
-// reason, overwrites the entry, and the server keeps who/when/why with the old
-// and new values (shown under the form). No one is notified of a correction.
+// or correction. Employee edits of an existing row can save the opening and
+// remaining-cash sections independently; the server still audits each save as
+// a correction to the same entry.
 function DailyCash({
   storeId,
   storesLoading,
@@ -213,10 +216,12 @@ function DailyCash({
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isLoading, setIsLoading] = useState(storeId !== null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [savingSection, setSavingSection] = useState<SaveSection | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [reason, setReason] = useState('');
+  const [openingNote, setOpeningNote] = useState('');
+  const [otherCashNote, setOtherCashNote] = useState('');
   const [reasonError, setReasonError] = useState<string | undefined>(undefined);
   // Bumped after each successful save so Expected Cash on Hand refetches.
   const [expectedRefreshKey, setExpectedRefreshKey] = useState(0);
@@ -224,7 +229,9 @@ function DailyCash({
 
   // A notification asked for a specific day (the flagged entry's date).
   useEffect(() => {
-    if (dateSeed?.date) setBusinessDate(dateSeed.date);
+    if (!dateSeed) return;
+    if (dateSeed.date) setBusinessDate(dateSeed.date);
+    setReloadToken((token) => token + 1);
   }, [dateSeed]);
 
   const loadHistory = useCallback(
@@ -247,6 +254,8 @@ function DailyCash({
     setErrors({});
     setSubmitAttempted(false);
     setReason('');
+    setOpeningNote('');
+    setOtherCashNote('');
     setReasonError(undefined);
     // Nothing can be saved for a future day, so there is nothing to load.
     if (isFutureDate(businessDate)) {
@@ -286,36 +295,43 @@ function DailyCash({
     setValues((current) => ({ ...current, [field.key]: formatAmount(parseAmount(raw)) }));
   }
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent, section: SaveSection) {
     event.preventDefault();
     setSubmitAttempted(true);
     setSaveError(null);
+    const note = section === 'opening' ? openingNote : section === 'cash' ? otherCashNote : reason;
     const nextErrors = validateAll(values);
     setErrors(nextErrors);
     // A changed figure on a day that is already saved is a correction.
     const isCorrection = entry !== null && Object.keys(nextErrors).length === 0 && figuresChanged(entry, values);
     // Employees are never asked for a reason: theirs is an optional note.
-    const nextReasonError = isCorrection && scope !== 'employee' && !reason.trim() ? REASON_REQUIRED : undefined;
+    const nextReasonError = isCorrection && scope !== 'employee' && !note.trim() ? REASON_REQUIRED : undefined;
     setReasonError(nextReasonError);
     if (Object.keys(nextErrors).length > 0 || nextReasonError || storeId === null || isFutureDate(businessDate)) return;
 
     const amounts = {} as CashAmounts;
     for (const field of FIELDS) amounts[field.key] = parseAmount(values[field.key]);
 
-    setIsSaving(true);
+    setSavingSection(section);
     try {
       const saved = await saveEntry(scope, storeId, {
         businessDate,
         ...amounts,
-        ...((isCorrection || (scope === 'employee' && entry?.flag)) && reason.trim()
-          ? { correctionReason: reason.trim() }
+        ...((isCorrection || (scope === 'employee' && entry?.flag)) && note.trim()
+          ? { correctionReason: note.trim() }
           : {}),
       });
       setEntry(saved);
       setExpectedRefreshKey((key) => key + 1);
       setValues(valuesFrom(saved));
       setSubmitAttempted(false);
-      setReason('');
+      if (section === 'opening') setOpeningNote('');
+      else if (section === 'cash') setOtherCashNote('');
+      else {
+        setReason('');
+        setOpeningNote('');
+        setOtherCashNote('');
+      }
       nfToast.success(
         entry?.flag && scope === 'employee'
           ? `Cash entry for ${formatDateLabel(businessDate)} corrected. The flag is resolved.`
@@ -343,8 +359,69 @@ function DailyCash({
       }
       nfToast.error('Cash entry was not saved. Please try again.');
     } finally {
-      setIsSaving(false);
+      setSavingSection(null);
     }
+  }
+
+  function renderFields(fields: FieldSpec[]) {
+    return (
+      <div className="daily-cash-page__grid">
+        {fields.map((field) => {
+          const id = `daily-cash-${field.key}`;
+          const error = errors[field.key];
+          return (
+            <FormField
+              key={field.key}
+              label={field.label}
+              htmlFor={id}
+              description={field.description}
+              required
+              error={error}
+            >
+              <div className="daily-cash-page__money">
+                <span className="daily-cash-page__currency" aria-hidden="true">$</span>
+                <input
+                  id={id}
+                  className="input daily-cash-page__input"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0.00"
+                  value={values[field.key]}
+                  aria-invalid={error ? true : undefined}
+                  onChange={(event) => handleChange(field, event.target.value)}
+                  onBlur={() => handleBlur(field)}
+                />
+              </div>
+              {field.hint && !error && <span className="daily-cash-page__hint">{field.hint}</span>}
+            </FormField>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderEmployeeNote(id: string, value: string, onChange: (value: string) => void) {
+    return (
+      <div className="daily-cash-page__reason">
+        <FormField
+          label="Note (optional)"
+          htmlFor={id}
+          description={entry?.flag
+            ? 'Add a note for the admin about what you fixed. Saving resolves the flag.'
+            : "Add a note about this change if you like. It's kept with the entry's history."}
+        >
+          <textarea
+            id={id}
+            className="input daily-cash-page__reason-input"
+            rows={2}
+            maxLength={REASON_MAX}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        </FormField>
+      </div>
+    );
   }
 
   // Without a selector there is nothing to do until a store exists, so the
@@ -450,53 +527,88 @@ function DailyCash({
               Retry
             </button>
           </div>
-        ) : (
-          <form className="daily-cash-page__form" onSubmit={handleSubmit} noValidate>
-            <fieldset className="daily-cash-page__fieldset" disabled={isLoading || isSaving || readOnly}>
-              <div className="daily-cash-page__grid">
-                {FIELDS.map((field) => {
-                  const id = `daily-cash-${field.key}`;
-                  const error = errors[field.key];
-                  return (
-                    <FormField
-                      key={field.key}
-                      label={field.label}
-                      htmlFor={id}
-                      description={field.description}
-                      required
-                      error={error}
-                    >
-                      <div className="daily-cash-page__money">
-                        <span className="daily-cash-page__currency" aria-hidden="true">$</span>
-                        <input
-                          id={id}
-                          className="input daily-cash-page__input"
-                          type="text"
-                          inputMode="decimal"
-                          autoComplete="off"
-                          placeholder="0.00"
-                          value={values[field.key]}
-                          aria-invalid={error ? true : undefined}
-                          onChange={(event) => handleChange(field, event.target.value)}
-                          onBlur={() => handleBlur(field)}
-                        />
-                      </div>
-                      {field.hint && !error && <span className="daily-cash-page__hint">{field.hint}</span>}
-                    </FormField>
-                  );
-                })}
+        ) : isEmployee && entry ? (
+          <div className="daily-cash-page__employee-sections">
+            <form
+              className="daily-cash-page__form"
+              onSubmit={(event) => handleSubmit(event, 'opening')}
+              noValidate
+            >
+              <h3 className="daily-cash-page__section-title">Opening drawer cash</h3>
+              <fieldset className="daily-cash-page__fieldset" disabled={isLoading || savingSection !== null || readOnly}>
+                {renderFields(OPENING_CASH_FIELDS)}
+                {!readOnly && renderEmployeeNote(
+                  'daily-cash-opening-note',
+                  openingNote,
+                  setOpeningNote,
+                )}
+              </fieldset>
+              <div className="daily-cash-page__actions">
+                {errorCount > 0 && (
+                  <span className="daily-cash-page__error-summary">
+                    Fix the highlighted fields to save.
+                  </span>
+                )}
+                {!readOnly && (
+                  <button type="submit" className="btn btn--primary" disabled={isLoading || savingSection !== null || dateIsFuture}>
+                    {savingSection === 'opening'
+                      ? <ButtonDots label="Saving" />
+                      : entry.flag ? 'Save & resolve flag' : 'Update Entry'}
+                  </button>
+                )}
               </div>
+            </form>
 
+            <form
+              className="daily-cash-page__form"
+              onSubmit={(event) => handleSubmit(event, 'cash')}
+              noValidate
+            >
+              <h3 className="daily-cash-page__section-title">Cash removed, cash remaining and adjustments</h3>
+              <fieldset className="daily-cash-page__fieldset" disabled={isLoading || savingSection !== null || readOnly}>
+                {renderFields(OTHER_CASH_FIELDS)}
+                {!readOnly && renderEmployeeNote(
+                  'daily-cash-other-cash-note',
+                  otherCashNote,
+                  setOtherCashNote,
+                )}
+              </fieldset>
+              <div className="daily-cash-page__actions">
+                {errorCount > 0 && (
+                  <span className="daily-cash-page__error-summary">
+                    Fix the highlighted fields to save.
+                  </span>
+                )}
+                {!readOnly && (
+                  <button type="submit" className="btn btn--primary" disabled={isLoading || savingSection !== null || dateIsFuture}>
+                    {savingSection === 'cash'
+                      ? <ButtonDots label="Saving" />
+                      : entry.flag ? 'Save & resolve flag' : 'Update Entry'}
+                  </button>
+                )}
+              </div>
+            </form>
+            {saveError && <p className="daily-cash-page__alert" role="alert">{saveError}</p>}
+            <div className="daily-cash-page__actions">
+              <button type="button" className="btn btn--secondary" onClick={() => setShowHistory((open) => !open)}>
+                {showHistory ? 'Hide history' : 'View history'}
+              </button>
+            </div>
+            <CorrectionHistory history={entry.history} />
+            {showHistory && (
+              <CashHistoryPanel load={loadHistory} reloadKey={`${storeId}-${expectedRefreshKey}`} />
+            )}
+          </div>
+        ) : (
+          <form className="daily-cash-page__form" onSubmit={(event) => handleSubmit(event, 'all')} noValidate>
+            <fieldset className="daily-cash-page__fieldset" disabled={isLoading || savingSection !== null || readOnly}>
+              {renderFields(FIELDS)}
               {entry && !readOnly && (
                 <div className="daily-cash-page__reason">
                   <FormField
-                    label={isEmployee ? 'Note (optional)' : 'Reason for correction'}
+                    label="Reason for correction"
                     htmlFor="daily-cash-correction-reason"
-                    description={isEmployee
-                      ? (entry.flag
-                        ? 'Add a note for the admin about what you fixed. Saving resolves the flag.'
-                        : "Add a note about this change if you like. It's kept with the entry's history.")
-                      : "Required if you change any figure on a saved day. Kept with the entry's history."}
+                    description="Required if you change any figure on a saved day. Kept with the entry's history."
                     error={reasonError}
                   >
                     <textarea
@@ -527,10 +639,10 @@ function DailyCash({
                 </span>
               )}
               {!readOnly && (
-                <button type="submit" className="btn btn--primary" disabled={isLoading || isSaving || dateIsFuture}>
-                  {isSaving
+                <button type="submit" className="btn btn--primary" disabled={isLoading || savingSection !== null || dateIsFuture}>
+                  {savingSection === 'all'
                     ? <ButtonDots label="Saving" />
-                    : entry?.flag && isEmployee ? 'Save & resolve flag' : entry ? 'Update Entry' : 'Save Entry'}
+                    : entry ? 'Update Entry' : 'Save Entry'}
                 </button>
               )}
               <button type="button" className="btn btn--secondary" onClick={() => setShowHistory((open) => !open)}>

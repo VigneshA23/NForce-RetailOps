@@ -129,7 +129,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   // '/checklist?taskId=123&date=2026-09-20' -- see NotificationService.java's
   // employeeTaskLinkPath. Query string only, never a path segment, so it's
   // independent of the '/checklist' vs '/audit' -> tab lookup above.
-  const [cashDateSeed, setCashDateSeed] = useState<{ date: string; id: number } | null>(null)
+  const [cashDateSeed, setCashDateSeed] = useState<{ date?: string; id: number } | null>(null)
 
   function parseTaskLinkQuery(path: string): { taskId?: number; date?: string } {
     const queryString = path.split('?')[1]
@@ -154,7 +154,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       setFocusIssueId({ issueId: context.relatedIssueId, ts: Date.now() })
     }
     if (target === 'stock-check') setStockCheckRefresh(Date.now())
-    if (target === 'cash' && date) setCashDateSeed({ date, id: Date.now() })
+    if (target === 'cash') setCashDateSeed({ date, id: Date.now() })
     setActiveTab(target)
     setOverlay(null)
   }
