@@ -85,9 +85,16 @@ function CompletionRateCard({
               previous, longer data set overlapping the new, shorter one. */}
           <AreaChart key={periodDays} data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
+              {/* A page can recolour the chart through --chart-fill and
+                  --chart-line-start/-end (Home uses the logo gradient); both
+                  fall back to the accent. */}
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.28} />
-                <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
+                <stop offset="0%" stopColor="var(--chart-fill, var(--color-accent))" stopOpacity={0.28} />
+                <stop offset="100%" stopColor="var(--chart-fill, var(--color-accent))" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id={`${gradientId}-line`} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="var(--chart-line-start, var(--color-accent))" />
+                <stop offset="100%" stopColor="var(--chart-line-end, var(--color-accent))" />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -109,8 +116,8 @@ function CompletionRateCard({
               type="monotone"
               dataKey="completion"
               name="Completion %"
-              stroke="var(--color-accent)"
-              strokeWidth={2}
+              stroke={`url(#${gradientId}-line)`}
+              strokeWidth={2.5}
               fill={`url(#${gradientId})`}
             />
           </AreaChart>

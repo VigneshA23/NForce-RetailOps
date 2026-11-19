@@ -191,7 +191,10 @@ function SACommandPalette({ onNavigate, onMobileOpenChange }: SACommandPalettePr
             ref={inputRef}
             type="search"
             className="sacp__input"
-            placeholder="Search owners, stores, employees…"
+            // Short on purpose: the long text was clipped in the header bar.
+            // The tooltip and the open panel say what can be searched.
+            placeholder="Search"
+            title="Search owners, stores and employees"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setOpen(true)}
