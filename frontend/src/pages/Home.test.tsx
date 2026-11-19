@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import Home from './Home';
+import Home, { DonutTooltip } from './Home';
 import * as orderListApi from '../api/orderList';
 import * as issuesApi from '../api/issues';
 import * as checklistHistoryApi from '../api/checklistHistory';
@@ -160,5 +160,21 @@ describe('Home stat tile tones', () => {
 
     const tones = toneClasses();
     expect(new Set(tones).size).toBe(tones.length);
+  });
+});
+
+describe("Today's Completion donut tooltip", () => {
+  it.each([
+    [{ name: 'Completed', value: 20, tasks: 7 }, 'Completed: 20% (7 tasks)'],
+    [{ name: 'Pending', value: 80, tasks: 28 }, 'Pending: 80% (28 tasks)'],
+    [{ name: 'Pending', value: 50, tasks: 1 }, 'Pending: 50% (1 task)'],
+  ])('shows status, percentage and task count for %o', (slice, text) => {
+    render(<DonutTooltip active payload={[{ value: slice.value, payload: slice }]} />);
+    expect(screen.getByRole('tooltip')).toHaveTextContent(text);
+  });
+
+  it('renders nothing when not hovered', () => {
+    const { container } = render(<DonutTooltip active={false} payload={[]} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
