@@ -1,5 +1,5 @@
 import {
-  CircleCheck, HandCoins, Scale, TriangleAlert, Wallet,
+  CircleCheck, HandCoins, Scale, Wallet,
 } from 'lucide-react';
 import type { StoreMonthlyCashSummary } from '../types/cashSummary';
 import { formatCurrency } from '../utils/currency';
@@ -40,12 +40,17 @@ function money(value: number | null): string {
 // the API's; nothing is recalculated here. Net daily variance is the last cell
 // of the table footer below.
 function StoreCashSummaryView({ summary, storeRows = [], emptyMessage }: StoreCashSummaryViewProps) {
-  const variance = summary.variance;
-
   return (
     <section className="card cash-view" aria-label="Month-end cash summary for the store">
       <div className="stat-card-row cash-view__tiles">
         <StatCard icon={HandCoins} label="Total Cash Removed" value={money(summary.totalCashRemoved)} tone="success" />
+        <StatCard
+          icon={Wallet}
+          label="Total Cash Remaining"
+          value={money(summary.totalCashRemaining)}
+          tone="info"
+          className="cash-tile--orange"
+        />
         <StatCard
           icon={Scale}
           label="Adjustments"
@@ -59,20 +64,6 @@ function StoreCashSummaryView({ summary, storeRows = [], emptyMessage }: StoreCa
           value={money(summary.expectedCashOnHand)}
           tone="success"
           className="cash-tile--pista"
-        />
-        <StatCard
-          icon={Wallet}
-          label="Actual Cash Count"
-          value={money(summary.actualCashCount)}
-          tone="info"
-          className="cash-tile--orange"
-        />
-        <StatCard
-          icon={TriangleAlert}
-          label="Variance"
-          value={variance === null ? '-' : formatVariance(variance)}
-          tone="primary"
-          className={`cash-tile--teal ${signClass(variance)}`.trim()}
         />
       </div>
 

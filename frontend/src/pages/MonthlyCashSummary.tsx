@@ -26,7 +26,7 @@ type StoreSelection = typeof NO_SELECTION | string;
 const NOTHING_SELECTED: StoreMonthlyCashSummary = {
   storeId: null, storeName: '', storeCode: null, daysRecorded: 0, asOfDate: null,
   totalCashRemoved: null, adjustments: null,
-  expectedCashOnHand: null, actualCashCount: null, variance: null, netDailyVariance: null, dailyBreakdown: [],
+  totalCashRemaining: null, expectedCashOnHand: null, dailyBreakdown: [],
 };
 
 function currentMonth(): string {
@@ -49,7 +49,7 @@ function monthLabel(month: string): string {
 // as tiles, with the rows behind them -- one per recorded day for a store, one
 // per store for All Stores. Laid out like the Daily Checklist: period selector
 // on the left, store selector on the right, tiles always visible (dashes until a
-// store is chosen). Flow figures are month totals; expected, actual and variance
+// store is chosen). Flow figures are month totals; expected cash on hand
 // are each store's position on its last recorded day.
 function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
   const isSuperAdmin = scope === 'super-admin';
@@ -223,7 +223,7 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
               ? 'Select a store above to view its month-end cash summary.'
               : `No daily cash entries were recorded in ${monthLabel(month)}.`}
           />
-          <p className="cash-summary__footnote">Expected cash, actual count and variance are as at the last day recorded. Negative variance is a shortage, positive is an overage.</p>
+          <p className="cash-summary__footnote">Expected cash on hand is the running total of each day’s cash remaining ± adjustments, as at the last day recorded. Cash removed and opening drawer cash are recorded only.</p>
         </div>
       )}
     </div>

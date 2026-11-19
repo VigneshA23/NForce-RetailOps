@@ -4,32 +4,22 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * One recorded business date inside a month-end cash summary: the figures the
- * Expected Cash on Hand calculation (RTS-295) produced for that day, exposed
- * unchanged so the month totals can be reconciled to the closing figures.
+ * One recorded business date inside a month-end cash summary.
  *
- * <p>{@code cashRemaining} is the physically counted cash (the "actual cash
- * count"); {@code variance} = cashRemaining - expectedCash.
+ * <p>{@code openingDrawerCash} and {@code cashRemoved} are recorded figures
+ * only. {@code cashRemaining} is what was dropped into the safe;
+ * {@code dailyExpected} = cashRemaining + adjustments, and
+ * {@code expectedCashOnHand} is the running total of {@code dailyExpected} from
+ * the store's first entry up to this day. Any recorded figure is null when
+ * nobody entered it.
  */
 public record DailyCashBreakdown(
     LocalDate businessDate,
     BigDecimal openingDrawerCash,
     BigDecimal cashRemoved,
-    BigDecimal adjustments,
-    BigDecimal expectedCash,
     BigDecimal cashRemaining,
-    BigDecimal variance
+    BigDecimal adjustments,
+    BigDecimal dailyExpected,
+    BigDecimal expectedCashOnHand
 ) {
-    /** Pure field mapping from the shared calculation -- no arithmetic here. */
-    public static DailyCashBreakdown from(ExpectedCashResponse day) {
-        return new DailyCashBreakdown(
-            day.asOfDate(),
-            day.openingDrawerCash(),
-            day.cashRemoved(),
-            day.otherAdjustments(),
-            day.expectedCashOnHand(),
-            day.cashRemaining(),
-            day.variance()
-        );
-    }
 }

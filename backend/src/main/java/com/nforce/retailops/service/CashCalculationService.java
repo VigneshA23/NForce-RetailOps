@@ -14,25 +14,23 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * THE one place the expected-cash formula is written down (RTS-295). The live
- * display (RTS-296) and the Monthly Reconciliation aggregation (RTS-297) must
- * call {@link #calculateExpectedCash} / {@link #getExpectedCashForStore}; they
- * must never re-derive the arithmetic. {@code CashCalculationServiceTest}
- * fails the build if another class starts reading the formula's inputs.
+ * THE one place the expected-cash formula is written down. The live display and
+ * the Monthly summary must call {@link #dailyExpected} / {@link #calculate};
+ * they must never re-derive the arithmetic.
  *
  * <pre>
- * expected = openingDrawerCash - cashRemoved
- *          + otherAdjustments   // signed
- * variance = cashRemaining (physically counted) - expected
+ * daily expected cash = cashRemaining + otherAdjustments   // adjustments signed
+ * expected cash on hand = the sum of daily expected cash over the days so far
  * </pre>
  *
- * The cash-drawer target (RTS-293) is deliberately NOT an input: it is a
- * separate informational figure.
+ * Cash remaining is what the employee dropped into the safe after taking out
+ * the removed cash, so cash removed and opening drawer cash are only recorded
+ * and shown: neither feeds the expected figure. A missing amount counts as 0.
+ * The cash-drawer target is likewise not an input.
  *
  * <p>"Live" means the entry with the latest business date for the store on or
  * before today, i.e. the most recent day on record. A future-dated row is never
- * live (RTS-471), even if one pre-dates the request-level check. Re-saving or
- * correcting an older day does not change which entry is current.
+ * live (RTS-471), even if one pre-dates the request-level check.
  */
 @Service
 public class CashCalculationService {
@@ -52,20 +50,21 @@ public class CashCalculationService {
     }
 
     /** The formula. The only place its arithmetic exists. */
-    public BigDecimal calculateExpectedCash(DailyCashEntry entry) {
-        return entry.getOpeningDrawerCash()
-            .subtract(entry.getCashRemoved())
-            .add(entry.getOtherAdjustments());
+    public static BigDecimal dailyExpected(BigDecimal cashRemaining, BigDecimal otherAdjustments) {
+        return (cashRemaining == null ? BigDecimal.ZERO : cashRemaining)
+            .add(otherAdjustments == null ? BigDecimal.ZERO : otherAdjustments);
     }
 
-    /** Expected cash plus variance for one entry (any day, e.g. for reconciliation). */
+    public BigDecimal calculateExpectedCash(DailyCashEntry entry) {
+        return dailyExpected(entry.getCashRemaining(), entry.getOtherAdjustments());
+    }
+
+    /** One entry's own figures (any day). expectedCashOnHand here is that day's expected cash. */
     public ExpectedCashResponse calculate(DailyCashEntry entry) {
-        BigDecimal expected = calculateExpectedCash(entry);
         return new ExpectedCashResponse(
             entry.getStore().getId(), true, null, entry.getBusinessDate(),
-            expected,
+            calculateExpectedCash(entry),
             entry.getCashRemaining(),
-            entry.getCashRemaining().subtract(expected),
             entry.getOpeningDrawerCash(),
             entry.getCashRemoved(),
             entry.getOtherAdjustments(),
@@ -81,7 +80,11 @@ public class CashCalculationService {
     public ExpectedCashResponse getExpectedCashForStore(Long storeId) {
         return entryRepository
             .findFirstByStoreIdAndBusinessDateLessThanEqualOrderByBusinessDateDesc(storeId, LocalDate.now())
-            .map(this::calculate)
+            .map(latest -> {
+                ExpectedCashResponse day = calculate(latest);
+                BigDecimal onHand = entryRepository.sumExpectedCashOnHandUpTo(storeId, latest.getBusinessDate());
+                return day.withExpectedCashOnHand(onHand == null ? BigDecimal.ZERO : onHand);
+            })
             .orElseGet(() -> ExpectedCashResponse.unavailable(storeId));
     }
 

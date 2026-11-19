@@ -78,15 +78,31 @@ interface FieldSpec {
 }
 
 const FIELDS: FieldSpec[] = [
-  { key: 'openingDrawerCash', label: 'Opening drawer cash', description: 'Cash physically in the drawer at the start of the day.' },
-  { key: 'cashRemoved', label: 'Cash removed', description: 'Cash taken out of the drawer during the day.' },
-  { key: 'cashRemaining', label: 'Cash remaining', description: 'Cash physically counted in the drawer at the end of the day. This is compared with Expected Cash on Hand to show the variance.' },
+  { key: 'openingDrawerCash', label: 'Opening drawer cash', description: 'Cash in the drawer at the start of the day. Recorded only; it does not change expected cash.' },
+  { key: 'cashRemoved', label: 'Cash removed', description: 'Cash taken out of the drawer during the day. Recorded only; it does not change expected cash.' },
+  { key: 'cashRemaining', label: 'Cash remaining', description: 'Cash dropped into the safe, after the removed cash. Expected cash is built from this.' },
   { key: 'otherAdjustments', label: 'Other adjustments', description: 'A cash increase or decrease not captured by the other fields. Use a negative amount for cash taken out.', signed: true, optional: true, hint: 'Optional. Use a minus sign for money taken out; leave blank for 0.' },
 ];
 
+const FIELD_BY_KEY = Object.fromEntries(FIELDS.map((field) => [field.key, field])) as Record<CashAmountField, FieldSpec>;
+
+// Employees fill two separate forms: the opening drawer cash on its own, then
+// the rest. Owner/Admin and Super Admin keep one form with every field, none of
+// them mandatory: only the amounts they fill in are saved.
+const EMPLOYEE_GROUPS: CashAmountField[][] = [
+  ['openingDrawerCash'],
+  ['cashRemoved', 'cashRemaining', 'otherAdjustments'],
+];
+const ADMIN_GROUPS: CashAmountField[][] = [['openingDrawerCash', 'cashRemoved', 'cashRemaining', 'otherAdjustments']];
+
+const GROUP_TITLES: Record<string, string> = {
+  openingDrawerCash: 'Opening drawer cash',
+  cashRemoved: 'Cash removed, cash remaining and adjustments',
+};
+
 // Shown to Owner/Admin and Super Admin only (employees never see expected cash).
 const EXPECTED_CASH_FORMULA =
-  "Daily expected cash = Cash remaining ± Other adjustments. Expected Cash on Hand adds up every day's figure.";
+  "Daily expected cash = Cash remaining ± Other adjustments. Expected Cash on Hand adds up every day's figure. Opening drawer cash and Cash removed are recorded only.";
 
 type Values = Record<CashAmountField, string>;
 type Errors = Partial<Record<CashAmountField, string>>;
@@ -127,7 +143,7 @@ const capitalise = (key: CashAmountField) => key.charAt(0).toUpperCase() + key.s
 // The figures in a correction that actually changed, as label / old / new.
 function changedFields(correction: DailyCashCorrection) {
   return FIELDS.flatMap((field) => {
-    const before = correction[`previous${capitalise(field.key)}` as keyof DailyCashCorrection] as number;
+    const before = correction[`previous${capitalise(field.key)}` as keyof DailyCashCorrection] as number | null;
     const after = correction[`new${capitalise(field.key)}` as keyof DailyCashCorrection] as number | null;
     if (after === null || after === before) return [];
     return [{ label: field.label, before, after }];
@@ -153,7 +169,7 @@ function CorrectionHistory({ history }: { history: DailyCashCorrection[] }) {
                 <ul className="daily-cash-page__history-changes">
                   {changes.map((change) => (
                     <li key={change.label}>
-                      {change.label}: {formatCurrency(change.before)} → {formatCurrency(change.after)}
+                      {change.label}: {change.before === null ? 'not set' : formatCurrency(change.before)} → {formatCurrency(change.after)}
                     </li>
                   ))}
                 </ul>
@@ -166,29 +182,45 @@ function CorrectionHistory({ history }: { history: DailyCashCorrection[] }) {
   );
 }
 
-function figuresChanged(entry: DailyCashEntry, values: Values): boolean {
-  return FIELDS.some((field) => parseAmount(values[field.key]) !== entry[field.key]);
+const isBlank = (raw: string) => raw.trim() === '';
+
+// True when the field holds a figure that differs from what is saved.
+function fieldChanged(entry: DailyCashEntry, values: Values, key: CashAmountField): boolean {
+  if (isBlank(values[key])) return false;
+  return parseAmount(values[key]) !== entry[key];
+}
+
+// Overwriting a figure that was already recorded is a correction. Filling in
+// one that was blank (e.g. the employee's second form after the opening
+// drawer) is not. Other adjustments is saved as 0 until someone types one.
+function isOverwrite(entry: DailyCashEntry, values: Values, key: CashAmountField): boolean {
+  if (!fieldChanged(entry, values, key)) return false;
+  const saved = entry[key];
+  return saved !== null && !(key === 'otherAdjustments' && saved === 0);
 }
 
 function valuesFrom(entry: DailyCashEntry): Values {
   const values = { ...EMPTY_VALUES };
-  for (const field of FIELDS) values[field.key] = formatAmount(entry[field.key]);
+  for (const field of FIELDS) {
+    const saved = entry[field.key];
+    // Other adjustments shows blank until one is entered.
+    values[field.key] = saved === null || (field.key === 'otherAdjustments' && saved === 0) ? '' : formatAmount(saved);
+  }
   return values;
 }
 
-function validateField(field: FieldSpec, raw: string): string | undefined {
-  if (field.optional && raw.trim() === '') return undefined;
-  return validateAmount(field.label, raw, {
-    signed: field.signed,
-
-  });
+// Employees must fill every field of a form except the optional one; Owner/Admin
+// and Super Admin may leave any of them blank.
+function validateField(field: FieldSpec, raw: string, mandatory: boolean): string | undefined {
+  if ((field.optional || !mandatory) && isBlank(raw)) return undefined;
+  return validateAmount(field.label, raw, { signed: field.signed });
 }
 
-function validateAll(values: Values): Errors {
+function validateGroup(keys: CashAmountField[], values: Values, mandatory: boolean): Errors {
   const errors: Errors = {};
-  for (const field of FIELDS) {
-    const error = validateField(field, values[field.key]);
-    if (error) errors[field.key] = error;
+  for (const key of keys) {
+    const error = validateField(FIELD_BY_KEY[key], values[key], mandatory);
+    if (error) errors[key] = error;
   }
   return errors;
 }
@@ -226,6 +258,7 @@ function DailyCash({
   // Super Admin: Update Entry asks for confirmation before saving, and Flag
   // opens the note popup (CashEntryFlagSection owns the popup itself).
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingKeys, setPendingKeys] = useState<CashAmountField[]>([]);
   const [flagRequest, setFlagRequest] = useState(0);
 
   // A notification asked for a specific day (the flagged entry's date).
@@ -282,41 +315,51 @@ function DailyCash({
   function handleChange(field: FieldSpec, raw: string) {
     setValues((current) => ({ ...current, [field.key]: raw }));
     if (submitAttempted) {
-      setErrors((current) => ({ ...current, [field.key]: validateField(field, raw) }));
+      setErrors((current) => ({ ...current, [field.key]: validateField(field, raw, scope === 'employee') }));
     }
   }
 
   function handleBlur(field: FieldSpec) {
     const raw = values[field.key];
-    if (validateField(field, raw)) return;
-    if (field.optional && raw.trim() === '') return;
+    if (validateField(field, raw, scope === 'employee')) return;
+    if (isBlank(raw)) return;
     setValues((current) => ({ ...current, [field.key]: formatAmount(parseAmount(raw)) }));
   }
 
-  async function handleSubmit(event: FormEvent) {
+  // The form being saved: the keys it holds. A save sends only those amounts
+  // that were filled in, so one form never touches the other's figures.
+  async function handleSubmit(event: FormEvent, keys: CashAmountField[]) {
     event.preventDefault();
     setSubmitAttempted(true);
     setSaveError(null);
-    const nextErrors = validateAll(values);
-    setErrors(nextErrors);
-    // A changed figure on a day that is already saved is a correction.
-    const isCorrection = entry !== null && Object.keys(nextErrors).length === 0 && figuresChanged(entry, values);
+    const nextErrors = validateGroup(keys, values, scope === 'employee');
+    const noneFilled = keys.every((key) => isBlank(values[key]));
+    if (noneFilled && Object.keys(nextErrors).length === 0) {
+      nextErrors[keys[0]] = 'Enter an amount to save';
+    }
+    setErrors((current) => ({ ...current, ...Object.fromEntries(keys.map((key) => [key, nextErrors[key]])) }));
+    // Overwriting a recorded figure is a correction.
+    const isCorrection = entry !== null && Object.keys(nextErrors).length === 0
+      && keys.some((key) => isOverwrite(entry, values, key));
     // Employees give an optional note and Super Admins confirm in a popup; only
     // an Owner/Admin must state a reason.
     const nextReasonError = isCorrection && scope === 'owner' && !reason.trim() ? REASON_REQUIRED : undefined;
     setReasonError(nextReasonError);
     if (Object.keys(nextErrors).length > 0 || nextReasonError || storeId === null || isFutureDate(businessDate)) return;
     if (scope === 'super-admin' && isCorrection) {
+      setPendingKeys(keys);
       setConfirmOpen(true);
       return;
     }
-    await performSave(isCorrection);
+    await performSave(isCorrection, keys);
   }
 
-  async function performSave(isCorrection: boolean) {
+  async function performSave(isCorrection: boolean, keys: CashAmountField[]) {
     if (storeId === null) return;
-    const amounts = {} as CashAmounts;
-    for (const field of FIELDS) amounts[field.key] = parseAmount(values[field.key]);
+    const amounts: Partial<CashAmounts> = {};
+    for (const key of keys) {
+      if (!isBlank(values[key])) amounts[key] = parseAmount(values[key]);
+    }
 
     setIsSaving(true);
     try {
@@ -329,7 +372,13 @@ function DailyCash({
       });
       setEntry(saved);
       setExpectedRefreshKey((key) => key + 1);
-      setValues(valuesFrom(saved));
+      // Keep what is typed in the other form; refresh only this form's fields.
+      setValues((current) => {
+        const fresh = valuesFrom(saved);
+        const next = { ...current };
+        for (const key of keys) next[key] = fresh[key];
+        return next;
+      });
       setSubmitAttempted(false);
       setReason('');
       nfToast.success(
@@ -378,13 +427,14 @@ function DailyCash({
   }
 
   const pendingChanges = entry
-    ? FIELDS.filter((field) => parseAmount(values[field.key]) !== entry[field.key]).map(
-        (field) => `${field.label}: ${formatCurrency(entry[field.key])} → ${formatCurrency(parseAmount(values[field.key]))}`,
-      )
+    ? pendingKeys.filter((key) => fieldChanged(entry, values, key)).map((key) => {
+        const saved = entry[key];
+        return `${FIELD_BY_KEY[key].label}: ${saved === null ? 'not set' : formatCurrency(saved)} → ${formatCurrency(parseAmount(values[key]))}`;
+      })
     : [];
-  const errorCount = Object.values(errors).filter(Boolean).length;
   const dateIsFuture = isFutureDate(businessDate);
   const isEmployee = scope === 'employee';
+  const groups = isEmployee ? EMPLOYEE_GROUPS : ADMIN_GROUPS;
   // An employee may only change today's entry, or one flagged for them (the
   // server says which via canEdit). Anything else is shown read-only.
   const readOnly = isEmployee && !isLoading && (entry ? entry.canEdit === false : businessDate !== todayKey());
@@ -480,109 +530,126 @@ function DailyCash({
             </button>
           </div>
         ) : (
-          <form className="daily-cash-page__form" onSubmit={handleSubmit} noValidate>
-            <fieldset className="daily-cash-page__fieldset" disabled={isLoading || isSaving || readOnly}>
-              <div className="daily-cash-page__grid">
-                {FIELDS.map((field) => {
-                  const id = `daily-cash-${field.key}`;
-                  const error = errors[field.key];
-                  return (
-                    <FormField
-                      key={field.key}
-                      label={field.label}
-                      htmlFor={id}
-                      description={field.description}
-                      required={!field.optional}
-                      error={error}
-                    >
-                      <div className="daily-cash-page__money">
-                        <span className="daily-cash-page__currency" aria-hidden="true">$</span>
-                        <input
-                          id={id}
-                          className="input daily-cash-page__input"
-                          type="text"
-                          inputMode="decimal"
-                          autoComplete="off"
-                          placeholder="0.00"
-                          value={values[field.key]}
-                          aria-invalid={error ? true : undefined}
-                          onChange={(event) => handleChange(field, event.target.value)}
-                          onBlur={() => handleBlur(field)}
-                        />
+          <div className="daily-cash-page__forms">
+            {groups.map((keys, groupIndex) => {
+              const isLastGroup = groupIndex === groups.length - 1;
+              const hasRecorded = entry !== null && keys.some((key) => entry[key] !== null && !(key === 'otherAdjustments' && entry[key] === 0));
+              const showReason = entry !== null && hasRecorded && !readOnly && scope !== 'super-admin';
+              const title = isEmployee ? GROUP_TITLES[keys[0]] : undefined;
+              return (
+                <form
+                  key={keys[0]}
+                  className="daily-cash-page__form"
+                  aria-label={title ?? 'Daily cash entry'}
+                  onSubmit={(event) => handleSubmit(event, keys)}
+                  noValidate
+                >
+                  {title && <h3 className="daily-cash-page__form-title">{title}</h3>}
+                  <fieldset className="daily-cash-page__fieldset" disabled={isLoading || isSaving || readOnly}>
+                    <div className="daily-cash-page__grid">
+                      {keys.map((key) => {
+                        const field = FIELD_BY_KEY[key];
+                        const id = `daily-cash-${field.key}`;
+                        const error = errors[field.key];
+                        return (
+                          <FormField
+                            key={field.key}
+                            label={field.label}
+                            htmlFor={id}
+                            description={field.description}
+                            required={isEmployee && !field.optional}
+                            error={error}
+                          >
+                            <div className="daily-cash-page__money">
+                              <span className="daily-cash-page__currency" aria-hidden="true">$</span>
+                              <input
+                                id={id}
+                                className="input daily-cash-page__input"
+                                type="text"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                placeholder="0.00"
+                                value={values[field.key]}
+                                aria-invalid={error ? true : undefined}
+                                onChange={(event) => handleChange(field, event.target.value)}
+                                onBlur={() => handleBlur(field)}
+                              />
+                            </div>
+                            {field.hint && !error && <span className="daily-cash-page__hint">{field.hint}</span>}
+                          </FormField>
+                        );
+                      })}
+                    </div>
+
+                    {showReason && (
+                      <div className="daily-cash-page__reason">
+                        <FormField
+                          label={isEmployee ? 'Note (optional)' : 'Reason for correction'}
+                          htmlFor={`daily-cash-correction-reason-${groupIndex}`}
+                          description={isEmployee
+                            ? (entry?.flag
+                              ? 'Add a note for the admin about what you fixed. Saving resolves the flag.'
+                              : "Add a note about this change if you like. It's kept with the entry's history.")
+                            : "Required if you change a figure that is already saved. Kept with the entry's history."}
+                          error={reasonError}
+                        >
+                          <textarea
+                            id={`daily-cash-correction-reason-${groupIndex}`}
+                            className="input daily-cash-page__reason-input"
+                            rows={2}
+                            maxLength={REASON_MAX}
+                            value={reason}
+                            aria-invalid={reasonError ? true : undefined}
+                            onChange={(event) => {
+                              setReason(event.target.value);
+                              if (reasonError && event.target.value.trim()) setReasonError(undefined);
+                            }}
+                          />
+                        </FormField>
                       </div>
-                      {field.hint && !error && <span className="daily-cash-page__hint">{field.hint}</span>}
-                    </FormField>
-                  );
-                })}
-              </div>
+                    )}
+                  </fieldset>
 
-              {entry && !readOnly && scope !== 'super-admin' && (
-                <div className="daily-cash-page__reason">
-                  <FormField
-                    label={isEmployee ? 'Note (optional)' : 'Reason for correction'}
-                    htmlFor="daily-cash-correction-reason"
-                    description={isEmployee
-                      ? (entry.flag
-                        ? 'Add a note for the admin about what you fixed. Saving resolves the flag.'
-                        : "Add a note about this change if you like. It's kept with the entry's history.")
-                      : "Required if you change any figure on a saved day. Kept with the entry's history."}
-                    error={reasonError}
-                  >
-                    <textarea
-                      id="daily-cash-correction-reason"
-                      className="input daily-cash-page__reason-input"
-                      rows={2}
-                      maxLength={REASON_MAX}
-                      value={reason}
-                      aria-invalid={reasonError ? true : undefined}
-                      onChange={(event) => {
-                        setReason(event.target.value);
-                        if (reasonError && event.target.value.trim()) setReasonError(undefined);
-                      }}
-                    />
-                  </FormField>
-                </div>
-              )}
-            </fieldset>
-
+                  <div className="daily-cash-page__actions">
+                    {keys.some((key) => errors[key]) && (
+                      <span className="daily-cash-page__error-summary">
+                        Fix {keys.filter((key) => errors[key]).length === 1 ? 'the highlighted field' : 'the highlighted fields'} to save.
+                      </span>
+                    )}
+                    {!readOnly && (
+                      <button type="submit" className="btn btn--primary" disabled={isLoading || isSaving || dateIsFuture}>
+                        {isSaving
+                          ? <ButtonDots label="Saving" />
+                          : entry?.flag && isEmployee ? 'Save & resolve flag' : hasRecorded ? 'Update Entry' : 'Save Entry'}
+                      </button>
+                    )}
+                    {isLastGroup && scope === 'super-admin' && entry && !entry.flag && (
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        disabled={isLoading || isSaving || dateIsFuture}
+                        onClick={() => setFlagRequest((count) => count + 1)}
+                      >
+                        Flag
+                      </button>
+                    )}
+                    {isLastGroup && !isEmployee && (
+                      <button type="button" className="btn btn--secondary" onClick={() => setShowHistory((open) => !open)}>
+                        {showHistory ? 'Hide history' : 'View history'}
+                      </button>
+                    )}
+                  </div>
+                </form>
+              );
+            })}
             {saveError && (
               <p className="daily-cash-page__alert" role="alert">{saveError}</p>
             )}
-
-            <div className="daily-cash-page__actions">
-              {errorCount > 0 && (
-                <span className="daily-cash-page__error-summary">
-                  Fix {errorCount === 1 ? 'the highlighted field' : `the ${errorCount} highlighted fields`} to save.
-                </span>
-              )}
-              {!readOnly && (
-                <button type="submit" className="btn btn--primary" disabled={isLoading || isSaving || dateIsFuture}>
-                  {isSaving
-                    ? <ButtonDots label="Saving" />
-                    : entry?.flag && isEmployee ? 'Save & resolve flag' : entry ? 'Update Entry' : 'Save Entry'}
-                </button>
-              )}
-              {scope === 'super-admin' && entry && !entry.flag && (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  disabled={isLoading || isSaving || dateIsFuture}
-                  onClick={() => setFlagRequest((count) => count + 1)}
-                >
-                  Flag
-                </button>
-              )}
-              {!isEmployee && (
-                <button type="button" className="btn btn--secondary" onClick={() => setShowHistory((open) => !open)}>
-                  {showHistory ? 'Hide history' : 'View history'}
-                </button>
-              )}
-            </div>
             {entry && !isEmployee && <CorrectionHistory history={entry.history} />}
             {showHistory && !isEmployee && (
               <CashHistoryPanel load={loadHistory} reloadKey={`${storeId}-${expectedRefreshKey}`} />
             )}
-          </form>
+          </div>
         )}
       </section>
       <ConfirmDialog
@@ -594,7 +661,7 @@ function DailyCash({
         danger={false}
         onConfirm={async () => {
           setConfirmOpen(false);
-          await performSave(true);
+          await performSave(true, pendingKeys);
         }}
         onCancel={() => setConfirmOpen(false)}
       />

@@ -46,8 +46,8 @@ function StoreBreakdownTable({ stores, combined }: StoreBreakdownTableProps) {
         </h3>
       </div>
       <p className="daily-cash__lead">
-        Expected cash on hand, Actual cash count and Variance above are the sum of each store’s figures on its own last
-        recorded day (the “As of” column). Stores with no entries this month are not listed.
+        Expected cash on hand above is the sum of each store’s running total on its own last recorded day (the “As of”
+        column). Stores with no entries this month are not listed.
       </p>
       {/* Not a .table-card: that class stacks rows into cards on phones. This
           table keeps its columns on every screen and scrolls sideways instead. */}
@@ -60,11 +60,9 @@ function StoreBreakdownTable({ stores, combined }: StoreBreakdownTableProps) {
                 <th scope="col">Days</th>
                 <th scope="col">As Of</th>
                 <th scope="col">Cash Removed</th>
+                <th scope="col">Cash Remaining</th>
                 <th scope="col">Adjustments</th>
-                <th scope="col">Expected Cash</th>
-                <th scope="col">Actual Count</th>
-                <th scope="col">Variance</th>
-                <th scope="col">Net Daily Variance</th>
+                <th scope="col">Expected Cash on Hand</th>
               </tr>
             </thead>
             <tbody>
@@ -77,13 +75,9 @@ function StoreBreakdownTable({ stores, combined }: StoreBreakdownTableProps) {
                   <td>{store.daysRecorded}</td>
                   <td>{dayLabel(store.asOfDate)}</td>
                   <td>{money(store.totalCashRemoved)}</td>
+                  <td>{money(store.totalCashRemaining)}</td>
                   <td className={signClass(store.adjustments).trim()}>{signed(store.adjustments)}</td>
                   <td>{money(store.expectedCashOnHand)}</td>
-                  <td>{money(store.actualCashCount)}</td>
-                  <td className={`daily-cash__variance${signClass(store.variance)}`}>{signed(store.variance)}</td>
-                  <td className={`daily-cash__variance${signClass(store.netDailyVariance)}`}>
-                    {signed(store.netDailyVariance)}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -96,20 +90,17 @@ function StoreBreakdownTable({ stores, combined }: StoreBreakdownTableProps) {
                 <td>{combined.daysRecorded}</td>
                 <td>{dayLabel(combined.asOfDate)}</td>
                 <td>{money(combined.totalCashRemoved)}</td>
+                  <td>{money(combined.totalCashRemaining)}</td>
                 <td className={signClass(combined.adjustments).trim()}>{signed(combined.adjustments)}</td>
                 <td>{money(combined.expectedCashOnHand)}</td>
-                <td>{money(combined.actualCashCount)}</td>
-                <td className={`daily-cash__variance${signClass(combined.variance)}`}>{signed(combined.variance)}</td>
-                <td className={`daily-cash__variance${signClass(combined.netDailyVariance)}`}>
-                  {signed(combined.netDailyVariance)}
-                </td>
               </tr>
             </tfoot>
           </table>
         </TableScroll>
       </div>
       <p className="daily-cash__note">
-        Combined adds up every store that recorded cash this month. Net daily variance adds up every day’s over/short.
+        Combined adds up every store that recorded cash this month. Cash removed is recorded only; it is not part of
+        expected cash.
       </p>
     </section>
   );

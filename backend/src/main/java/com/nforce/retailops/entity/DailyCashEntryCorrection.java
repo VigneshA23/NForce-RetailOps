@@ -22,11 +22,11 @@ public class DailyCashEntryCorrection {
     @JoinColumn(name = "daily_cash_entry_id", nullable = false)
     private DailyCashEntry entry;
 
-    @Column(name = "previous_opening_drawer_cash", nullable = false)
+    @Column(name = "previous_opening_drawer_cash")
     private BigDecimal previousOpeningDrawerCash;
-    @Column(name = "previous_cash_removed", nullable = false)
+    @Column(name = "previous_cash_removed")
     private BigDecimal previousCashRemoved;
-    @Column(name = "previous_cash_remaining", nullable = false)
+    @Column(name = "previous_cash_remaining")
     private BigDecimal previousCashRemaining;
     @Column(name = "previous_other_adjustments", nullable = false)
     private BigDecimal previousOtherAdjustments;

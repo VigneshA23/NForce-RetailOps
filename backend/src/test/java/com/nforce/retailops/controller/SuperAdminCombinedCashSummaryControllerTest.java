@@ -163,12 +163,12 @@ class SuperAdminCombinedCashSummaryControllerTest {
         Store b = store("Combined Store B", 9303L);
         Store empty = store("Combined Store Empty", 9304L);
 
-        // Store A, two days. Expected = opening - removed + adj.
-        // Day 1: 100 - 50 + 0 = 50, counted 40 -> variance -10
+        // Store A, two days. Expected = running total of (cash remaining + adj); removed is only recorded.
+        // Day 1: adds 40
         entry(a, "2026-10-10", "100.00", "50.00", "40.00", "0.00");
-        // Day 2: 40 - 0 + 5 = 45, counted 100 -> variance +55 (month end)
+        // Day 2: adds 100 + 5 = 105 (running 145, month end)
         entry(a, "2026-10-20", "40.00", "0.00", "100.00", "5.00");
-        // Store B, one day: 200 - 100 + (-10) = 90, counted 30 -> variance -60
+        // Store B, one day: adds 30 + (-10) = 20
         entry(b, "2026-10-15", "200.00", "100.00", "30.00", "-10.00");
         String token = login("combined-sa@nforce.test");
 
@@ -181,8 +181,8 @@ class SuperAdminCombinedCashSummaryControllerTest {
             .andExpect(jsonPath("$.stores.length()").value(3))
             // Per-store columns are untouched by the combine step.
             .andExpect(jsonPath("$.stores[?(@.storeId == " + a.getId() + ")].totalCashRemoved").value(50.00))
-            .andExpect(jsonPath("$.stores[?(@.storeId == " + a.getId() + ")].expectedCashOnHand").value(45.00))
-            .andExpect(jsonPath("$.stores[?(@.storeId == " + b.getId() + ")].variance").value(-60.00))
+            .andExpect(jsonPath("$.stores[?(@.storeId == " + a.getId() + ")].expectedCashOnHand").value(145.00))
+            .andExpect(jsonPath("$.stores[?(@.storeId == " + b.getId() + ")].expectedCashOnHand").value(20.00))
             // The store with no entries is listed, as "no data", not as zeros.
             .andExpect(jsonPath("$.stores[?(@.storeId == " + empty.getId() + ")].daysRecorded").value(0))
             .andExpect(jsonPath("$.stores[?(@.storeId == " + empty.getId() + ")].totalCashRemoved").value((Object) null))
@@ -192,9 +192,8 @@ class SuperAdminCombinedCashSummaryControllerTest {
             .andExpect(jsonPath("$.combined.daysRecorded").value(3))
             .andExpect(jsonPath("$.combined.totalCashRemoved").value(150.00))
             .andExpect(jsonPath("$.combined.adjustments").value(-5.00))
-            .andExpect(jsonPath("$.combined.expectedCashOnHand").value(135.00))
-            .andExpect(jsonPath("$.combined.actualCashCount").value(130.00))
-            .andExpect(jsonPath("$.combined.variance").value(-5.00));
+            .andExpect(jsonPath("$.combined.expectedCashOnHand").value(165.00))
+            .andExpect(jsonPath("$.combined.totalCashRemaining").value(170.00));
     }
 
     @Test
@@ -207,6 +206,6 @@ class SuperAdminCombinedCashSummaryControllerTest {
         mockMvc.perform(get(URL).param("month", MONTH).header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.stores[?(@.storeId == " + empty.getId() + ")].daysRecorded").value(0))
-            .andExpect(jsonPath("$.stores[?(@.storeId == " + empty.getId() + ")].variance").value((Object) null));
+            .andExpect(jsonPath("$.stores[?(@.storeId == " + empty.getId() + ")].expectedCashOnHand").value((Object) null));
     }
 }

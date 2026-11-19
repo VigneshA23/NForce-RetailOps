@@ -2,17 +2,19 @@
 // (RTS-297). Every amount is null when the column recorded no days, so "no
 // data" is never shown as $0.00.
 
-// One recorded business date, exactly as the backend's shared Expected Cash on
-// Hand calculation produced it. The UI renders these; it never recomputes them.
+// One recorded business date. Opening drawer and cash removed are recorded
+// figures only; cash remaining is what was dropped into the safe. The server
+// computes dailyExpected (cash remaining +/- adjustments) and the running
+// expectedCashOnHand; the UI renders them and never recomputes. A figure nobody
+// entered is null.
 export interface DailyCashBreakdown {
   businessDate: string; // YYYY-MM-DD
-  openingDrawerCash: number;
-  cashRemoved: number;
+  openingDrawerCash: number | null;
+  cashRemoved: number | null;
+  cashRemaining: number | null;
   adjustments: number;
-  expectedCash: number;
-  // The counted cash: the "actual cash count".
-  cashRemaining: number;
-  variance: number;
+  dailyExpected: number;
+  expectedCashOnHand: number;
 }
 
 export interface StoreMonthlyCashSummary {
@@ -21,15 +23,14 @@ export interface StoreMonthlyCashSummary {
   storeName: string;
   storeCode: number | null;
   daysRecorded: number;
-  // Last day in the month with an entry; expected/actual/variance are as at this day.
+  // Last day in the month with an entry; expected cash on hand is as at this day.
   asOfDate: string | null;
+  // Recorded only; not part of expected cash.
   totalCashRemoved: number | null;
+  // Dropped into the safe, summed over the month.
+  totalCashRemaining: number | null;
   adjustments: number | null;
   expectedCashOnHand: number | null;
-  actualCashCount: number | null;
-  variance: number | null;
-  // Sum of every day's over/short in the month.
-  netDailyVariance: number | null;
   // Recorded days only, oldest first. Empty when no entries and for Combined.
   dailyBreakdown: DailyCashBreakdown[];
 }

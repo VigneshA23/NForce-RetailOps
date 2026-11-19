@@ -77,28 +77,57 @@ class DailyCashCorrectionTest {
 
     @Test
     void aCorrectionNeedsNoReasonIsAuditedAndRecalculatesExpectedCash() throws Exception {
-        save(body("500", null)).andExpect(status().isOk())
+        save(body("500", "90")).andExpect(status().isOk())
             .andExpect(jsonPath("$.correctedByName").doesNotExist());
         long notificationsBefore = notificationRepository.count();
         String expectedBefore = expected();
 
         // No reason is needed: the page asks the Super Admin to confirm instead.
-        save(body("650", null))
+        save(body("500", "150"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.openingDrawerCash").value(650))
+            .andExpect(jsonPath("$.cashRemaining").value(150))
             .andExpect(jsonPath("$.correctedByName").value("Sam Super"))
             .andExpect(jsonPath("$.correctedAt").exists())
             .andExpect(jsonPath("$.history.length()").value(1))
             .andExpect(jsonPath("$.history[0].reason").doesNotExist())
-            .andExpect(jsonPath("$.history[0].previousOpeningDrawerCash").value(500))
-            .andExpect(jsonPath("$.history[0].newOpeningDrawerCash").value(650))
+            .andExpect(jsonPath("$.history[0].previousCashRemaining").value(90))
+            .andExpect(jsonPath("$.history[0].newCashRemaining").value(150))
             .andExpect(jsonPath("$.history[0].correctedByName").value("Sam Super"));
 
-        // Still one row for the day (never deleted or duplicated), no notification,
-        // and expected cash reflects the corrected opening cash.
+        // Still one row for the day, no notification, and expected cash
+        // reflects the corrected cash remaining.
         assertThat(entryRepository.findByStoreIdAndBusinessDate(storeId, day)).isPresent();
         assertThat(notificationRepository.count()).isEqualTo(notificationsBefore);
         assertThat(expected()).isNotEqualTo(expectedBefore);
+    }
+
+    @Test
+    void openingDrawerCashAndCashRemovedDoNotChangeExpectedCash() throws Exception {
+        save(body("500", "90")).andExpect(status().isOk());
+        String before = expected();
+        save("{\"businessDate\":\"" + day + "\",\"openingDrawerCash\":700,\"cashRemoved\":55}")
+            .andExpect(status().isOk());
+        assertThat(expected()).isEqualTo(before);
+    }
+
+    @Test
+    void savingOpeningDrawerThenTheRestIsNotACorrection() throws Exception {
+        String d = "\"businessDate\":\"" + day + "\"";
+        save("{" + d + ",\"openingDrawerCash\":200}").andExpect(status().isOk())
+            .andExpect(jsonPath("$.openingDrawerCash").value(200))
+            .andExpect(jsonPath("$.cashRemaining").doesNotExist());
+        save("{" + d + ",\"cashRemoved\":20,\"cashRemaining\":180,\"otherAdjustments\":5}")
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.openingDrawerCash").value(200))
+            .andExpect(jsonPath("$.cashRemaining").value(180))
+            .andExpect(jsonPath("$.dailyExpectedCash").value(185))
+            .andExpect(jsonPath("$.history.length()").value(0));
+        assertThat(correctionRepository.count()).isZero();
+    }
+
+    @Test
+    void anEmptyRequestIsRejected() throws Exception {
+        save("{\"businessDate\":\"" + day + "\"}").andExpect(status().isBadRequest());
     }
 
     private org.springframework.test.web.servlet.ResultActions save(String body) throws Exception {
@@ -116,10 +145,10 @@ class DailyCashCorrectionTest {
         return objectMapper.readTree(json).path("expectedCashOnHand").asText();
     }
 
-    private String body(String opening, String reason) {
+    private String body(String opening, String remaining) {
         return "{\"businessDate\":\"" + day + "\",\"openingDrawerCash\":" + opening
-            + ",\"cashRemoved\":10,\"cashRemaining\":90,\"otherAdjustments\":0"
-            + (reason == null ? "" : ",\"correctionReason\":\"" + reason + "\"") + "}";
+            + ",\"cashRemoved\":10,\"cashRemaining\":" + remaining + ",\"otherAdjustments\":0"
+            + "}";
     }
 
     private String login(String email) throws Exception {

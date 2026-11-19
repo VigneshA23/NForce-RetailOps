@@ -47,15 +47,27 @@ class DailyCashEntryRequestTest {
     }
 
     @Test
-    void nullOtherAdjustmentsIsValidAndCountsAsZeroButNullCashRemovedIsStillRejected() {
+    void everyAmountIsOptionalButAtLeastOneIsNeeded() {
         BigDecimal ten = new BigDecimal("10.00");
-        DailyCashEntryRequest noAdjust = new DailyCashEntryRequest(null, ten, ten, ten, null, null);
-        assertThat(validator.validate(noAdjust)).isEmpty();
-        assertThat(noAdjust.otherAdjustmentsOrZero()).isEqualByComparingTo(BigDecimal.ZERO);
+        DailyCashEntryRequest openingOnly = new DailyCashEntryRequest(null, ten, null, null, null, null);
+        assertThat(validator.validate(openingOnly)).isEmpty();
+        assertThat(openingOnly.hasAnyAmount()).isTrue();
 
-        DailyCashEntryRequest noRemoved = new DailyCashEntryRequest(null, ten, null, ten, null, null);
-        assertThat(validator.validate(noRemoved)).singleElement().satisfies(v ->
-            assertThat(v.getPropertyPath().toString()).isEqualTo("cashRemoved"));
+        DailyCashEntryRequest rest = new DailyCashEntryRequest(null, null, ten, ten, null, null);
+        assertThat(validator.validate(rest)).isEmpty();
+        assertThat(rest.hasAnyAmount()).isTrue();
+
+        DailyCashEntryRequest empty = new DailyCashEntryRequest(null, null, null, null, null, null);
+        assertThat(validator.validate(empty)).isEmpty();
+        assertThat(empty.hasAnyAmount()).isFalse();
+    }
+
+    @Test
+    void negativeAmountsAreRejectedExceptOtherAdjustments() {
+        BigDecimal minus = new BigDecimal("-1.00");
+        DailyCashEntryRequest bad = new DailyCashEntryRequest(null, minus, null, null, minus, null);
+        assertThat(validator.validate(bad)).singleElement().satisfies(v ->
+            assertThat(v.getPropertyPath().toString()).isEqualTo("openingDrawerCash"));
     }
 
     @Test

@@ -1,6 +1,7 @@
 // Mirrors the backend's DailyCashEntryRequest / DailyCashEntryResponse.
-// Amounts are BigDecimal on the server and plain numbers here. The five
-// agreed fields, in the order the page shows them.
+// Amounts are BigDecimal on the server and plain numbers here. Opening drawer
+// cash, cash removed and cash remaining may each be null (not recorded yet);
+// other adjustments is signed and defaults to 0.
 
 export type CashAmountField =
   | 'openingDrawerCash'
@@ -10,7 +11,9 @@ export type CashAmountField =
 
 export type CashAmounts = Record<CashAmountField, number>;
 
-export interface DailyCashEntryRequest extends CashAmounts {
+// Only the amounts being saved are sent; one left out is left as it was. That
+// is how the employee page saves the opening drawer cash on its own.
+export interface DailyCashEntryRequest extends Partial<CashAmounts> {
   // YYYY-MM-DD; the server defaults to today when omitted.
   businessDate: string;
   // Required by the server when this changes an entry that already exists.
@@ -21,9 +24,9 @@ export interface DailyCashEntryRequest extends CashAmounts {
 // are null only on corrections saved before they were recorded.
 export interface DailyCashCorrection {
   id: number;
-  previousOpeningDrawerCash: number;
-  previousCashRemoved: number;
-  previousCashRemaining: number;
+  previousOpeningDrawerCash: number | null;
+  previousCashRemoved: number | null;
+  previousCashRemaining: number | null;
   previousOtherAdjustments: number;
   newOpeningDrawerCash: number | null;
   newCashRemoved: number | null;
@@ -34,8 +37,13 @@ export interface DailyCashCorrection {
   reason: string | null;
 }
 
-export interface DailyCashEntry extends CashAmounts {
+export interface DailyCashEntry {
   id: number;
+  // null until recorded.
+  openingDrawerCash: number | null;
+  cashRemoved: number | null;
+  cashRemaining: number | null;
+  otherAdjustments: number;
   storeId: number;
   businessDate: string;
   enteredByUserId: number | null;
@@ -104,9 +112,9 @@ export type CashHistoryEventType =
   | 'FLAG_REMOVED';
 
 export interface CashFigures {
-  openingDrawerCash: number;
-  cashRemoved: number;
-  cashRemaining: number;
+  openingDrawerCash: number | null;
+  cashRemoved: number | null;
+  cashRemaining: number | null;
   otherAdjustments: number;
 }
 
