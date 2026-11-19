@@ -60,6 +60,10 @@ function formatWhen(value: string): string {
   });
 }
 
+function money(value: number | null): string {
+  return value === null ? 'not set' : formatCurrency(value);
+}
+
 function formatDay(value: string): string {
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -71,7 +75,7 @@ function FigureChanges({ event }: { event: CashHistoryEvent }) {
     return (
       <ul className="cash-history__figures">
         {FIGURE_LABELS.map(([key, label]) => (
-          <li key={key}>{label}: {formatCurrency(event.current![key])}</li>
+          <li key={key}>{label}: {money(event.current![key])}</li>
         ))}
       </ul>
     );
@@ -83,7 +87,7 @@ function FigureChanges({ event }: { event: CashHistoryEvent }) {
     <ul className="cash-history__figures">
       {changed.map(([key, label]) => (
         <li key={key}>
-          {label}: {formatCurrency(event.previous![key])} → {formatCurrency(event.current![key])}
+          {label}: {money(event.previous![key])} → {money(event.current![key])}
         </li>
       ))}
     </ul>

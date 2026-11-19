@@ -23,14 +23,14 @@ public class DailyCashEntry {
     @Column(name = "business_date", nullable = false)
     private LocalDate businessDate;
 
-    @Column(name = "opening_drawer_cash", nullable = false)
+    @Column(name = "opening_drawer_cash")
     private BigDecimal openingDrawerCash;
 
-    @Column(name = "cash_removed", nullable = false)
+    @Column(name = "cash_removed")
     private BigDecimal cashRemoved;
 
     // The physically counted end-of-day drawer amount (the "actual cash count").
-    @Column(name = "cash_remaining", nullable = false)
+    @Column(name = "cash_remaining")
     private BigDecimal cashRemaining;
 
     // Signed: the only field allowed to be negative.

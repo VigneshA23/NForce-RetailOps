@@ -180,7 +180,6 @@ class ExpectedCashControllerTest {
             .andExpect(jsonPath("$.storeId").value(s.getId()))
             .andExpect(jsonPath("$.message").isNotEmpty())
             .andExpect(jsonPath("$.expectedCashOnHand").doesNotExist())
-            .andExpect(jsonPath("$.variance").doesNotExist())
             .andExpect(jsonPath("$.asOfDate").doesNotExist())
             .andExpect(jsonPath("$.lastUpdatedAt").doesNotExist());
     }
@@ -189,13 +188,13 @@ class ExpectedCashControllerTest {
 
     @Test
     @Transactional
-    void ownerGetsFigureAndVarianceForTheirLatestEntry() throws Exception {
+    void ownerGetsTheRunningTotalUpToTheirLatestEntry() throws Exception {
         User owner = user("cash-owner-b@nforce.test", "OWNER_ADMIN");
         Store s = store("Cash Store B", 9103L);
         link(owner, s);
-        // Older day must be ignored: the figure is the latest entry only.
+        // Expected cash on hand is the running total of (cash remaining + adjustments).
         entry(s, LocalDate.of(2026, 11, 8), "100.00", "0.00", "1.00", "0.00");
-        // 200 - 100 + (-10) = 90 ; counted 30 -> variance -60
+        // Day 8 adds 1; day 9 adds 30 + (-10) = 20; opening and removed are ignored. Total 21.
         entry(s, LocalDate.of(2026, 11, 9), "200.00", "100.00", "30.00", "-10.00");
         String token = login("cash-owner-b@nforce.test");
 
@@ -205,9 +204,8 @@ class ExpectedCashControllerTest {
             .andExpect(jsonPath("$.asOfDate").value("2026-11-09"))
             // When the latest entry was saved, for the "last updated" label (RTS-296).
             .andExpect(jsonPath("$.lastUpdatedAt").isNotEmpty())
-            .andExpect(jsonPath("$.expectedCashOnHand").value(90.00))
+            .andExpect(jsonPath("$.expectedCashOnHand").value(21.00))
             .andExpect(jsonPath("$.cashRemaining").value(30.00))
-            .andExpect(jsonPath("$.variance").value(-60.00))
             .andExpect(jsonPath("$.otherAdjustments").value(-10.00));
     }
 
@@ -225,8 +223,7 @@ class ExpectedCashControllerTest {
         mockMvc.perform(get(OWNER_URL).header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.storeId").value(mine.getId()))
-            .andExpect(jsonPath("$.expectedCashOnHand").value(100.00))
-            .andExpect(jsonPath("$.variance").value(0.00));
+            .andExpect(jsonPath("$.expectedCashOnHand").value(100.00));
     }
 
     // ---- super admin --------------------------------------------------------
@@ -241,8 +238,7 @@ class ExpectedCashControllerTest {
 
         mockMvc.perform(get(superUrl(s)).header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.expectedCashOnHand").value(100.00))
-            .andExpect(jsonPath("$.variance").value(5.00));
+            .andExpect(jsonPath("$.expectedCashOnHand").value(105.00));
     }
 
     @Test

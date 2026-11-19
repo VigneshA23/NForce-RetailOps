@@ -146,7 +146,7 @@ public class CashHistoryService {
 
         for (int i = 0; i < corrections.size(); i++) {
             DailyCashEntryCorrection c = corrections.get(i);
-            Figures after = c.getNewCashRemaining() != null
+            Figures after = c.getNewOtherAdjustments() != null
                 ? new Figures(c.getNewOpeningDrawerCash(), c.getNewCashRemoved(),
                     c.getNewCashRemaining(), c.getNewOtherAdjustments())
                 : i + 1 < corrections.size() ? previousOf(corrections.get(i + 1)) : figuresOf(entry);

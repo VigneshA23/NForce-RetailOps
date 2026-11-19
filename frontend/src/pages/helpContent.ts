@@ -285,10 +285,10 @@ const SUPER_ADMIN_SECTIONS: HelpSection[] = [
     bullets: [
       'Move between months with the Previous month / Next month arrows.',
       'All Stores (the default) shows the combined totals of every store that recorded cash that month.',
-      'Select a store to see its totals, closing variance, and Daily Breakdown.',
+      'Select a store to see its totals, Expected Cash on Hand, and Daily Breakdown.',
     ],
     important: [
-      'Negative variance is a shortage; positive variance is an overage.',
+      'Expected Cash on Hand adds up every day’s Cash Remaining ± Adjustments. Cash Removed and Opening Drawer Cash are recorded only.',
       'This page is read-only. Make changes from Daily Cash.',
     ],
   },
@@ -507,12 +507,12 @@ const OWNER_ADMIN_SECTIONS: HelpSection[] = [
     description: "Review a month's cash totals and how the closing figures reconcile.",
     bullets: [
       'Move between months with the Previous month / Next month arrows.',
-      'See monthly totals for cash removed, cash expenses, and adjustments.',
-      'Compare Expected Cash on Hand with the Actual Cash Count on the last recorded day (Variance), and see every day’s over/short added up (Net Daily Variance).',
+      'See monthly totals for cash removed, cash remaining (dropped into the safe), and adjustments.',
+      'Expected Cash on Hand is the running total of each day’s Cash Remaining ± Adjustments, as at the last recorded day.',
       'Use the Daily Breakdown table to see each recorded day. The closing day is marked.',
     ],
     important: [
-      'Negative variance is a shortage; positive variance is an overage.',
+      'Expected Cash on Hand adds up every day’s Cash Remaining ± Adjustments. Cash Removed and Opening Drawer Cash are recorded only.',
       'This page is read-only. Make changes from Daily Cash.',
     ],
   },

@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -33,8 +34,8 @@ import java.util.stream.Collectors;
  * cash entries in one calendar month.
  *
  * <p>Every per-day figure comes from {@link CashCalculationService#calculate};
- * this class only adds those results up, so the expected-cash formula still
- * lives in exactly one place.
+ * this class only adds those results up (expected cash on hand is the running
+ * total of daily expected cash), so the formula still lives in one place.
  */
 @Service
 public class MonthlyCashSummaryService {
@@ -105,35 +106,43 @@ public class MonthlyCashSummaryService {
                 .collect(Collectors.groupingBy(e -> e.getStore().getId()));
 
         List<StoreMonthlyCashSummary> perStore = stores.stream()
-            .map(store -> summarize(store, entriesByStore.getOrDefault(store.getId(), List.of())))
+            .map(store -> summarize(store, entriesByStore.getOrDefault(store.getId(), List.of()), from))
             .toList();
 
         return new MonthlyCashSummaryResponse(period.toString(), from, to, perStore, combine(perStore));
     }
 
-    private StoreMonthlyCashSummary summarize(Store store, List<DailyCashEntry> entries) {
+    private StoreMonthlyCashSummary summarize(Store store, List<DailyCashEntry> entries, LocalDate from) {
         if (entries.isEmpty()) {
             return StoreMonthlyCashSummary.empty(store.getId(), store.getName(), store.getStoreCode());
         }
-        List<ExpectedCashResponse> days = entries.stream()
-            .sorted(Comparator.comparing(DailyCashEntry::getBusinessDate))
-            .map(cashCalculationService::calculate)
-            .toList();
-        ExpectedCashResponse monthEnd = days.get(days.size() - 1);
+        // Expected cash on hand is a running total from the store's first entry,
+        // so start from everything recorded before this month.
+        BigDecimal running = entryRepository.sumExpectedCashOnHandUpTo(store.getId(), from.minusDays(1));
+        if (running == null) running = BigDecimal.ZERO;
+
+        List<DailyCashBreakdown> days = new ArrayList<>();
+        for (DailyCashEntry entry : entries.stream()
+            .sorted(Comparator.comparing(DailyCashEntry::getBusinessDate)).toList()) {
+            ExpectedCashResponse day = cashCalculationService.calculate(entry);
+            running = running.add(day.expectedCashOnHand());
+            days.add(new DailyCashBreakdown(
+                day.asOfDate(), day.openingDrawerCash(), day.cashRemoved(), day.cashRemaining(),
+                day.otherAdjustments(), day.expectedCashOnHand(), running));
+        }
+        DailyCashBreakdown monthEnd = days.get(days.size() - 1);
 
         return new StoreMonthlyCashSummary(
             store.getId(),
             store.getName(),
             store.getStoreCode(),
             days.size(),
-            monthEnd.asOfDate(),
-            sum(days, ExpectedCashResponse::cashRemoved),
-            sum(days, ExpectedCashResponse::otherAdjustments),
+            monthEnd.businessDate(),
+            sum(days, DailyCashBreakdown::cashRemoved),
+            sum(days, DailyCashBreakdown::cashRemaining),
+            sum(days, DailyCashBreakdown::adjustments),
             monthEnd.expectedCashOnHand(),
-            monthEnd.cashRemaining(),
-            monthEnd.variance(),
-            sum(days, ExpectedCashResponse::variance),
-            days.stream().map(DailyCashBreakdown::from).toList()
+            days
         );
     }
 
@@ -153,11 +162,9 @@ public class MonthlyCashSummaryService {
             withData.stream().mapToInt(StoreMonthlyCashSummary::daysRecorded).sum(),
             latest,
             sum(withData, StoreMonthlyCashSummary::totalCashRemoved),
+            sum(withData, StoreMonthlyCashSummary::totalCashRemaining),
             sum(withData, StoreMonthlyCashSummary::adjustments),
             sum(withData, StoreMonthlyCashSummary::expectedCashOnHand),
-            sum(withData, StoreMonthlyCashSummary::actualCashCount),
-            sum(withData, StoreMonthlyCashSummary::variance),
-            sum(withData, StoreMonthlyCashSummary::netDailyVariance),
             List.of() // per-day breakdown is per store; Combined is out of scope
         );
     }

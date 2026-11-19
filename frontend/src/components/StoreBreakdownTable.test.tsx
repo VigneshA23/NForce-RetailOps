@@ -6,8 +6,8 @@ import type { StoreMonthlyCashSummary } from '../types/cashSummary';
 function store(overrides: Partial<StoreMonthlyCashSummary> = {}): StoreMonthlyCashSummary {
   return {
     storeId: 1, storeName: 'Store 1', storeCode: 101, daysRecorded: 4, asOfDate: '2026-11-13',
-    totalCashRemoved: 172, adjustments: 1100,
-    expectedCashOnHand: 1700, actualCashCount: 700, variance: -1000, netDailyVariance: -989,
+    totalCashRemoved: 172, totalCashRemaining: 700, adjustments: 1100,
+    expectedCashOnHand: 1700,
     dailyBreakdown: [], ...overrides,
   };
 }

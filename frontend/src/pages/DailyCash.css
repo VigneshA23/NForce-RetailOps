@@ -271,3 +271,16 @@
     max-width: none;
   }
 }
+
+/* Employees see two forms (opening drawer, then the rest); stack them. */
+.daily-cash-page__forms {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl, 32px);
+}
+
+.daily-cash-page__form-title {
+  margin: 0 0 var(--space-md);
+  font-size: 15px;
+  font-weight: 600;
+}
