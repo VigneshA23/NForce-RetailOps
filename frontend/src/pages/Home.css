@@ -162,6 +162,18 @@
   pointer-events: none;
 }
 
+/* Same dark chip as the completion graph's tooltip. */
+.home-page__donut-tooltip {
+  background: #0d0d0f;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .home-page__donut-value {
   font-size: 28px;
   font-weight: 700;
