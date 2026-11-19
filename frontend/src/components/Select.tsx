@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Plus } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import './Select.css';
 
@@ -32,13 +32,23 @@ interface SelectProps {
   // radio-button circle beside every option, for single-choice pickers where
   // the one-of-many nature should be obvious (e.g. inventory units).
   indicator?: 'check' | 'radio';
+  // Adds a search box to the panel (matches the option label, which callers
+  // build from name + ID) and shows 5 rows at a time, scrolling for the rest.
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 const VIEWPORT_MARGIN = 8;
 const PANEL_MAX_HEIGHT = 220; // keep in sync with .custom-select__panel max-height
 
-function Select({ id, options, value, onChange, ariaLabel, className, placeholder, disabled, align = 'left', indicator = 'check' }: SelectProps) {
+function Select({ id, options, value, onChange, ariaLabel, className, placeholder, disabled, align = 'left', indicator = 'check', searchable = false, searchPlaceholder = 'Search by name or ID…' }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim().toLowerCase().replace(/^#/, '');
+  const visibleOptions =
+    searchable && normalizedQuery
+      ? options.filter((option) => option.isAction || option.label.toLowerCase().replace(/#/g, '').includes(normalizedQuery))
+      : options;
   const [position, setPosition] = useState<{ top: number; left: number; width: number; maxHeight?: number }>({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -51,6 +61,7 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
       // measures it just after, via useLayoutEffect below.
       setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
     }
+    setQuery('');
     setIsOpen(true);
   }
 
@@ -133,11 +144,28 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
         createPortal(
           <div
             ref={panelRef}
-            className="custom-select__panel"
+            className={`custom-select__panel${searchable ? ' custom-select__panel--searchable' : ''}`}
             role="listbox"
             style={{ top: position.top, left: position.left, width: position.width, maxHeight: position.maxHeight }}
           >
-            {options.map((option) => option.isAction ? (
+            {searchable && (
+              <div className="custom-select__search">
+                <Search size={14} aria-hidden="true" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  aria-label="Search options"
+                />
+              </div>
+            )}
+            <div className={searchable ? 'custom-select__list' : undefined}>
+            {searchable && visibleOptions.length === 0 && (
+              <p className="custom-select__empty">No matches found</p>
+            )}
+            {visibleOptions.map((option) => option.isAction ? (
               <button
                 key={option.value}
                 type="button"
@@ -177,6 +205,7 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
                 {option.label}
               </button>
             ))}
+            </div>
           </div>,
           document.body,
         )}

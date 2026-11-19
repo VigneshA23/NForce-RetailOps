@@ -223,7 +223,7 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
               ? 'Select a store above to view its month-end cash summary.'
               : `No daily cash entries were recorded in ${monthLabel(month)}.`}
           />
-          <p className="cash-summary__footnote">Expected cash on hand is the running total of each day’s cash remaining ± adjustments, as at the last day recorded. Cash removed and opening drawer cash are recorded only.</p>
+          <p className="cash-summary__footnote">Expected cash on hand is the total of each day’s cash remaining ± adjustments from the 1st of the month to the last day recorded; earlier months are not carried forward. Cash removed and opening drawer cash are recorded only.</p>
         </div>
       )}
     </div>

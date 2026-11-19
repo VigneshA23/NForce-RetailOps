@@ -40,7 +40,7 @@ public class SuperAdminStoreCashController {
         this.flagService = flagService;
     }
 
-    // Flag an entry with a note (at least 5 words); the entering employee, and
+    // Flag an entry with a note (at least 1 character); the entering employee, and
     // only they, is notified.
     @PostMapping("/entries/{entryId}/flag")
     public ResponseEntity<DailyCashEntryResponse> raiseFlag(

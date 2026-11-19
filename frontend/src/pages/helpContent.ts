@@ -508,7 +508,7 @@ const OWNER_ADMIN_SECTIONS: HelpSection[] = [
     bullets: [
       'Move between months with the Previous month / Next month arrows.',
       'See monthly totals for cash removed, cash remaining (dropped into the safe), and adjustments.',
-      'Expected Cash on Hand is the running total of each day’s Cash Remaining ± Adjustments, as at the last recorded day.',
+      'Expected Cash on Hand is the total of each day’s Cash Remaining ± Adjustments from the 1st of the month to the last recorded day. Earlier months are not carried forward.',
       'Use the Daily Breakdown table to see each recorded day. The closing day is marked.',
     ],
     important: [

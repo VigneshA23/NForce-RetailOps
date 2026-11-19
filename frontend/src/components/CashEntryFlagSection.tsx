@@ -31,7 +31,6 @@ interface CashEntryFlagSectionProps {
   onEntryChange: (entry: DailyCashEntry) => void;
 }
 
-const MIN_WORDS = 5;
 
 function formatWhen(value: string): string {
   return new Date(value).toLocaleString(undefined, {
@@ -96,8 +95,8 @@ function CashEntryFlagSection({
   async function submit(event: FormEvent) {
     event.preventDefault();
     const trimmed = comment.trim();
-    if (trimmed.split(/\s+/).filter(Boolean).length < MIN_WORDS) {
-      setError(`Please give at least ${MIN_WORDS} words of context.`);
+    if (trimmed.length < 1) {
+      setError('Please enter a comment.');
       return;
     }
     setSubmitting(true);
@@ -177,7 +176,7 @@ function CashEntryFlagSection({
         onClose={closeModal}
         title={mode === 'edit' ? 'Edit flag comment' : 'Flag cash entry'}
         subtitle={mode === 'raise'
-          ? 'The employee who entered this is notified with your comment. Use at least five words.'
+          ? 'The employee who entered this is notified with your comment.'
           : undefined}
         centered
       >

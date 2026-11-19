@@ -79,6 +79,7 @@ function AssignStoreOwnerModal({
               onChange={setSelectedOwnerId}
               placeholder="Choose an owner…"
               ariaLabel="Select owner"
+              searchable
             />
           </div>
         )}

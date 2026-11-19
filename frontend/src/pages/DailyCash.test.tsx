@@ -516,16 +516,15 @@ describe('DailyCash', () => {
     expect(screen.getByRole('button', { name: 'Remove flag' })).toBeInTheDocument();
   });
 
-  it('requires at least five words to flag an entry, then flags it', async () => {
+  it('requires a comment to flag an entry, then flags it', async () => {
     const user = userEvent.setup();
     vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry());
     vi.mocked(storeCashApi.flagCashEntry).mockResolvedValue(entry({ status: 'Flagged', flag: FLAG }));
     render(<DailyCash storeId={7} storesLoading={false} />);
 
     await user.click(await screen.findByRole('button', { name: 'Flag entry' }));
-    await user.type(screen.getByLabelText(/Flag comment/), 'too short');
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Flag entry' }));
-    expect(await screen.findByText('Please give at least 5 words of context.')).toBeInTheDocument();
+    expect(await screen.findByText('Please enter a comment.')).toBeInTheDocument();
     expect(storeCashApi.flagCashEntry).not.toHaveBeenCalled();
 
     await user.clear(screen.getByLabelText(/Flag comment/));
