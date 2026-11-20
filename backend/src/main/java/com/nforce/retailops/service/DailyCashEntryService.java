@@ -156,6 +156,10 @@ public class DailyCashEntryService {
         Store store = requireAssignedStore(employeeId, storeId);
         LocalDate date = request.businessDate() != null ? request.businessDate() : LocalDate.now();
         DailyCashEntry existing = entryRepository.findByStoreIdAndBusinessDate(store.getId(), date).orElse(null);
+        if (existing != null && isAdminSubmitted(existing)) {
+            throw new DailyCashEntryNotEditableException(
+                "This entry was submitted by " + submittedByName(existing) + " and is read-only for employees.");
+        }
         boolean flagged = existing != null && flagService.openFlag(existing.getId()).isPresent();
         if (flagged) {
             if (!isEnteredBy(existing, employeeId)) {
@@ -172,12 +176,35 @@ public class DailyCashEntryService {
     @Transactional(readOnly = true)
     public DailyCashEntryResponse getForEmployee(Long employeeId, Long storeId, LocalDate date) {
         Long id = requireAssignedStore(employeeId, storeId).getId();
-        LocalDate businessDate = date != null ? date : LocalDate.now();
+        LocalDate today = LocalDate.now();
+        LocalDate businessDate = date != null ? date : today;
+        if (businessDate.isAfter(today)) {
+            throw new DailyCashEntryNotEditableException("Cash entries for future dates are not available");
+        }
         DailyCashEntry entry = entryRepository.findByStoreIdAndBusinessDate(id, businessDate)
             .orElseThrow(() -> new DailyCashEntryNotFoundException("No cash entry for " + businessDate));
         boolean flagged = flagService.openFlag(entry.getId()).isPresent();
-        boolean editable = flagged ? isEnteredBy(entry, employeeId) : businessDate.equals(LocalDate.now());
+        boolean editable = !isAdminSubmitted(entry)
+            && (flagged ? isEnteredBy(entry, employeeId) : businessDate.equals(today));
+        // Employees see today (editable) and the previous 7 days (read-only);
+        // older entries only when flagged for them to fix.
+        if (businessDate.isBefore(today.minusDays(7)) && !editable) {
+            throw new DailyCashEntryNotEditableException(
+                "Employees can only view cash entries from the last 7 days");
+        }
         return toResponse(entry).forEmployee().withCanEdit(editable);
+    }
+
+    // An entry first submitted by a Super Admin or an Owner/Admin is read-only
+    // for employees. Unknown creators (pre-V121 rows) stay editable.
+    private static boolean isAdminSubmitted(DailyCashEntry entry) {
+        if (entry.getEnteredBySuperAdmin() != null) return true;
+        User by = entry.getEnteredByUser();
+        return by != null && by.getRoles().stream().noneMatch(r -> "EMPLOYEE".equals(r.getName()));
+    }
+
+    private static String submittedByName(DailyCashEntry entry) {
+        return name(entry.getEnteredByUser(), entry.getEnteredBySuperAdmin());
     }
 
     private static boolean isEnteredBy(DailyCashEntry entry, Long userId) {

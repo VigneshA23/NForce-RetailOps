@@ -537,7 +537,9 @@ function DailyCash({
             {entry
               ? entry.flag
                 ? 'This entry was flagged for the employee who entered it. Only they can correct it.'
-                : 'You can only change today\'s entry. This day is read-only.'
+                : businessDate === todayKey()
+                  ? `Submitted by ${entry.enteredByName ?? 'an admin'}. This entry is read-only.`
+                  : 'You can only change today\'s entry. This day is read-only.'
               : 'No entry was saved for this day, and employees can only record today.'}
           </p>
         )}

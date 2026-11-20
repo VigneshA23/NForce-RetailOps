@@ -11,11 +11,13 @@ interface AuthPasswordFieldProps {
   autoComplete?: string
   // Inline hint under the field (e.g. "Passwords do not match.").
   error?: string | null
+  // Confirm fields: refuse paste/drop so the password has to be typed again.
+  blockPaste?: boolean
 }
 
 // The login page's password field -- lock icon, cross-fading eye toggle and the
 // focus highlight -- for the Ked's password pages.
-function AuthPasswordField({ id, label, value, onChange, placeholder, autoComplete = 'new-password', error }: AuthPasswordFieldProps) {
+function AuthPasswordField({ id, label, value, onChange, placeholder, autoComplete = 'new-password', error, blockPaste = false }: AuthPasswordFieldProps) {
   const [visible, setVisible] = useState(false)
   const [focused, setFocused] = useState(false)
 
@@ -35,6 +37,8 @@ function AuthPasswordField({ id, label, value, onChange, placeholder, autoComple
           className="login3-input"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onPaste={blockPaste ? (e) => e.preventDefault() : undefined}
+          onDrop={blockPaste ? (e) => e.preventDefault() : undefined}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
