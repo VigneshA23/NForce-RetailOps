@@ -62,7 +62,8 @@ public class SuperAdminSearchService {
                 se.getId(),
                 se.getEmployee().getFullName(),
                 se.getEmployee().getEmail(),
-                "employees:" + se.getId()
+                "employees:" + se.getId(),
+                se.getEmployee().getAvatarUrl()
             ))
             .toList();
 
