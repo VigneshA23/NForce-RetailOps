@@ -205,6 +205,8 @@ function ResetPasswordModal({ isOpen, onClose, centered = false, title = 'Change
                 className="input"
                 value={values.confirmPassword}
                 onChange={(e) => setValues((v) => ({ ...v, confirmPassword: e.target.value }))}
+                onPaste={(e) => e.preventDefault()}
+                onDrop={(e) => e.preventDefault()}
               />
               <button
                 type="button"

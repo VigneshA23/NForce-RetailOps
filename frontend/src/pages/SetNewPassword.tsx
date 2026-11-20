@@ -98,6 +98,7 @@ function SetNewPassword({ token, onDone }: SetNewPasswordProps) {
                 placeholder="Re-enter password"
                 value={confirm}
                 onChange={setConfirm}
+                blockPaste
                 error={mismatch ? 'Passwords do not match.' : null}
               />
 

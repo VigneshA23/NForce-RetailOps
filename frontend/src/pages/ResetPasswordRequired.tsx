@@ -62,6 +62,7 @@ function ResetPasswordRequired({ onSuccess, onLogout, loggingOut }: ResetPasswor
           placeholder="Re-enter your new password"
           value={confirmPassword}
           onChange={setConfirmPassword}
+          blockPaste
         />
 
         {error && <div className="login3-error">{error}</div>}

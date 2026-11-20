@@ -139,11 +139,15 @@ public class CashFlagService {
 
     // Only the employee in entered_by is told, so an entry with no known
     // employee, or one whose employee has left the store, cannot be flagged.
+    // The employee who last changed the entry is the one flagged; if the last
+    // change was not an employee's, fall back to the employee who first entered it.
     private User requireNotifiableEmployee(DailyCashEntry entry) {
-        User enteredBy = entry.getEnteredByUser();
+        User enteredBy = entry.getUpdatedByUser() != null && isEmployee(entry.getUpdatedByUser())
+            ? entry.getUpdatedByUser()
+            : entry.getEnteredByUser();
         if (enteredBy == null || !isEmployee(enteredBy)) {
             throw new CashEntryFlagException(
-                "This entry was not entered by a known employee, so there is no one to notify. "
+                "This entry was not entered or modified by a known employee, so there is no one to notify. "
                 + "Correct the entry directly instead.");
         }
         if (!enteredBy.isActive()) {
