@@ -6,6 +6,7 @@ import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidCurrentPasswordException;
+import com.nforce.retailops.exception.PasswordReuseException;
 import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.security.JwtService;
@@ -109,6 +110,7 @@ public class AuthService {
     public void resetPassword(String email, String newPassword) {
         User user = userRepository.findByEmailWithRoles(email)
             .orElseThrow(() -> new BadCredentialsException("Invalid session"));
+        rejectCurrentPassword(newPassword, user.getPasswordHash());
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustResetPassword(false);
         userRepository.save(user);
@@ -132,6 +134,7 @@ public class AuthService {
             if (!passwordEncoder.matches(currentPassword, superAdmin.getPasswordHash())) {
                 throw new InvalidCurrentPasswordException("Current password is incorrect");
             }
+            rejectCurrentPassword(newPassword, superAdmin.getPasswordHash());
             superAdmin.setPasswordHash(passwordEncoder.encode(newPassword));
             superAdminRepository.save(superAdmin);
             if (logoutOtherDevices && currentTokenId != null) {
@@ -145,11 +148,20 @@ public class AuthService {
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new InvalidCurrentPasswordException("Current password is incorrect");
         }
+        rejectCurrentPassword(newPassword, user.getPasswordHash());
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustResetPassword(false);
         userRepository.save(user);
         if (logoutOtherDevices && currentTokenId != null) {
             sessionService.invalidateAllForUserExcept(email, PrincipalType.USER, currentTokenId);
+        }
+    }
+
+    // The new password may not be the one the account already has (the same
+    // rule and message as the Forgot Password reset).
+    private void rejectCurrentPassword(String newPassword, String currentHash) {
+        if (currentHash != null && passwordEncoder.matches(newPassword, currentHash)) {
+            throw new PasswordReuseException(PasswordResetService.SAME_PASSWORD_MESSAGE);
         }
     }
 }
