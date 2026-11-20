@@ -9,7 +9,7 @@ import Select from './Select';
 import SearchableSelect from './SearchableSelect';
 import ButtonDots from './ButtonDots';
 import './SupplierFormModal.css';
-
+
 import IconField from './IconField';
 interface SupplierFormModalProps {
   isOpen: boolean;
@@ -58,7 +58,10 @@ function SupplierFormModal({
       setPhone(parsed.phone);
       setValidationError(undefined);
     }
-  }, [isOpen, initialValues]);
+    // initialValues is rebuilt on every parent render; depending on it would
+    // wipe in-progress edits (e.g. when isSubmitting flips). Reset on open only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();

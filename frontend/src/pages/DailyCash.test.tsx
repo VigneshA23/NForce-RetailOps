@@ -643,7 +643,7 @@ describe('DailyCash', () => {
     expect(within(rest).getByLabelText(/^Cash removed/)).toBeDisabled();
   });
 
-  it('lets the entering employee fix a flagged entry with an optional note, which resolves it', async () => {
+  it('lets the entering employee fix a flagged entry with a required note, which resolves it', async () => {
     const user = userEvent.setup();
     vi.mocked(meCashApi.getMyCashEntry).mockResolvedValue(entry({ status: 'Flagged', flag: FLAG, canEdit: true }));
     vi.mocked(meCashApi.saveMyCashEntry).mockImplementation(async (_storeId, request) =>
@@ -654,7 +654,7 @@ describe('DailyCash', () => {
     const rest = screen.getByRole('form', { name: 'Cash removed, cash remaining and adjustments' });
     await user.clear(within(rest).getByLabelText(/^Cash removed/));
     await user.type(within(rest).getByLabelText(/^Cash removed/), '450');
-    await user.type(within(rest).getByRole('textbox', { name: /Note \(optional\)/ }), 'Recounted the drawer');
+    await user.type(within(rest).getByRole('textbox', { name: /^Note/ }), 'Recounted the drawer');
     await user.click(within(rest).getByRole('button', { name: 'Save & resolve flag' }));
 
     expect(meCashApi.saveMyCashEntry).toHaveBeenCalledWith(7, expect.objectContaining({

@@ -147,7 +147,8 @@ public class DailyCashEntryService {
 
     // Any store employee may record today's entry or edit it while it is not
     // flagged (every edit lands in the audit trail with who and when, and no
-    // reason is asked, only an optional note). Once an Owner/Admin or Super
+    // reason is asked, only an optional note, except a flagged entry, which
+    // needs a note). Once an Owner/Admin or Super
     // Admin flags it, only the employee in entered_by may change it, on
     // whatever date it was flagged; everyone else gets a 403. Saving it clears
     // the flag ("Resolved") and records the fix in history.
@@ -168,6 +169,10 @@ public class DailyCashEntryService {
             }
         } else if (!date.equals(LocalDate.now())) {
             throw new DailyCashEntryNotEditableException("Employees can only record cash for today");
+        }
+        if (flagged && (request.correctionReason() == null || request.correctionReason().isBlank())) {
+            throw new CorrectionReasonRequiredException(
+                "A note is required when resolving a flagged entry");
         }
         return saveEntry(store, userRepository.getReferenceById(employeeId), null, request, false, true)
             .forEmployee().withCanEdit(true);
