@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import { Building2, MapPin, Truck, Phone } from 'lucide-react';
 import type { SupplierFormValues, SupplierStoreOption } from '../types/supplier';
@@ -9,7 +9,7 @@ import Select from './Select';
 import SearchableSelect from './SearchableSelect';
 import ButtonDots from './ButtonDots';
 import './SupplierFormModal.css';
-
+
 import IconField from './IconField';
 interface SupplierFormModalProps {
   isOpen: boolean;
@@ -50,14 +50,20 @@ function SupplierFormModal({
   const [phone, setPhone] = useState('');
   const [validationError, setValidationError] = useState<string | undefined>();
 
+  // Load the starting values only when the modal opens. Callers build
+  // initialValues inline, so it is a new object on every parent render (the
+  // Super Admin page's 60-second polls); resetting on that wiped the user's
+  // unsaved edits, and Save then sent the old values back.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (isOpen) {
-      setValues({ ...EMPTY_VALUES, ...initialValues });
-      const parsed = parsePhoneForForm(initialValues?.contact ?? '');
-      setCountryCode(parsed.countryCode);
-      setPhone(parsed.phone);
-      setValidationError(undefined);
-    }
+    const opening = isOpen && !wasOpen.current;
+    wasOpen.current = isOpen;
+    if (!opening) return;
+    setValues({ ...EMPTY_VALUES, ...initialValues });
+    const parsed = parsePhoneForForm(initialValues?.contact ?? '');
+    setCountryCode(parsed.countryCode);
+    setPhone(parsed.phone);
+    setValidationError(undefined);
   }, [isOpen, initialValues]);
 
   function handleSubmit(event: FormEvent) {

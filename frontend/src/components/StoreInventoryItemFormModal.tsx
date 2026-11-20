@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Boxes, Building2, Plus, Tags, Truck } from 'lucide-react';
 import { buildFixedCategoryOptions, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
@@ -93,11 +93,16 @@ function StoreInventoryItemFormModal({
 
   const selectedStoreIds = values.storeIds ?? [];
 
+  // Load the starting values only when the modal opens, not whenever the
+  // parent re-renders (a background poll gives a new initialValues object and
+  // used to wipe unsaved edits). Same fix as SupplierFormModal.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (isOpen) {
-      setValues(initialValues ?? EMPTY_VALUES);
-      setErrors({});
-    }
+    const opening = isOpen && !wasOpen.current;
+    wasOpen.current = isOpen;
+    if (!opening) return;
+    setValues(initialValues ?? EMPTY_VALUES);
+    setErrors({});
   }, [isOpen, initialValues]);
 
   function changeStores(ids: number[]) {
