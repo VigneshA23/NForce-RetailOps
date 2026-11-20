@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useCardPageSize } from '../hooks/useCardPageSize';
 import { AlertTriangle, ChevronDown, ChevronRight, CircleCheck, ClipboardCheck, Clock, CornerDownRight, FileSpreadsheet, FileText, MapPin, Package, PackageX, Pencil, Plus, Store as StoreIcon, Tags, Trash2, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
@@ -62,7 +63,6 @@ const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
 ];
 
 const SUPPLIER_PAGE_SIZE = 10;
-const ITEM_PAGE_SIZE = 12;
 
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
 
@@ -326,9 +326,20 @@ function SuperAdminInventory() {
   useEffect(() => {
     setItemPage(1);
   }, [selectedStoreId, itemSearch, categoryFilter, supplierFilter]);
-  const itemPageCount = Math.max(1, Math.ceil(filteredItems.length / ITEM_PAGE_SIZE));
+  // Whole rows per page, however many columns fit (more when zoomed out).
+  const { pageSize: itemPageSize, onColumnsChange: onItemColumnsChange } = useCardPageSize();
+  // When the page size changes, stay on the page holding the first card
+  // that was showing rather than jumping elsewhere in the list.
+  const lastItemPageSize = useRef(itemPageSize);
+  useEffect(() => {
+    const previous = lastItemPageSize.current;
+    if (previous === itemPageSize) return;
+    lastItemPageSize.current = itemPageSize;
+    setItemPage((page) => Math.floor(((page - 1) * previous) / itemPageSize) + 1);
+  }, [itemPageSize]);
+  const itemPageCount = Math.max(1, Math.ceil(filteredItems.length / itemPageSize));
   const currentItemPage = Math.min(itemPage, itemPageCount);
-  const pagedItems = filteredItems.slice((currentItemPage - 1) * ITEM_PAGE_SIZE, currentItemPage * ITEM_PAGE_SIZE);
+  const pagedItems = filteredItems.slice((currentItemPage - 1) * itemPageSize, currentItemPage * itemPageSize);
 
   // Memoised because the form modal resets its fields whenever this reference
   // changes -- an inline object would wipe in-progress input on every re-render
@@ -667,6 +678,7 @@ function SuperAdminInventory() {
               <StoreInventoryCardGrid
                 items={pagedItems}
                 totalCount={filteredItems.length}
+                onColumnsChange={onItemColumnsChange}
                 isLoading={isLoading}
                 selectedId={editTarget?.id ?? null}
                 onEdit={(item) => { setItemFormError(null); setEditTarget(item); }}
@@ -678,7 +690,7 @@ function SuperAdminInventory() {
                   page={currentItemPage}
                   pageCount={itemPageCount}
                   totalItems={filteredItems.length}
-                  pageSize={ITEM_PAGE_SIZE}
+                  pageSize={itemPageSize}
                   onPageChange={setItemPage}
                   itemLabel="items"
                 />

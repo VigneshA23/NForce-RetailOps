@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Trash2 } from 'lucide-react';
 import { categoryLabel, type StoreInventoryItem } from '../types/storeInventory';
 import { STOCK_STATUS_META, getStockStatus } from '../utils/storeInventoryStatus';
@@ -21,6 +22,18 @@ interface StoreInventoryCardGridProps {
   // whole list, and a short last page keeps full-row card widths (--paged)
   // instead of stretching its few cards across the row.
   totalCount?: number;
+  // Called with how many columns the grid currently lays out (and again when
+  // that changes on resize or zoom), so the page can size pages to whole rows.
+  onColumnsChange?: (columns: number) => void;
+}
+
+// Columns from the grid's resolved track list ("250px 250px ..."). Returns
+// null where the browser doesn't resolve it (jsdom gives back "repeat(...)").
+function countColumns(grid: HTMLElement): number | null {
+  const tracks = getComputedStyle(grid).gridTemplateColumns;
+  if (!tracks || tracks === 'none' || tracks.includes('repeat')) return null;
+  const count = tracks.trim().split(/\s+/).length;
+  return count > 0 ? count : null;
 }
 
 // With fewer items than this the cards don't fill a row, so they use wider
@@ -28,7 +41,24 @@ interface StoreInventoryCardGridProps {
 // StoreInventoryCardGrid.css).
 const FEW_ITEMS_THRESHOLD = 6;
 
-function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, onEdit, onDelete, onToggleStatus, totalCount }: StoreInventoryCardGridProps) {
+function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, onEdit, onDelete, onToggleStatus, totalCount, onColumnsChange }: StoreInventoryCardGridProps) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const showsGrid = !isLoading && items.length > 0;
+
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || !onColumnsChange) return;
+    const report = () => {
+      const columns = countColumns(grid);
+      if (columns) onColumnsChange(columns);
+    };
+    report();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(report);
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [showsGrid, onColumnsChange]);
+
   if (!isLoading && items.length === 0) {
     return <div className="store-inventory-card-grid__empty">No inventory items match your filters.</div>;
   }
@@ -39,6 +69,7 @@ function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, o
 
   return (
     <div
+      ref={gridRef}
       className={`store-inventory-card-grid${
         (totalCount ?? items.length) < FEW_ITEMS_THRESHOLD ? ' store-inventory-card-grid--few' : ''
       }${totalCount !== undefined && totalCount > items.length ? ' store-inventory-card-grid--paged' : ''}`}
