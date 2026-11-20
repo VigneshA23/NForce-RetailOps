@@ -60,3 +60,6 @@ load_test.sql
 /security-audit/
 # Stray nested node_modules
 frontend/src/node_modules/
+
+# Playwright MCP browser tool output (screenshots, snapshots, logs)
+.playwright-mcp/

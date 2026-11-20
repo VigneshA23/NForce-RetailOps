@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Building2, Mail, User, UserPen } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import type { UpdateOwnerValues } from '../types/owner';
@@ -38,8 +38,14 @@ function OwnerEditModal({ isOpen, initialValues, currentStores, errorMessage, is
   const [storesError, setStoresError] = useState<string | null>(null);
   const [storesReloadToken, setStoresReloadToken] = useState(0);
 
+  // Load the starting values only when the modal opens, not whenever the
+  // parent re-renders (a background poll gives a new initialValues object and
+  // used to wipe unsaved edits). Same fix as SupplierFormModal.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!isOpen) return;
+    const opening = isOpen && !wasOpen.current;
+    wasOpen.current = isOpen;
+    if (!opening) return;
     setValues(initialValues ?? EMPTY);
     setErrors({});
     setSelectedStoreIds((currentStores ?? []).map((store) => store.id));

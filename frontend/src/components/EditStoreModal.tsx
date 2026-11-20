@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { MapPin, Store as StoreIcon } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import type { CreateStoreValues } from '../types/superAdminStore';
@@ -34,8 +34,14 @@ function EditStoreModal({ isOpen, initialValues, errorMessage, isSubmitting = fa
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
   const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
 
+  // Load the starting values only when the modal opens, not whenever the
+  // parent re-renders (a background poll gives a new initialValues object and
+  // used to wipe unsaved edits). Same fix as SupplierFormModal.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!isOpen) return;
+    const opening = isOpen && !wasOpen.current;
+    wasOpen.current = isOpen;
+    if (!opening) return;
     setValues(initialValues
       ? { name: initialValues.name, location: initialValues.location, cashTarget: formatAmount(initialValues.cashTarget) }
       : EMPTY_VALUES);

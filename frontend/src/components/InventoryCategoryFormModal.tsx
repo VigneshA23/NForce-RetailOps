@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import { Building2, Tag } from 'lucide-react';
 import type { InventoryCategoryFormValues, InventoryCategoryStoreOption } from '../types/inventoryCategory';
@@ -40,11 +40,16 @@ function InventoryCategoryFormModal({
   const [values, setValues] = useState<InventoryCategoryFormValues>({ ...EMPTY_VALUES, ...initialValues });
   const [validationError, setValidationError] = useState<string | undefined>();
 
+  // Load the starting values only when the modal opens, not whenever the
+  // parent re-renders (a background poll gives a new initialValues object and
+  // used to wipe unsaved edits). Same fix as SupplierFormModal.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (isOpen) {
-      setValues({ ...EMPTY_VALUES, ...initialValues });
-      setValidationError(undefined);
-    }
+    const opening = isOpen && !wasOpen.current;
+    wasOpen.current = isOpen;
+    if (!opening) return;
+    setValues({ ...EMPTY_VALUES, ...initialValues });
+    setValidationError(undefined);
   }, [isOpen, initialValues]);
 
   function handleSubmit(event: FormEvent) {
