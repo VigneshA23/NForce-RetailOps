@@ -1,7 +1,7 @@
 import { DollarSign } from 'lucide-react';
 import FormField from './FormField';
 import { formatAmount } from '../utils/currency';
-import { parseAmount, validateAmount } from '../utils/amountInput';
+import { limitDecimals, parseAmount, validateAmount } from '../utils/amountInput';
 
 export const CASH_TARGET_LABEL = 'Cash target';
 
@@ -38,7 +38,7 @@ function StoreCashTargetField({ id, value, error, onChange }: StoreCashTargetFie
           placeholder="0.00"
           value={value}
           aria-invalid={error ? true : undefined}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => onChange(limitDecimals(event.target.value))}
           // Tidy a valid entry to two decimals, as the cash screens do.
           onBlur={() => {
             if (!validateCashTarget(value)) onChange(formatAmount(parseAmount(value)));

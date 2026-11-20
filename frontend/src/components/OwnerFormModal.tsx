@@ -3,13 +3,13 @@ import { shouldAutoFocus } from '../utils/autoFocus';
 import { Mail, MapPin, Phone, Store as StoreIcon, User, UserPlus } from 'lucide-react';
 import { getNextStoreCode, getReassignableStores } from '../api/owners';
 import type { AddOwnerValues, OwnerStoreMode, ReassignableStore } from '../types/owner';
-import { COUNTRY_CODE_OPTIONS } from '../utils/countryCodes';
+import { COUNTRY_CODE_OPTIONS, phoneDigitsFor, validatePhoneNumber } from '../utils/countryCodes';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
 import ButtonDots from './ButtonDots';
 import './OwnerFormModal.css';
-
+
 import IconField from './IconField';
 type OwnerGender = 'Male' | 'Female' | 'Non-binary';
 
@@ -94,8 +94,9 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
     if (!values.ownerEmail.trim()) nextErrors.ownerEmail = 'Email is required';
     if (!values.ownerPhone.trim()) {
       nextErrors.ownerPhone = 'Contact number is required';
-    } else if (!/^\d{10}$/.test(values.ownerPhone.trim())) {
-      nextErrors.ownerPhone = 'Contact number must be exactly 10 digits';
+    } else {
+      const phoneError = validatePhoneNumber(values.ownerCountryCode, values.ownerPhone.trim());
+      if (phoneError) nextErrors.ownerPhone = phoneError;
     }
     if (!values.ownerGender) nextErrors.ownerGender = 'Gender is required';
     if (values.storeMode === 'new') {
@@ -188,8 +189,10 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
                     maxLength={10}
                     className="input"
                     value={values.ownerPhone}
-                    onChange={(event) => updateField('ownerPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="10-digit number"
+                    onChange={(event) =>
+                      updateField('ownerPhone', event.target.value.replace(/\D/g, '').slice(0, phoneDigitsFor(values.ownerCountryCode)))
+                    }
+                    placeholder={`${phoneDigitsFor(values.ownerCountryCode)}-digit number`}
                   />
                 </div>
               </div>

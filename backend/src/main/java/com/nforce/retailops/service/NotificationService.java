@@ -13,6 +13,7 @@ import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.SuperAdmin;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.NotificationNotFoundException;
@@ -75,9 +76,13 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final StockCheckRepository stockCheckRepository;
 
-    public NotificationService(NotificationRepository notificationRepository, StockCheckRepository stockCheckRepository) {
+    private final SuperAdminRepository superAdminRepository;
+
+    public NotificationService(NotificationRepository notificationRepository, StockCheckRepository stockCheckRepository,
+                               SuperAdminRepository superAdminRepository) {
         this.notificationRepository = notificationRepository;
         this.stockCheckRepository = stockCheckRepository;
+        this.superAdminRepository = superAdminRepository;
     }
 
     // A missed End of Day notice carries its items, looked up live so a row
@@ -339,6 +344,34 @@ public class NotificationService {
         n.setLinkPath("/notifications");
         n.setStockReceiptRequest(request);
         notificationRepository.save(n);
+    }
+
+    // Super Admin copy of the approval request, so a pending request is never
+    // left with nobody watching it (e.g. the store has no active admin, or the
+    // admin was just changed). Informational only: the request itself is not
+    // linked, because approving is the store Owner/Admin's action.
+    @Transactional
+    public void notifySuperAdminsOfStockReceiptRequest(StockReceiptRequest request) {
+        String employee = request.getRequestedBy().getFullName();
+        Store store = request.getStore();
+        String item = request.getStoreInventoryItem().getName();
+        String unit = request.getStoreInventoryItem().getUnitOfMeasurement();
+        String title;
+        String message;
+        if (request.getType() == StockReceiptRequestType.LOWER_COUNT) {
+            title = employee + " submitted a lower Start of Day count at " + store.getName();
+            message = employee + " counted " + item + " " + request.getQuantity() + " " + unit
+                + " below the last End of Day. Reason: " + request.getReason()
+                + ". Awaiting Owner/Admin approval.";
+        } else {
+            title = employee + " reported received stock at " + store.getName();
+            message = employee + " reported receiving " + request.getQuantity() + " " + unit + " of " + item
+                + ". Awaiting Owner/Admin approval.";
+        }
+        for (SuperAdmin superAdmin : superAdminRepository.findAll()) {
+            sendToSuperAdmin(superAdmin, "STOCK_RECEIPT_REQUEST", title, message, "/notifications",
+                "stock-receipt-request:" + request.getId(), store);
+        }
     }
 
     // Tells the employee how the admin decided.

@@ -69,9 +69,13 @@ function ResultGroup({
             onSelect(item);
           }}
         >
-          <span className={`sacp__item-badge sacp__item-badge--${mod}`}>
-            <Icon size={12} aria-hidden="true" />
-          </span>
+          {groupKey === 'owners' && item.avatarUrl ? (
+            <img className="sacp__item-avatar" src={item.avatarUrl} alt="" aria-hidden="true" />
+          ) : (
+            <span className={`sacp__item-badge sacp__item-badge--${mod}`}>
+              <Icon size={12} aria-hidden="true" />
+            </span>
+          )}
           <span className="sacp__item-text">
             <span className="sacp__item-label">{item.label}</span>
             {item.subtitle && <span className="sacp__item-sub">{item.subtitle}</span>}

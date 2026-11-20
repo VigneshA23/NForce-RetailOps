@@ -42,7 +42,7 @@ public class SuperAdminSearchService {
         // `ADM007`, `ADM7`, `007`, or `7` and compare against the raw id.
         Long codeId = parseAdminCodeQuery(trimmed);
         List<SASearchItem> owners = userRepository.searchOwnersByNameEmailOrAdminCode(trimmed, codeId, top5).stream()
-            .map(u -> new SASearchItem(u.getId(), u.getFullName(), u.getEmail(), "owners:" + u.getId()))
+            .map(u -> new SASearchItem(u.getId(), u.getFullName(), u.getEmail(), "owners:" + u.getId(), u.getAvatarUrl()))
             .toList();
 
         // Strip a leading '#' so "#101" and "101" both find store 101; the

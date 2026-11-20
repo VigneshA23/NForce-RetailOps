@@ -22,7 +22,6 @@ describe('Add Store cash target', () => {
     ['', 'Cash target is required'],
     ['-5', 'Cash target cannot be negative'],
     ['abc', 'Cash target must be a number, e.g. 125.50'],
-    ['10.555', 'Use at most 2 decimal places'],
   ])('blocks save for %j', async (value, message) => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
@@ -32,6 +31,15 @@ describe('Add Store cash target', () => {
 
     expect(screen.getByText(message)).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('does not accept a third decimal place', async () => {
+    const user = userEvent.setup();
+    render(<AddStoreModal isOpen onClose={() => {}} onSubmit={vi.fn()} />);
+
+    await user.type(screen.getByRole('textbox', { name: /^cash target/i }), '10.555');
+
+    expect(screen.getByRole('textbox', { name: /^cash target/i })).toHaveValue('10.55');
   });
 
   it('submits the target with the store, accepting 0', async () => {

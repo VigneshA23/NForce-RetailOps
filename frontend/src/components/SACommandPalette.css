@@ -190,6 +190,14 @@
   border-radius: 7px;
 }
 
+.sacp__item-avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .sacp__item-badge--owner {
   background: rgba(99, 102, 241, 0.12);
   color: #6366f1;

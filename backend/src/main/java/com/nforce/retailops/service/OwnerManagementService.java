@@ -11,6 +11,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
+import com.nforce.retailops.exception.InactiveAccountException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
 import com.nforce.retailops.exception.StoreAdminConflictException;
@@ -218,6 +219,9 @@ public class OwnerManagementService {
             // sees the first one's active link and gets the same 409.
             storeOwner = storeOwnerRepository.findByStoreIdForUpdate(request.existingStoreId())
                     .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+            if (!storeOwner.getStore().isActive()) {
+                throw new InactiveAccountException("store");
+            }
             if (storeOwner.isActive()) {
                 throw new StoreAdminConflictException();
             }
@@ -242,6 +246,9 @@ public class OwnerManagementService {
     public List<OwnerResponse> updateOwner(Long ownerId, UpdateOwnerRequest request) {
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+        if (!owner.isActive()) {
+            throw new InactiveAccountException("admin");
+        }
 
         String email = request.ownerEmail().trim();
         String previousEmail = owner.getEmail();
@@ -342,6 +349,9 @@ public class OwnerManagementService {
     public List<OwnerResponse> unassignStore(Long ownerId, Long storeId) {
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+        if (!owner.isActive()) {
+            throw new InactiveAccountException("admin");
+        }
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdForUpdate(storeId)
                 .filter(link -> link.getOwner() != null && link.getOwner().getId().equals(ownerId))
                 .orElseThrow(() -> new StoreNotFoundException("Store not found"));
@@ -368,6 +378,9 @@ public class OwnerManagementService {
     public void deleteOwner(Long ownerId) {
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+        if (!owner.isActive()) {
+            throw new InactiveAccountException("admin");
+        }
 
         // Release every store this owner was linked to the same way
         // setOwnerActive(false)

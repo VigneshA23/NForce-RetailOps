@@ -27,6 +27,7 @@ import FilterClearButton from '../components/FilterClearButton'
 import ButtonDots from '../components/ButtonDots'
 import MissedTasksBanner from '../components/MissedTasksBanner'
 import { firstName } from '../utils/initials'
+import { sanitizeChecklistNumber } from '../utils/amountInput'
 import './EmployeeDashboard.css'
 import '../styles/filters.css'
 import LoadingSkeleton from '../components/LoadingSkeleton'
@@ -928,13 +929,12 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                                     return (
                                       <div className="checklist-task__input-row">
                                         <input
-                                          type="number"
+                                          type="text"
+                                          inputMode="decimal"
                                           className="input checklist-task__numeric-input"
                                           disabled={controlsDisabled || alreadyAnswered}
-                                          min={task.numericMin ?? undefined}
-                                          max={task.numericMax ?? undefined}
                                           value={draft ?? (mine?.numericValue != null ? String(mine.numericValue) : '')}
-                                          onChange={(e) => setDrafts((prev) => ({ ...prev, [unitKey]: e.target.value }))}
+                                          onChange={(e) => setDrafts((prev) => ({ ...prev, [unitKey]: sanitizeChecklistNumber(e.target.value) }))}
                                           onKeyDown={(e) => { if (e.key === 'Enter') submitNumericDraft(task) }}
                                         />
                                         {task.numericUnit && <span className="checklist-task__unit">{task.numericUnit}</span>}

@@ -31,6 +31,24 @@ export function validateAmount(label: string, raw: string, { signed = false, req
   return undefined;
 }
 
+// Drops any digits typed or pasted beyond the second decimal place, so the
+// field can never hold more than 2 decimals.
+export function limitDecimals(raw: string): string {
+  return raw.replace(/(\.\d{2})\d+/, '$1');
+}
+
+// Checklist numeric answers: digits and at most one dot, no sign, letters or
+// symbols, at most 5 digits before and 3 after the decimal point. Applied
+// as the user types or pastes, so the field can never hold anything else.
+export function sanitizeChecklistNumber(raw: string): string {
+  const cleaned = raw.replace(/[^\d.]/g, '')
+  const dot = cleaned.indexOf('.')
+  if (dot === -1) return cleaned.slice(0, 5)
+  const whole = cleaned.slice(0, dot).slice(0, 5)
+  const fraction = cleaned.slice(dot + 1).replace(/\./g, '').slice(0, 3)
+  return `${whole}.${fraction}`
+}
+
 // Only call on a value validateAmount accepted.
 export function parseAmount(raw: string): number {
   return Number(normaliseAmount(raw));
