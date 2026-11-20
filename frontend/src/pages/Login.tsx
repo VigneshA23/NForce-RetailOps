@@ -82,15 +82,16 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
     event.preventDefault()
     if (submitStatus === 'success') return
     setError(null)
-    if (!email && !password) {
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail && !password) {
       setError('Please enter your email and password')
       return
     }
-    if (!email) {
+    if (!trimmedEmail) {
       setError('Please enter your email')
       return
     }
-    if (email !== email.trim() || !EMAIL_PATTERN.test(email)) {
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
       setError('Please enter a valid email address')
       return
     }
@@ -100,7 +101,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
     }
     setLoading(true)
     try {
-      const result = await login(email, password, rememberMe)
+      const result = await login(trimmedEmail, password, rememberMe)
       pendingLoginRef.current = { result, remember: rememberMe, mustReset: result.mustResetPassword }
       setSubmitStatus('success')
       setConfettiKey(k => k + 1)

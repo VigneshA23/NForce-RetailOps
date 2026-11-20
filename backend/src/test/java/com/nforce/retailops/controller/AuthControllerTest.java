@@ -686,7 +686,7 @@ class AuthControllerTest {
 
     @Test
     @Transactional
-    void loginWithLeadingWhitespaceInEmailIsRejected() throws Exception {
+    void loginWithLeadingWhitespaceInEmailIsTrimmed() throws Exception {
         User user = new User();
         user.setFullName("Whitespace Test User");
         user.setEmail("ws-leading@nforce.test");
@@ -699,14 +699,12 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-            .andExpect(status().isUnauthorized())
-            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                .jsonPath("$.message").value("Invalid email or password"));
+            .andExpect(status().isOk());
     }
 
     @Test
     @Transactional
-    void loginWithTrailingWhitespaceInEmailIsRejected() throws Exception {
+    void loginWithTrailingWhitespaceInEmailIsTrimmed() throws Exception {
         User user = new User();
         user.setFullName("Whitespace Test User");
         user.setEmail("ws-trailing@nforce.test");
@@ -719,14 +717,12 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-            .andExpect(status().isUnauthorized())
-            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                .jsonPath("$.message").value("Invalid email or password"));
+            .andExpect(status().isOk());
     }
 
     @Test
     @Transactional
-    void loginWithLeadingAndTrailingWhitespaceInEmailIsRejected() throws Exception {
+    void loginWithLeadingAndTrailingWhitespaceInEmailIsTrimmed() throws Exception {
         User user = new User();
         user.setFullName("Whitespace Test User");
         user.setEmail("ws-both@nforce.test");
@@ -739,9 +735,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-            .andExpect(status().isUnauthorized())
-            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                .jsonPath("$.message").value("Invalid email or password"));
+            .andExpect(status().isOk());
     }
 
     // The email-whitespace guard must not affect the password: a password that

@@ -120,56 +120,76 @@ describe('Login — email whitespace handling', () => {
     expect(mockLogin).toHaveBeenCalledWith('sneha.patel@kedsicecream.com', 'password123', false)
   })
 
-  it('rejects a leading space in the email without calling the login API', async () => {
+  it('trims a leading space in the email before calling the login API', async () => {
     const user = userEvent.setup()
-    const onLoginSuccess = vi.fn()
-    render(<Login onLoginSuccess={onLoginSuccess} />)
+    mockLogin.mockResolvedValueOnce({
+      token: 'test-token',
+      role: 'EMPLOYEE',
+      fullName: 'Jane Doe',
+      mustResetPassword: false,
+      sessionTimeoutMinutes: 30,
+    })
+    render(<Login onLoginSuccess={vi.fn()} />)
 
     await user.type(screen.getByLabelText(/email/i), ' sneha.patel@kedsicecream.com')
     await user.type(screen.getByLabelText(/^password$/i), 'password123')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
-    expect(mockLogin).not.toHaveBeenCalled()
-    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
+    expect(mockLogin).toHaveBeenCalledWith('sneha.patel@kedsicecream.com', 'password123', false)
   })
 
-  it('rejects multiple leading spaces in the email without calling the login API', async () => {
+  it('trims multiple leading spaces in the email before calling the login API', async () => {
     const user = userEvent.setup()
-    const onLoginSuccess = vi.fn()
-    render(<Login onLoginSuccess={onLoginSuccess} />)
+    mockLogin.mockResolvedValueOnce({
+      token: 'test-token',
+      role: 'EMPLOYEE',
+      fullName: 'Jane Doe',
+      mustResetPassword: false,
+      sessionTimeoutMinutes: 30,
+    })
+    render(<Login onLoginSuccess={vi.fn()} />)
 
     await user.type(screen.getByLabelText(/email/i), '      sneha.patel@kedsicecream.com')
     await user.type(screen.getByLabelText(/^password$/i), 'password123')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
-    expect(mockLogin).not.toHaveBeenCalled()
-    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
+    expect(mockLogin).toHaveBeenCalledWith('sneha.patel@kedsicecream.com', 'password123', false)
   })
 
-  it('rejects a trailing space in the email without calling the login API', async () => {
+  it('trims a trailing space in the email before calling the login API', async () => {
     const user = userEvent.setup()
-    const onLoginSuccess = vi.fn()
-    render(<Login onLoginSuccess={onLoginSuccess} />)
+    mockLogin.mockResolvedValueOnce({
+      token: 'test-token',
+      role: 'EMPLOYEE',
+      fullName: 'Jane Doe',
+      mustResetPassword: false,
+      sessionTimeoutMinutes: 30,
+    })
+    render(<Login onLoginSuccess={vi.fn()} />)
 
     await user.type(screen.getByLabelText(/email/i), 'sneha.patel@kedsicecream.com ')
     await user.type(screen.getByLabelText(/^password$/i), 'password123')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
-    expect(mockLogin).not.toHaveBeenCalled()
-    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
+    expect(mockLogin).toHaveBeenCalledWith('sneha.patel@kedsicecream.com', 'password123', false)
   })
 
-  it('rejects leading and trailing spaces in the email without calling the login API', async () => {
+  it('trims leading and trailing spaces in the email before calling the login API', async () => {
     const user = userEvent.setup()
-    const onLoginSuccess = vi.fn()
-    render(<Login onLoginSuccess={onLoginSuccess} />)
+    mockLogin.mockResolvedValueOnce({
+      token: 'test-token',
+      role: 'EMPLOYEE',
+      fullName: 'Jane Doe',
+      mustResetPassword: false,
+      sessionTimeoutMinutes: 30,
+    })
+    render(<Login onLoginSuccess={vi.fn()} />)
 
     await user.type(screen.getByLabelText(/email/i), ' sneha.patel@kedsicecream.com ')
     await user.type(screen.getByLabelText(/^password$/i), 'password123')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
-    expect(mockLogin).not.toHaveBeenCalled()
-    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
+    expect(mockLogin).toHaveBeenCalledWith('sneha.patel@kedsicecream.com', 'password123', false)
   })
 
   it('does not alter a password value when the email is valid', async () => {
