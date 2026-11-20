@@ -352,6 +352,24 @@ function DailyCash({
     if (noneFilled && Object.keys(nextErrors).length === 0) {
       nextErrors[keys[0]] = 'Enter an amount to save';
     }
+    // The opening drawer cash comes first: the other amounts can only be saved
+    // once it is recorded, or is being saved in the same form.
+    const otherFilled = keys.some((key) => key !== 'openingDrawerCash' && !isBlank(values[key]));
+    const openingKnown = entry?.openingDrawerCash != null
+      || (keys.includes('openingDrawerCash') && !isBlank(values.openingDrawerCash));
+    if (otherFilled && !openingKnown && Object.keys(nextErrors).length === 0) {
+      nextErrors[keys.includes('openingDrawerCash') ? 'openingDrawerCash' : keys[0]] =
+        'Enter the opening drawer cash first';
+    }
+    // Nothing differs from what is saved: don't send a request. An employee
+    // saving a flagged entry may still submit unchanged, as that resolves it.
+    if (
+      Object.keys(nextErrors).length === 0 && entry !== null
+      && !(scope === 'employee' && entry.flag)
+      && !keys.some((key) => fieldChanged(entry, values, key))
+    ) {
+      nextErrors[keys[0]] = 'No changes to save';
+    }
     setErrors((current) => ({ ...current, ...Object.fromEntries(keys.map((key) => [key, nextErrors[key]])) }));
     // Overwriting a recorded figure is a correction.
     const isCorrection = entry !== null && Object.keys(nextErrors).length === 0

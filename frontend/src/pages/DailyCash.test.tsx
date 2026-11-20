@@ -237,7 +237,7 @@ describe('DailyCash', () => {
     expect(history).toHaveTextContent('Opening drawer cash: $200.00 → $1,300.00');
   });
 
-  it('does not ask for a reason when a saved day is re-saved unchanged', async () => {
+  it('does not send a request when a saved day is re-saved unchanged', async () => {
     const user = userEvent.setup();
     vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry());
     vi.mocked(storeCashApi.saveDailyCashEntry).mockImplementation(async (request) => entry({ ...request }));
@@ -247,7 +247,8 @@ describe('DailyCash', () => {
     await user.click(screen.getByRole('button', { name: 'Update Entry' }));
 
     expect(screen.queryByText('Enter a reason for this correction')).not.toBeInTheDocument();
-    expect(vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0].correctionReason).toBeUndefined();
+    expect(await screen.findByText('No changes to save')).toBeInTheDocument();
+    expect(vi.mocked(storeCashApi.saveDailyCashEntry)).not.toHaveBeenCalled();
   });
 
   it('starts blank, with no mandatory field, and only asks for at least one amount', async () => {
@@ -263,20 +264,33 @@ describe('DailyCash', () => {
     expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
   });
 
-  it('lets an admin save just one amount, sending only what was filled in', async () => {
+  it('requires the opening drawer cash before any other amount', async () => {
     const user = userEvent.setup();
-    vi.mocked(storeCashApi.saveDailyCashEntry).mockImplementation(async (request) =>
-      entry({ ...request, cashRemoved: null, otherAdjustments: 0 }));
     render(<DailyCash storeId={7} storesLoading={false} />);
     await screen.findByText('No entry saved for this date yet');
 
     await user.type(field('Cash remaining'), '10');
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
+    expect(await screen.findByText('Enter the opening drawer cash first')).toBeInTheDocument();
+    expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
+  });
+
+  it('lets an admin save just the opening and one other amount, sending only what was filled in', async () => {
+    const user = userEvent.setup();
+    vi.mocked(storeCashApi.saveDailyCashEntry).mockImplementation(async (request) =>
+      entry({ ...request, cashRemoved: null, otherAdjustments: 0 }));
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText('No entry saved for this date yet');
+
+    await user.type(field('Opening drawer cash'), '5');
+    await user.type(field('Cash remaining'), '10');
+    await user.click(screen.getByRole('button', { name: 'Save Entry' }));
+
     expect(storeCashApi.saveDailyCashEntry).toHaveBeenCalledTimes(1);
     const request = vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0];
     expect(request.cashRemaining).toBe(10);
-    expect(request).not.toHaveProperty('openingDrawerCash');
+    expect(request.openingDrawerCash).toBe(5);
     expect(request).not.toHaveProperty('cashRemoved');
     expect(request).not.toHaveProperty('otherAdjustments');
   });
