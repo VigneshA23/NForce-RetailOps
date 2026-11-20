@@ -1,10 +1,10 @@
 import type { EmployeeCreateValues, EmployeeUpdateValues } from '../types/employee';
 import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS } from '../utils/employeeOptions';
-import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
+import { COUNTRY_CODE_OPTIONS, parsePhoneForForm, phoneDigitsFor } from '../utils/countryCodes';
 import { Mail, User, Clock, Phone } from 'lucide-react';
 import FormField from './FormField';
 import Select from './Select';
-
+
 import IconField from './IconField';
 export type EmployeeFormValues = EmployeeUpdateValues & { countryCode: string };
 
@@ -93,8 +93,10 @@ function EmployeeFormFields({ values, errors, onChange, idPrefix = 'employee' }:
                 className="input"
                 inputMode="numeric"
                 value={values.phone}
-                onChange={(event) => onChange('phone', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                placeholder="10-digit number"
+                onChange={(event) =>
+                  onChange('phone', event.target.value.replace(/\D/g, '').slice(0, phoneDigitsFor(values.countryCode)))
+                }
+                placeholder={`${phoneDigitsFor(values.countryCode)}-digit number`}
               />
             </IconField>
           </div>

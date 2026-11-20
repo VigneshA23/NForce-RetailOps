@@ -5,6 +5,7 @@ export interface SASearchItem {
   label: string;
   subtitle: string;
   navTarget: string;
+  avatarUrl?: string | null;
 }
 
 export interface SASearchResponse {

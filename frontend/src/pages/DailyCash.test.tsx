@@ -346,13 +346,17 @@ describe('DailyCash', () => {
     await user.type(field('Cash removed'), '-5');
     await user.clear(field('Cash remaining'));
     await user.type(field('Cash remaining'), '1.234');
+    // A third decimal is never accepted into the field.
+    expect(field('Cash remaining')).toHaveValue('1.23');
+    await user.clear(field('Cash remaining'));
+    await user.type(field('Cash remaining'), '.');
     await user.clear(field('Other adjustments'));
     await user.type(field('Other adjustments'), '-5');
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
     expect(screen.getByText('Opening drawer cash must be a number, e.g. 125.50')).toBeInTheDocument();
     expect(screen.getByText('Cash removed cannot be negative')).toBeInTheDocument();
-    expect(screen.getByText('Use at most 2 decimal places')).toBeInTheDocument();
+    expect(screen.getByText('Cash remaining must be a number, e.g. 125.50')).toBeInTheDocument();
     expect(screen.queryByText(/Other adjustments cannot be negative/)).not.toBeInTheDocument();
     expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
 

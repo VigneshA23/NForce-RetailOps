@@ -1,4 +1,5 @@
 import type { Employee, EmployeeCreateValues, EmployeeUpdateValues } from '../types/employee';
+import { COUNTRY_CODE_OPTIONS, validatePhoneNumber } from './countryCodes';
 
 export function toEmployeeUpdateValues(employee: Employee): EmployeeUpdateValues {
   return {
@@ -12,9 +13,8 @@ export function toEmployeeUpdateValues(employee: Employee): EmployeeUpdateValues
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NAME_PATTERN = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
-const PHONE_PATTERN = /^\d{10}$/;
 export function validateEmployeeForm(
-  values: EmployeeUpdateValues,
+  values: EmployeeUpdateValues & { countryCode?: string },
 ): Partial<Record<keyof EmployeeCreateValues, string>> {
   const errors: Partial<Record<keyof EmployeeCreateValues, string>> = {};
 
@@ -26,8 +26,9 @@ export function validateEmployeeForm(
 
   if (!values.phone.trim()) {
     errors.phone = 'Contact number is required';
-  } else if (!PHONE_PATTERN.test(values.phone.trim())) {
-    errors.phone = 'Contact number must be exactly 10 digits';
+  } else {
+    const phoneError = validatePhoneNumber(values.countryCode ?? COUNTRY_CODE_OPTIONS[0].code, values.phone.trim());
+    if (phoneError) errors.phone = phoneError;
   }
 
   if (!values.employeeType) {

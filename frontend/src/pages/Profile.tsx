@@ -7,14 +7,14 @@ import { ApiError } from '../api/client';
 import UserAvatar from '../components/UserAvatar';
 import Select from '../components/Select';
 import ButtonDots from '../components/ButtonDots';
-import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
+import { COUNTRY_CODE_OPTIONS, parsePhoneForForm, phoneDigitsFor, validatePhoneNumber } from '../utils/countryCodes';
 import { nfToast } from '../utils/toast';
 import { AVATAR_ACCEPT, validateAvatarFile } from '../utils/avatarUpload';
 import { getInitials } from '../utils/initials';
 import { useTheme } from '../hooks/useTheme';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import './Profile.css';
-
+
 import IconField from '../components/IconField';
 interface ProfileProps {
   initials: string;
@@ -230,9 +230,16 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
   async function handleInfoSave(event: FormEvent) {
     event.preventDefault();
     setInfoError(null);
+    const trimmedPhone = infoValues.phone.trim();
+    if (trimmedPhone) {
+      const phoneError = validatePhoneNumber(infoValues.countryCode, trimmedPhone);
+      if (phoneError) {
+        setInfoError(phoneError);
+        return;
+      }
+    }
     setInfoSaving(true);
     try {
-      const trimmedPhone = infoValues.phone.trim();
       const updated = await updateMe({
         fullName: infoValues.fullName.trim(),
         email: infoValues.email.trim(),
@@ -526,11 +533,13 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
                     id="pf-phone"
                     type="tel"
                     inputMode="numeric"
-                    maxLength={10}
+                    maxLength={phoneDigitsFor(infoValues.countryCode)}
                     className="input"
                     value={infoValues.phone}
-                    onChange={(e) => setInfoValues((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                    placeholder="10-digit number"
+                    onChange={(e) =>
+                      setInfoValues((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, phoneDigitsFor(v.countryCode)) }))
+                    }
+                    placeholder={`${phoneDigitsFor(infoValues.countryCode)}-digit number`}
                   />
                 </IconField>
               </div>

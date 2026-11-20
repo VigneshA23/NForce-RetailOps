@@ -631,6 +631,7 @@ public class StockCheckService {
             storeOwnerRepository.findByStoreIdAndActiveTrue(item.getStore().getId())
                 .map(StoreOwner::getOwner)
                 .ifPresent(owner -> notificationService.notifyOwnerOfStockReceiptRequest(savedRequest, owner));
+            notificationService.notifySuperAdminsOfStockReceiptRequest(savedRequest);
         }
         if (!mustHold) {
             syncOrderList(check, request.snapshot(), employee);
@@ -683,6 +684,7 @@ public class StockCheckService {
         storeOwnerRepository.findByStoreIdAndActiveTrue(item.getStore().getId())
             .map(StoreOwner::getOwner)
             .ifPresent(owner -> notificationService.notifyOwnerOfStockReceiptRequest(saved, owner));
+        notificationService.notifySuperAdminsOfStockReceiptRequest(saved);
         return saved;
     }
 

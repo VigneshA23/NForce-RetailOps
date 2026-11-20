@@ -9,6 +9,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreCashTarget;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.InactiveAccountException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
 import com.nforce.retailops.exception.StoreAdminConflictException;
 import com.nforce.retailops.exception.StoreAlreadyExistsException;
@@ -181,6 +182,9 @@ public class StoreService {
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
         Store store = storeOwner.getStore();
+        if (!store.isActive()) {
+            throw new InactiveAccountException("store");
+        }
         String newName = request.name().trim();
         String newLocation = request.location() != null ? request.location().trim() : store.getLocation();
         if (storeRepository.existsByNameAndLocationIgnoreCaseAndIdNot(newName, newLocation, store.getId())) {
@@ -279,6 +283,9 @@ public class StoreService {
     public void deleteStore(Long storeId) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        if (!storeOwner.getStore().isActive()) {
+            throw new InactiveAccountException("store");
+        }
 
         if (taskResponseEntryRepository.existsByStoreId(storeId)
                 || taskRepository.countByStoreId(storeId) > 0) {
@@ -301,9 +308,15 @@ public class StoreService {
     public SuperAdminStoreResponse assignOwnerToStore(Long storeId, Long newOwnerId) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdForUpdate(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        if (!storeOwner.getStore().isActive()) {
+            throw new InactiveAccountException("store");
+        }
 
         User newOwner = userRepository.findById(newOwnerId)
             .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+        if (!newOwner.isActive()) {
+            throw new InactiveAccountException("admin");
+        }
 
         Long currentOwnerId = storeOwner.getOwner() != null ? storeOwner.getOwner().getId() : null;
         if (storeOwner.isActive() && !newOwnerId.equals(currentOwnerId)) {

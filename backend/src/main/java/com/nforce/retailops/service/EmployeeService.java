@@ -16,6 +16,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.EmployeeNotFoundException;
+import com.nforce.retailops.exception.InactiveAccountException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -102,6 +103,13 @@ public class EmployeeService {
 
     private String ownerName(Long ownerId) {
         return userRepository.findById(ownerId).map(User::getFullName).orElse("Admin");
+    }
+
+    // An inactive employee may only be reactivated; every other change is refused.
+    private static void requireActiveEmployee(StoreEmployee storeEmployee) {
+        if (!storeEmployee.getEmployee().isActive()) {
+            throw new InactiveAccountException("employee");
+        }
     }
 
     private boolean ownsAnyStore(StoreEmployee storeEmployee, Long ownerId) {
@@ -234,6 +242,7 @@ public class EmployeeService {
     public EmployeeResponse updateEmployeeStores(Long employeeId, UpdateEmployeeStoresRequest request) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException("Employee not found: " + employeeId));
+        requireActiveEmployee(storeEmployee);
         storeEmployee.setStores(resolveStores(request.storeIds()));
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
         return EmployeeResponse.from(storeEmployee);
@@ -352,6 +361,7 @@ public class EmployeeService {
         if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
         }
+        requireActiveEmployee(storeEmployee);
 
         String email = request.email().trim();
         User employee = storeEmployee.getEmployee();
@@ -388,6 +398,7 @@ public class EmployeeService {
         if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
         }
+        requireActiveEmployee(storeEmployee);
 
         User employee = storeEmployee.getEmployee();
         String employeeName = employee.getFullName();
@@ -406,6 +417,7 @@ public class EmployeeService {
     public EmployeeResponse updateEmployeeAsSuperAdmin(Long id, EmployeeUpdateRequest request) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+        requireActiveEmployee(storeEmployee);
 
         String email = request.email().trim();
         User employee = storeEmployee.getEmployee();
@@ -470,6 +482,7 @@ public class EmployeeService {
     public void deleteEmployeeAsSuperAdmin(Long id) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+        requireActiveEmployee(storeEmployee);
         User employee = storeEmployee.getEmployee();
         sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
         storeEmployeeRepository.delete(storeEmployee);
@@ -484,6 +497,7 @@ public class EmployeeService {
         if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
         }
+        requireActiveEmployee(storeEmployee);
 
         User employee = storeEmployee.getEmployee();
         employee.setPasswordHash(passwordEncoder.encode(temporaryPasswordGenerator.generate()));

@@ -26,7 +26,7 @@ import CashTargetStat from '../components/CashTargetStat';
 import CashEntryFlagSection from '../components/CashEntryFlagSection';
 import CashHistoryPanel from '../components/CashHistoryPanel';
 import { formatAmount, formatCurrency } from '../utils/currency';
-import { parseAmount, validateAmount } from '../utils/amountInput';
+import { limitDecimals, parseAmount, validateAmount } from '../utils/amountInput';
 import { nfToast } from '../utils/toast';
 import './DailyCash.css';
 
@@ -327,7 +327,8 @@ function DailyCash({
     return () => controller.abort();
   }, [scope, storeId, businessDate, reloadToken]);
 
-  function handleChange(field: FieldSpec, raw: string) {
+  function handleChange(field: FieldSpec, rawInput: string) {
+    const raw = limitDecimals(rawInput);
     setValues((current) => ({ ...current, [field.key]: raw }));
     if (submitAttempted) {
       setErrors((current) => ({ ...current, [field.key]: validateField(field, raw, scope === 'employee') }));

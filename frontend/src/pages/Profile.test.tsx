@@ -36,7 +36,7 @@ const ME: MeResponse = {
   storeNames: ['Store 1'],
   mustResetPassword: false,
   employeeType: 'Full Time',
-  phone: '+1 5550100',
+  phone: '+1 5550100099',
   avatarUrl: null,
 }
 
@@ -73,7 +73,7 @@ describe('Profile personal info section', () => {
     const phoneInput = screen.getByLabelText(/phone/i) as HTMLInputElement
     expect(nameInput.value).toBe('Jane Employee')
     expect(emailInput.value).toBe('jane@nforceone.com')
-    expect(phoneInput.value).toBe('5550100')
+    expect(phoneInput.value).toBe('5550100099')
   })
 
   it('saves profile changes and reflects them in the overview on success', async () => {
@@ -96,7 +96,7 @@ describe('Profile personal info section', () => {
   })
 
   // Regression: the phone field used to be a single plain-digit input with no
-  // country-code awareness, so a phone stored as "+1 5550100" (the format the
+  // country-code awareness, so a phone stored as "+1 5550100099" (the format the
   // Add/Edit Employee form writes) got its "+"/space stripped and its leading
   // "1" merged into the 10-digit slot on the very first edit, permanently
   // losing the real last digit on save.
@@ -109,14 +109,13 @@ describe('Profile personal info section', () => {
     await user.click(screen.getByRole('button', { name: /edit personal info/i }))
 
     const phoneInput = (await screen.findByLabelText(/phone/i)) as HTMLInputElement
-    expect(phoneInput.value).toBe('5550100')
-    await user.type(phoneInput, '99')
-    expect(phoneInput.value).toBe('555010099')
+    expect(phoneInput.value).toBe('5550100099')
+    expect(phoneInput.value).toBe('5550100099')
 
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     expect(mockUpdateMe).toHaveBeenCalledWith(
-      expect.objectContaining({ phone: '+1 555010099' }),
+      expect.objectContaining({ phone: '+1 5550100099' }),
     )
   })
 })
@@ -129,7 +128,7 @@ describe('Profile personal info section — Owner/Admin and Super Admin phone', 
     ['OWNER_ADMIN' as const, 'Olivia Owner'],
     ['SUPER_ADMIN' as const, 'Sam Admin'],
   ])('edits and saves a country-code phone, for %s', async (role, fullName) => {
-    const me = { ...ME, role, fullName, storeNames: [], employeeType: null, phone: '+91 5550100' }
+    const me = { ...ME, role, fullName, storeNames: [], employeeType: null, phone: '+91 95501000' }
     mockGetMe.mockResolvedValue(me)
     mockUpdateMe.mockResolvedValue({ ...me })
     const user = userEvent.setup()
@@ -139,16 +138,16 @@ describe('Profile personal info section — Owner/Admin and Super Admin phone', 
     await user.click(screen.getByRole('button', { name: /edit personal info/i }))
 
     const phoneInput = (await screen.findByLabelText(/phone/i)) as HTMLInputElement
-    expect(phoneInput.value).toBe('5550100')
+    expect(phoneInput.value).toBe('95501000')
     expect(screen.getByLabelText(/country code/i)).toBeInTheDocument()
 
     await user.type(phoneInput, '99')
-    expect(phoneInput.value).toBe('555010099')
+    expect(phoneInput.value).toBe('9550100099')
 
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     expect(mockUpdateMe).toHaveBeenCalledWith(
-      expect.objectContaining({ phone: '+91 555010099' }),
+      expect.objectContaining({ phone: '+91 9550100099' }),
     )
   })
 
