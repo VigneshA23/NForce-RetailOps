@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
 import com.nforce.retailops.entity.InventoryItemImage;
+import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckReceipt;
 import com.nforce.retailops.entity.Store;
@@ -450,8 +451,19 @@ public class StoreInventoryItemService {
     // comment above.
     private StoreInventoryItem applyUpdate(StoreInventoryItem item, StoreInventoryItemRequest request, Long ownerId) {
         checkNameAvailable(item.getStore().getId(), request.name().trim(), item.getId());
+        Long previousSupplierId = item.getPreferredSupplier() != null ? item.getPreferredSupplier().getId() : null;
         applyFields(item, request, ownerId);
-        return storeInventoryItemRepository.save(item);
+        StoreInventoryItem saved = storeInventoryItemRepository.save(item);
+        Long newSupplierId = saved.getPreferredSupplier() != null ? saved.getPreferredSupplier().getId() : null;
+        if (!java.util.Objects.equals(previousSupplierId, newSupplierId)) {
+            // Entries still waiting to be ordered follow the new supplier; ORDERED
+            // and RECEIVED entries keep theirs, as the order was already placed.
+            orderListEntryRepository
+                .findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(
+                    saved.getStore().getId(), saved.getId(), OrderStatus.NEEDS_ORDERING)
+                .forEach(entry -> entry.setSupplier(saved.getPreferredSupplier()));
+        }
+        return saved;
     }
 
     // Blocks a same-store, case-insensitive name collision regardless of the
