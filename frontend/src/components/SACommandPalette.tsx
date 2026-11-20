@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Building2, Search, Store, Users } from 'lucide-react';
 import { superAdminSearch, type SASearchItem, type SASearchResponse } from '../api/superAdminSearch';
 import useDismissablePanel from '../hooks/useDismissablePanel';
+import UserAvatar from './UserAvatar';
+import { getInitials } from '../utils/initials';
 import './SACommandPalette.css';
 
 interface SACommandPaletteProps {
@@ -69,8 +71,8 @@ function ResultGroup({
             onSelect(item);
           }}
         >
-          {groupKey === 'owners' && item.avatarUrl ? (
-            <img className="sacp__item-avatar" src={item.avatarUrl} alt="" aria-hidden="true" />
+          {groupKey === 'owners' || groupKey === 'employees' ? (
+            <UserAvatar initials={getInitials(item.label)} src={item.avatarUrl} size={28} />
           ) : (
             <span className={`sacp__item-badge sacp__item-badge--${mod}`}>
               <Icon size={12} aria-hidden="true" />
