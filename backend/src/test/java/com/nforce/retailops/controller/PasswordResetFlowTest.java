@@ -34,6 +34,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -179,6 +180,26 @@ class PasswordResetFlowTest {
 
         assertThat(login("reset-flow-valid@nforce.test", PASSWORD)).isEqualTo("FAIL");
         assertThat(login("reset-flow-valid@nforce.test", "brand-new-password")).isEqualTo("OK");
+    }
+
+    // --- The current password cannot be reused ------------------------------
+
+    @Test
+    @Transactional
+    void resettingToTheCurrentPasswordIsRefusedAndTheLinkStillWorks() throws Exception {
+        user("reset-flow-same@nforce.test");
+        forgotPassword("reset-flow-same@nforce.test");
+        String tokenStr = emailedResetToken("reset-flow-same@nforce.test");
+
+        mockMvc.perform(post("/api/auth/forgot-password/confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + tokenStr + "\",\"newPassword\":\"" + PASSWORD + "\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("New password cannot be the same as the previous password."));
+
+        // The refused attempt did not use up the link: a new password still goes through.
+        confirmReset(tokenStr, "a-different-password", 200);
+        assertThat(login("reset-flow-same@nforce.test", "a-different-password")).isEqualTo("OK");
     }
 
     // --- Step 11: reused token must not work a second time -----------------

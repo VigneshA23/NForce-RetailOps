@@ -2,6 +2,7 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.entity.PasswordResetToken;
 import com.nforce.retailops.exception.InvalidPasswordResetTokenException;
+import com.nforce.retailops.exception.PasswordReuseException;
 import com.nforce.retailops.repository.PasswordResetTokenRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.security.ResetTokenHashing;
@@ -20,6 +21,8 @@ public class PasswordResetService {
 
     private static final Logger log = LoggerFactory.getLogger(PasswordResetService.class);
     private static final int MAX_REQUESTS_PER_HOUR = 3;
+    public static final String SAME_PASSWORD_MESSAGE =
+        "New password cannot be the same as the previous password.";
 
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
@@ -113,14 +116,21 @@ public class PasswordResetService {
             throw new InvalidPasswordResetTokenException("Invalid or expired reset link");
         }
 
+        var user = userRepository.findByEmailWithRoles(resetToken.getEmail())
+            .orElseThrow(() -> new InvalidPasswordResetTokenException("Invalid or expired reset link"));
+
+        // Refuse the account's current password. Checked before the token
+        // is claimed, so the same link still works for a different password.
+        if (user.getPasswordHash() != null && passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new PasswordReuseException(SAME_PASSWORD_MESSAGE);
+        }
+
         // Atomically claim the token; losing a concurrent race affects 0 rows.
         OffsetDateTime now = OffsetDateTime.now();
         if (tokenRepository.markUsedIfUnused(tokenHash, now, now) != 1) {
             throw new InvalidPasswordResetTokenException("Invalid or expired reset link");
         }
 
-        var user = userRepository.findByEmailWithRoles(resetToken.getEmail())
-            .orElseThrow(() -> new InvalidPasswordResetTokenException("Invalid or expired reset link"));
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustResetPassword(false);
 

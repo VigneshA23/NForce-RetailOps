@@ -27,6 +27,7 @@ import java.time.OffsetDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -432,6 +433,88 @@ class AuthControllerTest {
         // valid, unexpired) token must now be rejected as unauthenticated.
         mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + token))
             .andExpect(status().isUnauthorized());
+    }
+
+    // --- The current password cannot be chosen as the new one -------------
+
+    private static final String SAME_PASSWORD_MESSAGE = "New password cannot be the same as the previous password.";
+
+    private String loginToken(String email, String password) throws Exception {
+        String json = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new LoginPayload(email, password))))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(json).get("token").asText();
+    }
+
+    private User employee(String email, String password, boolean mustReset) {
+        Role employeeRole = roleRepository.findByName("EMPLOYEE").orElseGet(() -> {
+            Role role = new Role();
+            role.setName("EMPLOYEE");
+            return roleRepository.save(role);
+        });
+        User user = new User();
+        user.setFullName("Reuse Test");
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setMustResetPassword(mustReset);
+        user.getRoles().add(employeeRole);
+        return userRepository.save(user);
+    }
+
+    @Test
+    @Transactional
+    void changePasswordRefusesTheCurrentPasswordAsTheNewOne() throws Exception {
+        employee("reuse-change@nforce.test", "original-password", false);
+        String token = loginToken("reuse-change@nforce.test", "original-password");
+
+        mockMvc.perform(post("/api/auth/change-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"original-password\",\"newPassword\":\"original-password\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value(SAME_PASSWORD_MESSAGE));
+    }
+
+    @Test
+    @Transactional
+    void superAdminChangePasswordRefusesTheCurrentPasswordAsTheNewOne() throws Exception {
+        SuperAdmin superAdmin = new SuperAdmin();
+        superAdmin.setName("Reuse Super Admin");
+        superAdmin.setEmail("reuse-sa@nforce.test");
+        superAdmin.setPasswordHash(passwordEncoder.encode("correct-horse-battery-staple"));
+        superAdminRepository.save(superAdmin);
+        String token = loginToken("reuse-sa@nforce.test", "correct-horse-battery-staple");
+
+        mockMvc.perform(post("/api/auth/change-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"correct-horse-battery-staple\",\"newPassword\":\"correct-horse-battery-staple\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value(SAME_PASSWORD_MESSAGE));
+    }
+
+    @Test
+    @Transactional
+    void requiredResetRefusesTheTemporaryPasswordButAcceptsANewOne() throws Exception {
+        employee("reuse-forced@nforce.test", "temporary-password", true);
+        String token = loginToken("reuse-forced@nforce.test", "temporary-password");
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"newPassword\":\"temporary-password\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value(SAME_PASSWORD_MESSAGE));
+        assertThat(userRepository.findByEmailWithRoles("reuse-forced@nforce.test").orElseThrow()
+            .isMustResetPassword()).isTrue();
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"newPassword\":\"a-fresh-password\"}"))
+            .andExpect(status().isOk());
     }
 
     @Test

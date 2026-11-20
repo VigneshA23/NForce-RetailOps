@@ -270,6 +270,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(PasswordReuseException.class)
+    public ResponseEntity<Map<String, String>> handlePasswordReuse(PasswordReuseException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(IssueNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleIssueNotFound(IssueNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
