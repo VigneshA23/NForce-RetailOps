@@ -311,7 +311,8 @@ class CashFlagLifecycleTest {
 
         // Only the author may fix it, on its own (past) date.
         employeePut(colleagueToken, body(past, "11.00", null)).andExpect(status().isForbidden());
-        employeePut(authorToken, body(past, "11.00", null)).andExpect(status().isOk())
+        employeePut(authorToken, body(past, "11.00", null)).andExpect(status().isBadRequest());
+        employeePut(authorToken, body(past, "11.00", "Fixed the figure")).andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("Corrected"))
             .andExpect(jsonPath("$.canEdit").value(true));
 

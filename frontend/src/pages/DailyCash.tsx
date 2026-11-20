@@ -146,6 +146,7 @@ function formatSavedAt(value: string): string {
 
 const REASON_MAX = 500;
 const REASON_REQUIRED = 'Enter a reason for this correction';
+const NOTE_REQUIRED_FLAGGED = 'Add a note explaining what you checked or fixed';
 
 const capitalise = (key: CashAmountField) => key.charAt(0).toUpperCase() + key.slice(1);
 
@@ -377,7 +378,12 @@ function DailyCash({
       && keys.some((key) => isOverwrite(entry, values, key));
     // Employees give an optional note and Super Admins confirm in a popup; only
     // an Owner/Admin must state a reason.
-    const nextReasonError = isCorrection && scope === 'owner' && !reason.trim() ? REASON_REQUIRED : undefined;
+    // An employee fixing a flagged entry must always leave a note.
+    const flaggedEmployee = scope === 'employee' && !!entry?.flag;
+    const employeeNote = keys[0] === 'openingDrawerCash' ? openingNote : otherCashNote;
+    const nextReasonError = (isCorrection && scope === 'owner' && !reason.trim())
+      ? REASON_REQUIRED
+      : flaggedEmployee && !employeeNote.trim() ? NOTE_REQUIRED_FLAGGED : undefined;
     setReasonError(nextReasonError);
     if (Object.keys(nextErrors).length > 0 || nextReasonError || storeId === null || isFutureDate(businessDate)) return;
     if (scope === 'super-admin' && isCorrection) {
@@ -579,7 +585,8 @@ function DailyCash({
             {groups.map((keys, groupIndex) => {
               const isLastGroup = groupIndex === groups.length - 1;
               const hasRecorded = entry !== null && keys.some((key) => entry[key] !== null && !(key === 'otherAdjustments' && entry[key] === 0));
-              const showReason = entry !== null && hasRecorded && !readOnly && scope !== 'super-admin';
+              const showReason = entry !== null && !readOnly && scope !== 'super-admin'
+                && (hasRecorded || (isEmployee && !!entry.flag));
               const title = isEmployee ? GROUP_TITLES[keys[0]] : undefined;
               const note = isEmployee
                 ? keys[0] === 'openingDrawerCash' ? openingNote : otherCashNote
@@ -632,11 +639,12 @@ function DailyCash({
                     {showReason && (
                       <div className="daily-cash-page__reason">
                         <FormField
-                          label={isEmployee ? 'Note (optional)' : 'Reason for correction'}
+                          label={isEmployee ? (entry?.flag ? 'Note' : 'Note (optional)') : 'Reason for correction'}
+                          required={isEmployee && !!entry?.flag}
                           htmlFor={`daily-cash-correction-reason-${groupIndex}`}
                           description={isEmployee
                             ? (entry?.flag
-                              ? 'Add a note for the admin about what you fixed. Saving resolves the flag.'
+                              ? 'Required. Tell the admin what you checked or fixed. Saving resolves the flag.'
                               : "Add a note about this change if you like. It's kept with the entry's history.")
                             : "Required if you change a figure that is already saved. Kept with the entry's history."}
                           error={reasonError}

@@ -130,7 +130,7 @@ describe('Login — email whitespace handling', () => {
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     expect(mockLogin).not.toHaveBeenCalled()
-    expect(await screen.findByText('Invalid email or password')).toBeInTheDocument()
+    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
   })
 
   it('rejects multiple leading spaces in the email without calling the login API', async () => {
@@ -143,7 +143,7 @@ describe('Login — email whitespace handling', () => {
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     expect(mockLogin).not.toHaveBeenCalled()
-    expect(await screen.findByText('Invalid email or password')).toBeInTheDocument()
+    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
   })
 
   it('rejects a trailing space in the email without calling the login API', async () => {
@@ -156,7 +156,7 @@ describe('Login — email whitespace handling', () => {
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     expect(mockLogin).not.toHaveBeenCalled()
-    expect(await screen.findByText('Invalid email or password')).toBeInTheDocument()
+    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
   })
 
   it('rejects leading and trailing spaces in the email without calling the login API', async () => {
@@ -169,7 +169,7 @@ describe('Login — email whitespace handling', () => {
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     expect(mockLogin).not.toHaveBeenCalled()
-    expect(await screen.findByText('Invalid email or password')).toBeInTheDocument()
+    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
   })
 
   it('does not alter a password value when the email is valid', async () => {
@@ -262,5 +262,58 @@ describe('Forgot Password — email whitespace handling', () => {
     await user.click(screen.getByRole('button', { name: /send reset instructions/i }))
 
     expect(mockRequestPasswordReset).toHaveBeenCalledWith('sneha.patel@kedsicecream.com')
+  })
+})
+
+describe('Login — required fields and email format', () => {
+  it('does not submit an empty form', async () => {
+    const user = userEvent.setup()
+    render(<Login onLoginSuccess={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(mockLogin).not.toHaveBeenCalled()
+    expect(await screen.findByText('Please enter your email and password')).toBeInTheDocument()
+  })
+
+  it('requires a password when only the email is filled', async () => {
+    const user = userEvent.setup()
+    render(<Login onLoginSuccess={vi.fn()} />)
+
+    await user.type(screen.getByLabelText(/email/i), 'sneha.patel@kedsicecream.com')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(mockLogin).not.toHaveBeenCalled()
+    expect(await screen.findByText('Please enter your password')).toBeInTheDocument()
+  })
+
+  it.each(['not-an-email', 'a@b', 'a@b.', '@kedsicecream.com', 'a b@kedsicecream.com'])(
+    'rejects the malformed email "%s"',
+    async (bad) => {
+      const user = userEvent.setup()
+      render(<Login onLoginSuccess={vi.fn()} />)
+
+      await user.type(screen.getByLabelText(/email/i), bad)
+      await user.type(screen.getByLabelText(/^password$/i), 'password123')
+      await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+      expect(mockLogin).not.toHaveBeenCalled()
+      expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
+    },
+  )
+
+  it('rejects an empty or malformed email on the forgot-password form', async () => {
+    const user = userEvent.setup()
+    render(<Login onLoginSuccess={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: /forgot password\?/i }))
+    await screen.findByRole('button', { name: /send reset instructions/i })
+    await user.click(screen.getByRole('button', { name: /send reset instructions/i }))
+    expect(await screen.findByText('Please enter your email')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/email/i), 'nope')
+    await user.click(screen.getByRole('button', { name: /send reset instructions/i }))
+    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument()
+    expect(mockRequestPasswordReset).not.toHaveBeenCalled()
   })
 })

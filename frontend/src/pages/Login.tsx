@@ -20,6 +20,9 @@ interface LoginProps {
   notice?: string | null
 }
 
+// local@domain.tld, no spaces, at least one dot in the domain.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
 const CONFETTI_DOTS = Array.from({ length: 18 }, (_, i) => {
   const angle = (i / 18) * Math.PI * 2
   const dist = 55 + (i % 3) * 18
@@ -79,8 +82,20 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
     event.preventDefault()
     if (submitStatus === 'success') return
     setError(null)
-    if (email !== email.trim()) {
-      setError('Invalid email or password')
+    if (!email && !password) {
+      setError('Please enter your email and password')
+      return
+    }
+    if (!email) {
+      setError('Please enter your email')
+      return
+    }
+    if (email !== email.trim() || !EMAIL_PATTERN.test(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+    if (!password) {
+      setError('Please enter your password')
       return
     }
     setLoading(true)
@@ -107,8 +122,12 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
   async function handleForgotSubmit(event: FormEvent) {
     event.preventDefault()
     setForgotError(null)
-    if (forgotEmail !== forgotEmail.trim()) {
-      setForgotError('Something went wrong. Please try again.')
+    if (!forgotEmail) {
+      setForgotError('Please enter your email')
+      return
+    }
+    if (forgotEmail !== forgotEmail.trim() || !EMAIL_PATTERN.test(forgotEmail)) {
+      setForgotError('Please enter a valid email address')
       return
     }
     setForgotLoading(true)
