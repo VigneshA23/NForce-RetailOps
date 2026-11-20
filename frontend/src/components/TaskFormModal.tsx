@@ -15,7 +15,7 @@ import './SupplierFormModal.css';
 
 // Matches the backend's @Size(max = 2000) on TaskRequest.description.
 const DESCRIPTION_MAX_LENGTH = 2000;
-
+
 import IconField from './IconField';
 interface TaskFormModalProps {
   isOpen: boolean;
@@ -165,6 +165,15 @@ function TaskFormModal({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const validationErrors = validateTaskForm(values, mode);
+    // Editing: an untouched past date stays saveable (other fields may be
+    // changing), but a newly picked date must not be in the past.
+    if (
+      mode === 'edit' && values.scheduleType === 'ONE_TIME' && !validationErrors.oneTimeDate
+      && values.oneTimeDate < getTodayDateString()
+      && !(initialTask && toFormValues(initialTask).oneTimeDate === values.oneTimeDate)
+    ) {
+      validationErrors.oneTimeDate = 'Task date cannot be in the past';
+    }
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -428,7 +437,7 @@ function TaskFormModal({
             <div className="task-form__conditional">
               <FormField label="Date *" htmlFor="task-one-time-date" error={errors.oneTimeDate}>
                 <PopoverDateField id="task-one-time-date" value={values.oneTimeDate}
-                  min={mode === 'create' ? getTodayDateString() : undefined}
+                  min={getTodayDateString()}
                   onChange={(date) => updateField('oneTimeDate', date)} />
               </FormField>
               <p className="task-form__hint">Appears only on the selected date.</p>

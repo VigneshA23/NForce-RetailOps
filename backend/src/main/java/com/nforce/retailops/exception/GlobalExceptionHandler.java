@@ -152,6 +152,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidCashAdjustmentException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidCashAdjustment(InvalidCashAdjustmentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InactiveAccountException.class)
     public ResponseEntity<Map<String, String>> handleInactiveAccount(InactiveAccountException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));

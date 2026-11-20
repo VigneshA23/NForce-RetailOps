@@ -71,7 +71,7 @@ function ResultGroup({
             onSelect(item);
           }}
         >
-          {groupKey === 'owners' || groupKey === 'employees' ? (
+          {groupKey === 'owners' ? (
             <UserAvatar initials={getInitials(item.label)} src={item.avatarUrl} size={28} />
           ) : (
             <span className={`sacp__item-badge sacp__item-badge--${mod}`}>

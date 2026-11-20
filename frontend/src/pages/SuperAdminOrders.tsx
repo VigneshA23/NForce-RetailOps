@@ -414,6 +414,17 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, search, categoryFilter, categoryByItemId, supplierFilter, statusFilter]);
 
+  // Selection only ever covers rows currently shown: when a filter hides rows,
+  // drop them so the count and Copy/bulk actions don't include hidden records.
+  useEffect(() => {
+    setSelectedIds((current) => {
+      if (current.size === 0) return current;
+      const visible = new Set(filteredEntries.map((e) => e.id));
+      const next = new Set([...current].filter((id) => visible.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [filteredEntries]);
+
   // Only one page of rows is shown (and has its stock fetched) at a time.
   const pageCount = Math.max(1, Math.ceil(filteredEntries.length / ORDER_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
