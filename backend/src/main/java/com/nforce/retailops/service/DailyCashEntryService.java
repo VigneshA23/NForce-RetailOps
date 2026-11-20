@@ -16,6 +16,7 @@ import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.CashEntryAmountsRequiredException;
 import com.nforce.retailops.exception.CorrectionReasonRequiredException;
+import com.nforce.retailops.exception.InvalidCashAdjustmentException;
 import com.nforce.retailops.exception.DailyCashEntryNotEditableException;
 import com.nforce.retailops.exception.DailyCashEntryNotFoundException;
 import com.nforce.retailops.exception.InvalidDateRangeException;
@@ -257,6 +258,17 @@ public class DailyCashEntryService {
         DailyCashEntry entry = entryRepository
             .lockByStoreIdAndBusinessDate(store.getId(), date)
             .orElse(null);
+
+        // Other adjustments cannot exceed cash remaining, judged on the figures
+        // as they will be after this save (a null request amount keeps the saved one).
+        BigDecimal effectiveRemaining = request.cashRemaining() != null
+            ? request.cashRemaining() : (entry != null ? entry.getCashRemaining() : null);
+        BigDecimal effectiveOther = request.otherAdjustments() != null
+            ? request.otherAdjustments() : (entry != null ? entry.getOtherAdjustments() : null);
+        if (effectiveRemaining != null && effectiveOther != null
+            && effectiveOther.compareTo(effectiveRemaining) > 0) {
+            throw new InvalidCashAdjustmentException("Other adjustments cannot be more than cash remaining");
+        }
 
         DailyCashEntryCorrection correction = null;
         String reason = null;

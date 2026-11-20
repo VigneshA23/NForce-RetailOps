@@ -363,6 +363,15 @@ function DailyCash({
       nextErrors[keys.includes('openingDrawerCash') ? 'openingDrawerCash' : keys[0]] =
         'Enter the opening drawer cash first';
     }
+    // Other adjustments cannot be more than cash remaining (as it will be after
+    // this save: a blank field keeps the saved figure).
+    if (!nextErrors.otherAdjustments && !nextErrors.cashRemaining && keys.includes('otherAdjustments')) {
+      const remaining = !isBlank(values.cashRemaining) ? parseAmount(values.cashRemaining) : entry?.cashRemaining ?? null;
+      const other = !isBlank(values.otherAdjustments) ? parseAmount(values.otherAdjustments) : null;
+      if (remaining !== null && other !== null && other > remaining) {
+        nextErrors.otherAdjustments = 'Other adjustments cannot be more than cash remaining';
+      }
+    }
     // Nothing differs from what is saved: don't send a request. An employee
     // saving a flagged entry may still submit unchanged, as that resolves it.
     if (

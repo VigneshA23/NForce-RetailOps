@@ -334,6 +334,17 @@ function OrderList({ storeName, seed }: OrderListProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, search, categoryFilter, categoryByItemId, supplierFilter, statusFilter]);
 
+  // Selection only ever covers rows currently shown: when a filter hides rows,
+  // drop them so the count and Copy/bulk actions don't include hidden records.
+  useEffect(() => {
+    setSelectedIds((current) => {
+      if (current.size === 0) return current;
+      const visible = new Set(filteredEntries.map((e) => e.id));
+      const next = new Set([...current].filter((id) => visible.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [filteredEntries]);
+
   function decorate(entry: OrderListEntry) {
     // A row still waiting to be ordered follows the item's current count (the
     // server recalculates it on every count). Once ordered it must keep the
