@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -32,11 +32,11 @@ public record StoreInventoryItemRequest(
     String unitOfMeasurement,
 
     @NotNull(message = "Minimum weekday quantity is required")
-    @PositiveOrZero(message = "Minimum weekday quantity cannot be negative")
+    @Positive(message = "Minimum weekday quantity must be greater than 0")
     @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
     BigDecimal minWeekday,
 
-    @PositiveOrZero(message = "Minimum weekend quantity cannot be negative")
+    @Positive(message = "Minimum weekend quantity must be greater than 0")
     @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
     BigDecimal minWeekend,
 

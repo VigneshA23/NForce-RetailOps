@@ -91,6 +91,13 @@ function StoreInventoryItemEditPanel({
     if (values.minWeekend.trim() !== '' && parseQty(values.minWeekend, values.unitOfMeasurement) === null) {
       nextErrors.minWeekend = `Weekend min must be ${qtyRuleHint(values.unitOfMeasurement)}`;
     }
+    // Minimums must be above 0 (the backend enforces the same).
+    if (!nextErrors.minWeekday && parseQty(values.minWeekday, values.unitOfMeasurement) === 0) {
+      nextErrors.minWeekday = 'Weekday min must be greater than 0';
+    }
+    if (!nextErrors.minWeekend && values.minWeekend.trim() !== '' && parseQty(values.minWeekend, values.unitOfMeasurement) === 0) {
+      nextErrors.minWeekend = 'Weekend min must be greater than 0';
+    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
