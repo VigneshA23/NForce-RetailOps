@@ -27,14 +27,24 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
     // no shared item catalog, so "the same item across stores" can only be
     // matched by name. Includes inactive items; callers filter those out
     // when "assigned" should mean "currently tracked".
-    List<StoreInventoryItem> findByNameIgnoreCase(String name);
+    // Compared on the trimmed, lower-cased stored name so a row saved before
+    // names were tidied (e.g. "Vanilla ") still matches. Pass a name already
+    // tidied by ItemNames.normalize.
+    @Query("select i from StoreInventoryItem i where lower(trim(i.name)) = lower(:name)")
+    List<StoreInventoryItem> findByNameIgnoreCase(@Param("name") String name);
 
     // Duplicate-name guard for a single store (RTS-301): deliberately not
     // scoped to active=true, mirroring CategoryService.namesOverlapInStores,
     // which also blocks on a deactivated row's name rather than freeing it up.
-    boolean existsByStoreIdAndNameIgnoreCase(Long storeId, String name);
+    // Same trimmed, case-insensitive comparison as findByNameIgnoreCase.
+    @Query("select case when count(i) > 0 then true else false end from StoreInventoryItem i "
+        + "where i.store.id = :storeId and lower(trim(i.name)) = lower(:name)")
+    boolean existsByStoreIdAndNameIgnoreCase(@Param("storeId") Long storeId, @Param("name") String name);
 
-    boolean existsByStoreIdAndNameIgnoreCaseAndIdNot(Long storeId, String name, Long id);
+    @Query("select case when count(i) > 0 then true else false end from StoreInventoryItem i "
+        + "where i.store.id = :storeId and lower(trim(i.name)) = lower(:name) and i.id <> :id")
+    boolean existsByStoreIdAndNameIgnoreCaseAndIdNot(
+        @Param("storeId") Long storeId, @Param("name") String name, @Param("id") Long id);
     // Distinct (store, category) pairs for the given stores, backing the
     // "categories common to the selected stores" lookup on the Super Admin form.
     @Query("select distinct i.store.id, i.category from StoreInventoryItem i "

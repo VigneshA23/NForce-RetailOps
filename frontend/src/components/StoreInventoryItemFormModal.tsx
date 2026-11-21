@@ -124,6 +124,13 @@ function StoreInventoryItemFormModal({
     if (values.minWeekend.trim() !== '' && (parseQty(values.minWeekend, values.unitOfMeasurement) === null)) {
       nextErrors.minWeekend = `Enter a weekend quantity: ${qtyRuleHint(values.unitOfMeasurement)}`;
     }
+    // Minimums must be above 0 (the backend enforces the same).
+    if (!nextErrors.minWeekday && parseQty(values.minWeekday, values.unitOfMeasurement) === 0) {
+      nextErrors.minWeekday = 'Minimum weekday quantity must be greater than 0';
+    }
+    if (!nextErrors.minWeekend && values.minWeekend.trim() !== '' && parseQty(values.minWeekend, values.unitOfMeasurement) === 0) {
+      nextErrors.minWeekend = 'Minimum weekend quantity must be greater than 0';
+    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;

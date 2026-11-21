@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.nforce.retailops.util.ItemNames;
 
 // Full CRUD for a store's own inventory items (Phase 2 redesign). Split into
 // an Owner/Admin section (scoped to the caller's own store) and a Super
@@ -190,7 +191,7 @@ public class StoreInventoryItemService {
                 .orElseThrow(() -> new StoreNotFoundException("Store not found")));
         }
 
-        String name = request.name().trim();
+        String name = ItemNames.normalize(request.name());
         String category = request.category().trim();
         Map<Long, StoreInventoryItem> sameName = storeInventoryItemRepository.findByNameIgnoreCase(name).stream()
             .filter(i -> ids.contains(i.getStore().getId()))
@@ -306,7 +307,7 @@ public class StoreInventoryItemService {
         // categories). Pick the lowest id deterministically rather than
         // letting Collectors.toMap blow up on the duplicate key.
         Map<Long, StoreInventoryItem> itemByStoreId = storeInventoryItemRepository
-            .findByNameIgnoreCase(itemName).stream()
+            .findByNameIgnoreCase(ItemNames.normalize(itemName)).stream()
             .filter(StoreInventoryItem::isActive)
             .collect(Collectors.toMap(
                 item -> item.getStore().getId(),
@@ -399,7 +400,7 @@ public class StoreInventoryItemService {
     // helper) -- Owner/Admin's own create always has one, so its preferred-
     // supplier choice goes through requireVisibleSupplier below.
     private StoreInventoryItem createItem(Store store, StoreInventoryItemRequest request, Long ownerId) {
-        checkNameAvailable(store.getId(), request.name().trim(), null);
+        checkNameAvailable(store.getId(), ItemNames.normalize(request.name()), null);
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
         applyFields(item, request, ownerId);
@@ -450,7 +451,7 @@ public class StoreInventoryItemService {
     // ownerId is null only from the Super Admin update path -- see createItem's
     // comment above.
     private StoreInventoryItem applyUpdate(StoreInventoryItem item, StoreInventoryItemRequest request, Long ownerId) {
-        checkNameAvailable(item.getStore().getId(), request.name().trim(), item.getId());
+        checkNameAvailable(item.getStore().getId(), ItemNames.normalize(request.name()), item.getId());
         Long previousSupplierId = item.getPreferredSupplier() != null ? item.getPreferredSupplier().getId() : null;
         applyFields(item, request, ownerId);
         StoreInventoryItem saved = storeInventoryItemRepository.save(item);
@@ -488,7 +489,7 @@ public class StoreInventoryItemService {
     // supplier visibility, so it keeps the original unscoped lookup rather
     // than going through requireVisibleSupplier.
     private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request, boolean withImage, Long ownerId) {
-        item.setName(request.name().trim());
+        item.setName(ItemNames.normalize(request.name()));
         item.setCategory(request.category().trim());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
         item.setMinWeekday(request.minWeekday());

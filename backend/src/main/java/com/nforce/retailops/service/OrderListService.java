@@ -20,6 +20,7 @@ import com.nforce.retailops.exception.InvalidOrderListEntryException;
 import com.nforce.retailops.exception.ItemNotCountedException;
 import com.nforce.retailops.exception.OrderEntryAlreadyUpdatedException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
+import com.nforce.retailops.exception.StoreInventoryItemNameExistsException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
@@ -31,6 +32,7 @@ import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.util.DateRangeValidator;
+import com.nforce.retailops.util.ItemNames;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -592,9 +594,18 @@ public class OrderListService {
             throw new InvalidOrderListEntryException("Category is required for a custom item");
         }
 
+        // Kept in the inventory means it must not duplicate an existing item's
+        // name there (same normalised, case-insensitive rule as the Inventory
+        // forms). A throwaway inactive item is exempt, as before.
+        String name = ItemNames.normalize(request.itemName());
+        if (request.saveToInventory() && storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(store.getId(), name)) {
+            throw new StoreInventoryItemNameExistsException(
+                "An inventory item with this name already exists for this store. Pick it from the list instead.");
+        }
+
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
-        item.setName(request.itemName().trim());
+        item.setName(name);
         item.setCategory(request.category().trim());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
         item.setMinWeekday(request.minWeekday() != null ? request.minWeekday() : BigDecimal.ZERO);
