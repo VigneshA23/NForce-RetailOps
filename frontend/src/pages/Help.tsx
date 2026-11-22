@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BookOpen, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type { Role } from '../types/auth';
 import SearchInput from '../components/SearchInput';
 import { matchesSearch } from '../utils/search';
@@ -120,15 +120,6 @@ function Help({ role }: HelpProps) {
   return (
     <div className="help-page">
       <div className="help-page__header">
-        <div className="help-page__banner">
-          <span className="help-page__banner-glow" aria-hidden="true" />
-          <span className="help-page__icon">
-            <BookOpen size={22} />
-          </span>
-          <div className="help-page__banner-text">
-            <h2 className="help-page__title">Help &amp; Guidance</h2>
-          </div>
-        </div>
         <SearchInput value={query} onChange={setQuery} placeholder="Search help articles, guides, or topics…" variant="card" />
       </div>
 
