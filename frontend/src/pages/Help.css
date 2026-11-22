@@ -188,3 +188,22 @@
     padding-left: var(--space-md);
   }
 }
+
+/* The search box's default border blends into this page's light background,
+   so it gets a darker edge and a faint shadow here. */
+.help-page .search-input--card {
+  border-color: #c4ccd8;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.help-page .search-input--card:focus-within {
+  border-color: #1677c4;
+}
+
+:root[data-theme='dark'] .help-page .search-input--card {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+:root[data-theme='dark'] .help-page .search-input--card:focus-within {
+  border-color: #6cc0f5;
+}

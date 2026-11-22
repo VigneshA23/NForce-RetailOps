@@ -186,7 +186,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-accent);
+  color: #1677c4; /* logo blue */
   margin-bottom: 2px;
   opacity: 0.85;
 }
@@ -203,7 +203,7 @@
   background: rgba(255, 255, 255, 0.02);
 }
 :root[data-theme='dark'] .profile-menu__name-label {
-  color: #ff7087;
+  color: #6cc0f5;
   opacity: 1;
 }
 :root[data-theme='dark'] .profile-menu__name-text {
@@ -312,26 +312,38 @@
 
 /* ─── Log out (danger) ─────────────────────────────────────────────────────── */
 .profile-menu__item--danger {
-  color: var(--color-accent);
+  color: #1677c4; /* logo blue, like the login screen */
   font-weight: 500;
   border-top: 1px solid rgba(0, 0, 0, 0.07);
   margin-top: 2px;
 }
 .profile-menu__item--danger:hover:not(:disabled) {
-  background: rgba(225, 29, 51, 0.07);
-  color: #c0102a;
+  background: rgba(22, 119, 196, 0.08);
+  color: #0f5f9e;
 }
 .profile-menu__item--danger:active:not(:disabled) {
-  background: rgba(225, 29, 51, 0.12);
+  background: rgba(22, 119, 196, 0.14);
 }
 
 :root[data-theme='dark'] .profile-menu__item--danger {
-  color: #ff6070;
+  color: #6cc0f5;
   border-top-color: rgba(255, 255, 255, 0.07);
 }
 :root[data-theme='dark'] .profile-menu__item--danger:hover:not(:disabled) {
-  background: rgba(255, 80, 100, 0.12);
-  color: #ff7a88;
+  background: rgba(108, 192, 245, 0.14);
+  color: #8fd0f8;
+}
+
+/* Logout confirm button: the login screen's logo-blue button. */
+.btn.profile-menu__logout-confirm {
+  background: linear-gradient(135deg, #38a8f0 0%, #1677c4 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 8px 18px -8px rgba(22, 119, 196, 0.5);
+}
+.btn.profile-menu__logout-confirm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2f9be2 0%, #1268ad 100%);
+  color: #fff;
 }
 
 /* ─── Reduced motion ───────────────────────────────────────────────────────── */

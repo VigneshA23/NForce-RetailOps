@@ -290,7 +290,8 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
         message="Are you sure you want to log out?"
         confirmLabel={loggingOut ? 'Logging out…' : 'Log out'}
         cancelLabel="Cancel"
-        danger
+        danger={false}
+        confirmClassName="profile-menu__logout-confirm"
         onCancel={() => setIsConfirmOpen(false)}
         onConfirm={() => {
           setIsConfirmOpen(false);
