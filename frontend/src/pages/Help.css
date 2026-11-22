@@ -13,56 +13,6 @@
   gap: var(--space-md);
 }
 
-.help-page__banner {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-lg);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
-  overflow: hidden;
-}
-
-/* Decorative glow only -- always the same dark card + red glow in both
-   themes (like .badge--solid), so it isn't tied to --color-surface-card. */
-.help-page__banner-glow {
-  position: absolute;
-  top: -50px;
-  right: -40px;
-  width: 180px;
-  height: 180px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(225, 29, 51, 0.55) 0%, rgba(225, 29, 51, 0) 70%);
-  pointer-events: none;
-}
-
-.help-page__icon {
-  position: relative;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  color: #fff;
-}
-
-.help-page__banner-text {
-  position: relative;
-  min-width: 0;
-}
-
-.help-page__title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #fff;
-}
-
-
 .help-page__empty {
   text-align: center;
   color: var(--color-text-secondary);
@@ -135,9 +85,15 @@
   border-radius: 50%;
 }
 
+/* Brand pink (from the logo) in place of the shared red, on this page only. */
 .help-section__icon--primary {
-  background: var(--color-badge-icon-primary-bg);
-  color: var(--color-badge-icon-primary-fg);
+  background: color-mix(in srgb, var(--brand-pink) 12%, transparent);
+  color: var(--brand-pink);
+}
+
+:root[data-theme='dark'] .help-section__icon--primary {
+  background: color-mix(in srgb, var(--brand-pink-light) 18%, transparent);
+  color: var(--brand-pink-light);
 }
 
 .help-section__icon--success {
@@ -225,10 +181,6 @@
 
 @media (--mobile) {
   .help-page {
-    padding: var(--space-md);
-  }
-
-  .help-page__banner {
     padding: var(--space-md);
   }
 

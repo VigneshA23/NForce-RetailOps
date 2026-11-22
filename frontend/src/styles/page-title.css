@@ -11,7 +11,6 @@
 .missing-tasks-page__heading.missing-tasks-page__heading,
 .nfp-header__title.nfp-header__title,
 .sa-activity__title.sa-activity__title,
-.help-page__title.help-page__title,
 .placeholder-page__title.placeholder-page__title {
   font-family: inherit;
   font-size: 32px;
@@ -49,7 +48,6 @@
   .missing-tasks-page__heading.missing-tasks-page__heading,
   .nfp-header__title.nfp-header__title,
   .sa-activity__title.sa-activity__title,
-  .help-page__title.help-page__title,
   .placeholder-page__title.placeholder-page__title {
     font-size: 24px;
   }
