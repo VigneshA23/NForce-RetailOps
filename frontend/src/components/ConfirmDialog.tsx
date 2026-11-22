@@ -20,6 +20,9 @@ interface ConfirmDialogProps {
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
   centered?: boolean;
+  // Extra class on the Confirm button, for a dialog that needs its own colour
+  // (e.g. the logout dialog's logo blue).
+  confirmClassName?: string;
 }
 
 function ConfirmDialog({
@@ -33,6 +36,7 @@ function ConfirmDialog({
   onConfirm,
   onCancel,
   centered = false,
+  confirmClassName,
 }: ConfirmDialogProps) {
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -61,7 +65,7 @@ function ConfirmDialog({
           </button>
           <button
             type="button"
-            className={`btn ${danger ? 'btn--danger' : 'btn--primary'}${isConfirming ? ' btn--loading' : ''}`}
+            className={`btn ${danger ? 'btn--danger' : 'btn--primary'}${confirmClassName ? ` ${confirmClassName}` : ''}${isConfirming ? ' btn--loading' : ''}`}
             disabled={isConfirming}
             onClick={handleConfirm}
           >
