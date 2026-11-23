@@ -3,6 +3,7 @@ import { Building2, Mail, User, UserPen } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import type { UpdateOwnerValues } from '../types/owner';
 import { getReassignableStores } from '../api/owners';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '../utils/emailValidation';
 import Modal from './Modal';
 import FormField from './FormField';
 import SearchableSelect, { type SearchableSelectOption } from './SearchableSelect';
@@ -94,7 +95,7 @@ function OwnerEditModal({ isOpen, initialValues, currentStores, errorMessage, is
     const next: Partial<Record<keyof FormState, string>> = {};
     if (!values.ownerName.trim()) next.ownerName = 'Name is required';
     if (!values.ownerEmail.trim()) next.ownerEmail = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.ownerEmail.trim())) next.ownerEmail = 'Enter a valid email';
+    else if (!isValidEmail(values.ownerEmail.trim())) next.ownerEmail = INVALID_EMAIL_MESSAGE;
     return next;
   }
 

@@ -1,6 +1,6 @@
 package com.nforce.retailops.dto;
 
-import jakarta.validation.constraints.Email;
+import com.nforce.retailops.validation.ValidEmail;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -13,7 +13,7 @@ public record UpdateMeRequest(
     String fullName,
 
     @NotBlank(message = "Email is required")
-    @Email(message = "Enter a valid email address")
+    @ValidEmail
     String email,
 
     String phone

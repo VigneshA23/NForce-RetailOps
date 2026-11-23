@@ -95,6 +95,27 @@ describe('Profile personal info section', () => {
     expect(await screen.findByRole('heading', { name: 'Jane Updated' })).toBeInTheDocument()
   })
 
+  // RTS-582: same email rule and message as the Login page.
+  it.each([
+    ['notanemail', 'Please enter a valid email address'],
+    ['jane@nforceone', 'Please enter a valid email address'],
+    ['   ', 'Email is required'],
+  ])('does not save the email "%s"', async (email, message) => {
+    const user = userEvent.setup()
+    render(<Profile initials="JE" />)
+
+    await screen.findByRole('heading', { name: 'Jane Employee' })
+    await user.click(screen.getByRole('button', { name: /edit personal info/i }))
+
+    const emailInput = await screen.findByLabelText(/email/i)
+    await user.clear(emailInput)
+    await user.type(emailInput, email)
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(mockUpdateMe).not.toHaveBeenCalled()
+  })
+
   // Regression: the phone field used to be a single plain-digit input with no
   // country-code awareness, so a phone stored as "+1 5550100099" (the format the
   // Add/Edit Employee form writes) got its "+"/space stripped and its leading

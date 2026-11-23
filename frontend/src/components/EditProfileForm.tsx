@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { User, Mail, Phone } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { updateMe, type MeResponse } from '../api/me';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '../utils/emailValidation';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
-
+
 import IconField from './IconField';
 interface EditProfileFormProps {
   me: MeResponse;
@@ -19,8 +20,6 @@ interface FormErrors {
   phone?: string;
 }
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function EditProfileForm({ me, onSaved, onCancel, onOpenResetPassword }: EditProfileFormProps) {
   const [fullName, setFullName] = useState(me.fullName);
   const [email, setEmail] = useState(me.email);
@@ -34,8 +33,8 @@ function EditProfileForm({ me, onSaved, onCancel, onOpenResetPassword }: EditPro
     if (!fullName.trim()) validationErrors.fullName = 'Full name is required';
     if (!email.trim()) {
       validationErrors.email = 'Email is required';
-    } else if (!EMAIL_PATTERN.test(email.trim())) {
-      validationErrors.email = 'Enter a valid email address';
+    } else if (!isValidEmail(email.trim())) {
+      validationErrors.email = INVALID_EMAIL_MESSAGE;
     }
     if (!phone.trim()) validationErrors.phone = 'Mobile number is required';
     return validationErrors;

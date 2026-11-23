@@ -62,3 +62,19 @@ describe('OwnerEditModal stores', () => {
     expect(screen.getByText('An admin is already assigned to this store')).toBeInTheDocument();
   });
 });
+
+// RTS-582: same email rule and message as the Login page.
+describe('OwnerEditModal email', () => {
+  it('blocks saving a malformed email', async () => {
+    const user = userEvent.setup();
+    const onSubmit = renderModal();
+
+    const email = screen.getByLabelText(/owner email/i);
+    await user.clear(email);
+    await user.type(email, 'priya@nforce');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+});

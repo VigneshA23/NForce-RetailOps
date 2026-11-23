@@ -4,6 +4,7 @@ import { Mail, MapPin, Phone, Store as StoreIcon, User, UserPlus } from 'lucide-
 import { getNextStoreCode, getReassignableStores } from '../api/owners';
 import type { AddOwnerValues, OwnerStoreMode, ReassignableStore } from '../types/owner';
 import { COUNTRY_CODE_OPTIONS, phoneDigitsFor, validatePhoneNumber } from '../utils/countryCodes';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '../utils/emailValidation';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
@@ -92,6 +93,7 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
     const nextErrors: Partial<Record<keyof FormState, string>> = {};
     if (!values.ownerName.trim()) nextErrors.ownerName = 'Name is required';
     if (!values.ownerEmail.trim()) nextErrors.ownerEmail = 'Email is required';
+    else if (!isValidEmail(values.ownerEmail.trim())) nextErrors.ownerEmail = INVALID_EMAIL_MESSAGE;
     if (!values.ownerPhone.trim()) {
       nextErrors.ownerPhone = 'Contact number is required';
     } else {

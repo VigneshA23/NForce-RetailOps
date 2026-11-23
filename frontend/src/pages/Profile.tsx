@@ -8,6 +8,7 @@ import UserAvatar from '../components/UserAvatar';
 import Select from '../components/Select';
 import ButtonDots from '../components/ButtonDots';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm, phoneDigitsFor, validatePhoneNumber } from '../utils/countryCodes';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '../utils/emailValidation';
 import { nfToast } from '../utils/toast';
 import { AVATAR_ACCEPT, validateAvatarFile } from '../utils/avatarUpload';
 import { getInitials } from '../utils/initials';
@@ -230,6 +231,15 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
   async function handleInfoSave(event: FormEvent) {
     event.preventDefault();
     setInfoError(null);
+    const trimmedEmail = infoValues.email.trim();
+    if (!trimmedEmail) {
+      setInfoError('Email is required');
+      return;
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      setInfoError(INVALID_EMAIL_MESSAGE);
+      return;
+    }
     const trimmedPhone = infoValues.phone.trim();
     if (trimmedPhone) {
       const phoneError = validatePhoneNumber(infoValues.countryCode, trimmedPhone);
@@ -242,7 +252,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
     try {
       const updated = await updateMe({
         fullName: infoValues.fullName.trim(),
-        email: infoValues.email.trim(),
+        email: trimmedEmail,
         phone: trimmedPhone ? `${infoValues.countryCode} ${trimmedPhone}` : '',
       });
       setMe(updated);

@@ -1,5 +1,6 @@
 import type { Employee, EmployeeCreateValues, EmployeeUpdateValues } from '../types/employee';
 import { COUNTRY_CODE_OPTIONS, validatePhoneNumber } from './countryCodes';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from './emailValidation';
 
 export function toEmployeeUpdateValues(employee: Employee): EmployeeUpdateValues {
   return {
@@ -11,7 +12,6 @@ export function toEmployeeUpdateValues(employee: Employee): EmployeeUpdateValues
   };
 }
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NAME_PATTERN = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
 export function validateEmployeeForm(
   values: EmployeeUpdateValues & { countryCode?: string },
@@ -37,8 +37,8 @@ export function validateEmployeeForm(
 
   if (!values.email.trim()) {
     errors.email = 'Email is required';
-  } else if (!EMAIL_PATTERN.test(values.email.trim())) {
-    errors.email = 'Enter a valid email address';
+  } else if (!isValidEmail(values.email.trim())) {
+    errors.email = INVALID_EMAIL_MESSAGE;
   }
 
   if (!values.gender) {

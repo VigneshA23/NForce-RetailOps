@@ -13,15 +13,13 @@ import type { AuthUser } from '../types/auth'
 import { useScrambleText } from '../hooks/useScrambleText'
 import LoginHeroPanel from '../components/LoginHeroPanel'
 import ButtonDots from '../components/ButtonDots'
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '../utils/emailValidation'
 import './LoginCrimson.css'
 
 interface LoginProps {
   onLoginSuccess: (user: AuthUser, remember: boolean, mustResetPassword: boolean) => void
   notice?: string | null
 }
-
-// local@domain.tld, no spaces, at least one dot in the domain.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 const CONFETTI_DOTS = Array.from({ length: 18 }, (_, i) => {
   const angle = (i / 18) * Math.PI * 2
@@ -91,8 +89,8 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
       setError('Please enter your email')
       return
     }
-    if (!EMAIL_PATTERN.test(trimmedEmail)) {
-      setError('Please enter a valid email address')
+    if (!isValidEmail(trimmedEmail)) {
+      setError(INVALID_EMAIL_MESSAGE)
       return
     }
     if (!password) {
@@ -127,8 +125,8 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
       setForgotError('Please enter your email')
       return
     }
-    if (forgotEmail !== forgotEmail.trim() || !EMAIL_PATTERN.test(forgotEmail)) {
-      setForgotError('Please enter a valid email address')
+    if (forgotEmail !== forgotEmail.trim() || !isValidEmail(forgotEmail)) {
+      setForgotError(INVALID_EMAIL_MESSAGE)
       return
     }
     setForgotLoading(true)

@@ -1,10 +1,10 @@
 package com.nforce.retailops.dto;
 
-import jakarta.validation.constraints.Email;
+import com.nforce.retailops.validation.ValidEmail;
 import jakarta.validation.constraints.NotBlank;
 
 public record UpdateOwnerRequest(
     @NotBlank String ownerName,
-    @NotBlank @Email String ownerEmail
+    @NotBlank @ValidEmail String ownerEmail
 ) {
 }
