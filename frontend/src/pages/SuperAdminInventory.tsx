@@ -226,18 +226,24 @@ function SuperAdminInventory() {
         setEditTarget(null);
       } else {
         const { created, skippedStoreNames } = await createInventoryItem(values);
+        const name = values.name.trim();
+        // Nothing was created: every selected store already has this item
+        // (the server ignores case and spaces in the name, RTS-583). That is
+        // a duplicate, so keep the form open with an error rather than
+        // closing it as if the save had worked.
+        if (created.length === 0) {
+          const msg = `An inventory item named "${name}" already exists in: ${skippedStoreNames.join(', ')}.`;
+          setItemFormError(msg);
+          nfToast.error(msg);
+          return;
+        }
         setItems((current) => [...current, ...created]);
-        const name = values.name;
         const skippedNote = skippedStoreNames.length > 0
           ? ` Skipped (already has it): ${skippedStoreNames.join(', ')}.`
           : '';
-        if (created.length === 0) {
-          nfToast.info(`"${name}" already exists in the selected stores.`);
-        } else {
-          nfToast.success(
-            `"${name}" added${created.length > 1 ? ` to ${created.length} stores` : ''}.${skippedNote}`,
-          );
-        }
+        nfToast.success(
+          `"${name}" added${created.length > 1 ? ` to ${created.length} stores` : ''}.${skippedNote}`,
+        );
         setIsCreateModalOpen(false);
       }
     } catch (error) {

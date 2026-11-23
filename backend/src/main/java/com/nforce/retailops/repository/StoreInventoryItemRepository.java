@@ -33,18 +33,31 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
     @Query("select i from StoreInventoryItem i where lower(trim(i.name)) = lower(:name)")
     List<StoreInventoryItem> findByNameIgnoreCase(@Param("name") String name);
 
-    // Duplicate-name guard for a single store (RTS-301): deliberately not
-    // scoped to active=true, mirroring CategoryService.namesOverlapInStores,
-    // which also blocks on a deactivated row's name rather than freeing it up.
-    // Same trimmed, case-insensitive comparison as findByNameIgnoreCase.
+    // The stored name as a duplicate key (RTS-583): lower-cased with spaces,
+    // tabs and non-breaking spaces removed, so "Vanilla Syrup" and
+    // "VanillaSyrup" collide. Must stay in step with ItemNames.duplicateKey;
+    // pass that as :nameKey. Names saved through ItemNames.normalize only ever
+    // hold plain spaces -- tab and non-breaking space cover older rows.
+    String NAME_KEY = "lower(replace(replace(replace(i.name, ' ', ''), '\t', ''), ' ', ''))";
+
+    // Every store's item whose name is a duplicate of :nameKey (see NAME_KEY),
+    // backing the Super Admin multi-store create's duplicate check. Includes
+    // inactive items.
+    @Query("select i from StoreInventoryItem i where " + NAME_KEY + " = :nameKey")
+    List<StoreInventoryItem> findByNameKey(@Param("nameKey") String nameKey);
+
+    // Duplicate-name guard for a single store (RTS-301, widened by RTS-583 to
+    // ignore spaces inside the name): deliberately not scoped to active=true,
+    // mirroring CategoryService.namesOverlapInStores, which also blocks on a
+    // deactivated row's name rather than freeing it up.
     @Query("select case when count(i) > 0 then true else false end from StoreInventoryItem i "
-        + "where i.store.id = :storeId and lower(trim(i.name)) = lower(:name)")
-    boolean existsByStoreIdAndNameIgnoreCase(@Param("storeId") Long storeId, @Param("name") String name);
+        + "where i.store.id = :storeId and " + NAME_KEY + " = :nameKey")
+    boolean existsByStoreIdAndNameKey(@Param("storeId") Long storeId, @Param("nameKey") String nameKey);
 
     @Query("select case when count(i) > 0 then true else false end from StoreInventoryItem i "
-        + "where i.store.id = :storeId and lower(trim(i.name)) = lower(:name) and i.id <> :id")
-    boolean existsByStoreIdAndNameIgnoreCaseAndIdNot(
-        @Param("storeId") Long storeId, @Param("name") String name, @Param("id") Long id);
+        + "where i.store.id = :storeId and " + NAME_KEY + " = :nameKey and i.id <> :id")
+    boolean existsByStoreIdAndNameKeyAndIdNot(
+        @Param("storeId") Long storeId, @Param("nameKey") String nameKey, @Param("id") Long id);
     // Distinct (store, category) pairs for the given stores, backing the
     // "categories common to the selected stores" lookup on the Super Admin form.
     @Query("select distinct i.store.id, i.category from StoreInventoryItem i "

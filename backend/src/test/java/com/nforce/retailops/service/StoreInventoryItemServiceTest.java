@@ -208,7 +208,7 @@ class StoreInventoryItemServiceTest {
     @Test
     void createForSuperAdminRejectsSameNameInADifferentCategoryCaseInsensitively() {
         when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
-        when(storeInventoryItemRepository.findByNameIgnoreCase("milk"))
+        when(storeInventoryItemRepository.findByNameKey("milk"))
             .thenReturn(List.of(existing(20L, storeA, "Milk", "Dairy")));
 
         StoreInventoryItemRequest request = requestForStore(1L, "milk", 7L);
@@ -223,7 +223,7 @@ class StoreInventoryItemServiceTest {
     void createForSuperAdminSkipsStoresWithTheSameNameAndCategoryAndCreatesTheRest() {
         when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
         when(storeRepository.findById(2L)).thenReturn(java.util.Optional.of(storeB));
-        when(storeInventoryItemRepository.findByNameIgnoreCase("Milk"))
+        when(storeInventoryItemRepository.findByNameKey("milk"))
             .thenReturn(List.of(existing(20L, storeA, "milk", "ingredients")));
         when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(supplier(7L)));
         when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
@@ -241,7 +241,7 @@ class StoreInventoryItemServiceTest {
     @Test
     void createForSuperAdminCreatesNothingWhenEverySelectedStoreAlreadyHasTheItem() {
         when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
-        when(storeInventoryItemRepository.findByNameIgnoreCase("Milk"))
+        when(storeInventoryItemRepository.findByNameKey("milk"))
             .thenReturn(List.of(existing(20L, storeA, "Milk", "INGREDIENTS")));
 
         CreateStoreInventoryItemsResponse result = service.createForSuperAdmin(requestForStore(1L, "Milk", 7L));
@@ -272,7 +272,7 @@ class StoreInventoryItemServiceTest {
     void createForSuperAdminCreatesNothingWhenAnySelectedStoreHasTheNameUnderAnotherCategory() {
         when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
         when(storeRepository.findById(2L)).thenReturn(java.util.Optional.of(storeB));
-        when(storeInventoryItemRepository.findByNameIgnoreCase("Milk"))
+        when(storeInventoryItemRepository.findByNameKey("milk"))
             .thenReturn(List.of(existing(20L, storeB, "Milk", "Dairy")));
 
         assertThatThrownBy(() -> service.createForSuperAdmin(requestForStores(List.of(1L, 2L), "Milk", 7L)))
@@ -300,7 +300,7 @@ class StoreInventoryItemServiceTest {
         when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
         StoreInventoryItem inactive = existing(20L, storeA, "Milk", "Dairy");
         inactive.setActive(false);
-        when(storeInventoryItemRepository.findByNameIgnoreCase("Milk")).thenReturn(List.of(inactive));
+        when(storeInventoryItemRepository.findByNameKey("milk")).thenReturn(List.of(inactive));
 
         StoreInventoryItemRequest request = requestForStore(1L, "Milk", 7L);
 
@@ -326,7 +326,7 @@ class StoreInventoryItemServiceTest {
     void updateForSuperAdminAllowsKeepingTheItemsOwnExistingName() {
         StoreInventoryItem existing = item(10L, storeA, 5);
         when(storeInventoryItemRepository.findById(10L)).thenReturn(java.util.Optional.of(existing));
-        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCaseAndIdNot(1L, "Napkins", 10L))
+        when(storeInventoryItemRepository.existsByStoreIdAndNameKeyAndIdNot(1L, "napkins", 10L))
             .thenReturn(false);
         when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(supplier(7L)));
         when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
@@ -341,12 +341,56 @@ class StoreInventoryItemServiceTest {
     void updateForSuperAdminRejectsRenamingToAnotherItemsExistingName() {
         StoreInventoryItem existing = item(10L, storeA, 5);
         when(storeInventoryItemRepository.findById(10L)).thenReturn(java.util.Optional.of(existing));
-        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCaseAndIdNot(1L, "Milk", 10L))
+        when(storeInventoryItemRepository.existsByStoreIdAndNameKeyAndIdNot(1L, "milk", 10L))
             .thenReturn(true);
 
         assertThatThrownBy(() -> service.updateForSuperAdmin(10L, request("Milk", 7L)))
             .isInstanceOf(StoreInventoryItemNameExistsException.class);
         verify(storeInventoryItemRepository, never()).save(existing);
+    }
+
+    // --- RTS-583: spaces inside the name don't make a new item ---------------
+
+    @Test
+    void updateForSuperAdminRejectsANameThatDiffersOnlyInSpacingAndCase() {
+        StoreInventoryItem existing = item(10L, storeA, 5);
+        when(storeInventoryItemRepository.findById(10L)).thenReturn(java.util.Optional.of(existing));
+        when(storeInventoryItemRepository.existsByStoreIdAndNameKeyAndIdNot(1L, "vanillasyrup", 10L))
+            .thenReturn(true);
+
+        assertThatThrownBy(() -> service.updateForSuperAdmin(10L, request(" VanillaSyrup ", 7L)))
+            .isInstanceOf(StoreInventoryItemNameExistsException.class)
+            .hasMessage("An inventory item with this name already exists for this store.");
+        verify(storeInventoryItemRepository, never()).save(existing);
+    }
+
+    @Test
+    void createForSuperAdminTreatsASpacingVariantInTheSameCategoryAsAlreadyThere() {
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(storeInventoryItemRepository.findByNameKey("vanillasyrup"))
+            .thenReturn(List.of(existing(20L, storeA, "Vanilla Syrup", "INGREDIENTS")));
+
+        CreateStoreInventoryItemsResponse result =
+            service.createForSuperAdmin(requestForStore(1L, " vanillasyrup ", 7L));
+
+        assertThat(result.created()).isEmpty();
+        assertThat(result.skippedStoreNames()).containsExactly(storeA.getName());
+        verify(storeInventoryItemRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createForSuperAdminSavesTheNameAsTypedNotAsTheComparisonKey() {
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(supplier(7L)));
+        when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createForSuperAdmin(requestForStore(1L, "  Vanilla   Syrup ", 7L));
+
+        verify(storeInventoryItemRepository).findByNameKey("vanillasyrup");
+        org.mockito.ArgumentCaptor<StoreInventoryItem> saved = org.mockito.ArgumentCaptor.forClass(StoreInventoryItem.class);
+        verify(storeInventoryItemRepository).save(saved.capture());
+        assertThat(saved.getValue().getName()).isEqualTo("Vanilla Syrup");
     }
 
     // --- Deactivated preferred supplier ------------------------------------

@@ -598,7 +598,7 @@ public class OrderListService {
         // name there (same normalised, case-insensitive rule as the Inventory
         // forms). A throwaway inactive item is exempt, as before.
         String name = ItemNames.normalize(request.itemName());
-        if (request.saveToInventory() && storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(store.getId(), name)) {
+        if (request.saveToInventory() && storeInventoryItemRepository.existsByStoreIdAndNameKey(store.getId(), ItemNames.duplicateKey(name))) {
             throw new StoreInventoryItemNameExistsException(
                 "An inventory item with this name already exists for this store. Pick it from the list instead.");
         }

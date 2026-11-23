@@ -193,7 +193,7 @@ public class StoreInventoryItemService {
 
         String name = ItemNames.normalize(request.name());
         String category = request.category().trim();
-        Map<Long, StoreInventoryItem> sameName = storeInventoryItemRepository.findByNameIgnoreCase(name).stream()
+        Map<Long, StoreInventoryItem> sameName = storeInventoryItemRepository.findByNameKey(ItemNames.duplicateKey(name)).stream()
             .filter(i -> ids.contains(i.getStore().getId()))
             .collect(Collectors.toMap(i -> i.getStore().getId(), i -> i, (a, b) -> a));
         List<String> clashing = new ArrayList<>();
@@ -467,14 +467,15 @@ public class StoreInventoryItemService {
         return saved;
     }
 
-    // Blocks a same-store, case-insensitive name collision regardless of the
-    // other item's active state -- matches CategoryService.namesOverlapInStores,
-    // which also doesn't free up a name just because the row holding it was
-    // deactivated.
+    // Blocks a same-store name collision -- ignoring case and any spaces in the
+    // name (ItemNames.duplicateKey) -- regardless of the other item's active
+    // state; matches CategoryService.namesOverlapInStores, which also doesn't
+    // free up a name just because the row holding it was deactivated.
     private void checkNameAvailable(Long storeId, String name, Long excludeItemId) {
+        String key = ItemNames.duplicateKey(name);
         boolean exists = excludeItemId == null
-            ? storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(storeId, name)
-            : storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCaseAndIdNot(storeId, name, excludeItemId);
+            ? storeInventoryItemRepository.existsByStoreIdAndNameKey(storeId, key)
+            : storeInventoryItemRepository.existsByStoreIdAndNameKeyAndIdNot(storeId, key, excludeItemId);
         if (exists) {
             throw new StoreInventoryItemNameExistsException(
                 "An inventory item with this name already exists for this store.");
