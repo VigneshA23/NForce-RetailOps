@@ -14,7 +14,7 @@ import ExportButton from './ExportButton';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { getAllStores } from '../api/superAdminStores';
 import { getSuperAdminStockCheckHistory, correctSuperAdminStockCheck } from '../api/superAdminOperations';
-import { categoryLabel } from '../types/storeInventory';
+import { categoryLabel, categoryMatches, distinctCategories as distinctCategoriesOf } from '../types/storeInventory';
 import type { SuperAdminStockCheckResponse, StockCheckSnapshotKey, StockCheckStatusCounts } from '../types/stockCheck';
 import {
   EMPTY_STATUS_COUNTS,
@@ -79,7 +79,7 @@ function matchesFilters(
     row.storeName.toLowerCase().includes(term) ||
     String(row.storeCode).includes(term) ||
     recordedBy.toLowerCase().includes(term);
-  const matchesCategory = !categoryFilter || row.category === categoryFilter;
+  const matchesCategory = !categoryFilter || categoryMatches(row.category, categoryFilter);
   return matchesSearch && matchesCategory;
 }
 
@@ -183,9 +183,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
   }, [dateRange, page, selectedStoreId, statusFilter]);
 
   const distinctCategories = useMemo(
-    () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
-      categoryLabel(a).localeCompare(categoryLabel(b)),
-    ),
+    () => distinctCategoriesOf(items.map((i) => i.category)),
     [items],
   );
 

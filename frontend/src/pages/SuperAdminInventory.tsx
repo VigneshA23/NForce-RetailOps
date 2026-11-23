@@ -16,7 +16,7 @@ import useDismissablePanel from '../hooks/useDismissablePanel';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
 import type { InventoryCategoryRecord } from '../types/inventoryCategory';
-import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import { categoryLabel, categoryMatches, distinctCategories as distinctCategoriesOf, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
 import SuperAdminStockCheckHistory from '../components/SuperAdminStockCheckHistory';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
@@ -287,9 +287,7 @@ function SuperAdminInventory() {
   const outOfStockCount = useMemo(() => storeItems.filter((i) => getStockStatus(i) === 'out').length, [storeItems]);
 
   const distinctCategories = useMemo(
-    () => [...new Set(storeItems.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
-      categoryLabel(a).localeCompare(categoryLabel(b)),
-    ),
+    () => distinctCategoriesOf(storeItems.map((i) => i.category)),
     [storeItems],
   );
 
@@ -312,7 +310,7 @@ function SuperAdminInventory() {
         item.name.toLowerCase().includes(term) ||
         (item.category ? categoryLabel(item.category).toLowerCase().includes(term) : false) ||
         (item.preferredSupplierName?.toLowerCase().includes(term) ?? false);
-      if (!matchesSearch || (categoryFilter && item.category !== categoryFilter)) return false;
+      if (!matchesSearch || (categoryFilter && !categoryMatches(item.category, categoryFilter))) return false;
       if (supplierFilter === 'UNASSIGNED') return item.preferredSupplierId == null;
       if (supplierFilter !== 'all') return String(item.preferredSupplierId) === supplierFilter;
       return true;

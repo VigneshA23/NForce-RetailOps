@@ -25,6 +25,32 @@ export function normalizeCategoryName(name: string): InventoryItemCategory {
   return builtIn ? builtIn.value : trimmed;
 }
 
+// Whether an item's category matches a chosen filter value. Case-insensitive
+// because buildCategoryOptions folds e.g. an item's "Dairy" into the built-in
+// "DAIRY" option, so an exact comparison would hide that item (RTS-586).
+export function categoryMatches(
+  category: InventoryItemCategory | null | undefined,
+  filter: InventoryItemCategory,
+): boolean {
+  return !!category && category.trim().toLowerCase() === filter.trim().toLowerCase();
+}
+
+// The categories present in a list, one per name regardless of case ("Dairy"
+// and "DAIRY" are one entry, the built-in key), sorted by label. Pair with
+// categoryMatches so the single option still matches every spelling.
+export function distinctCategories(
+  values: (InventoryItemCategory | null | undefined)[],
+): InventoryItemCategory[] {
+  const byKey = new Map<string, InventoryItemCategory>();
+  for (const raw of values) {
+    if (!raw || !raw.trim()) continue;
+    const canonical = normalizeCategoryName(raw);
+    const key = canonical.toLowerCase();
+    if (!byKey.has(key)) byKey.set(key, canonical);
+  }
+  return [...byKey.values()].sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b)));
+}
+
 // Built-in categories plus any custom ones already used by existing items
 // (de-duplicated case-insensitively), so a category added once is offered again.
 export function buildCategoryOptions(

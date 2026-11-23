@@ -337,6 +337,27 @@ describe('OrderList filters', () => {
     expect(screen.queryByText('Bread')).not.toBeInTheDocument();
   });
 
+  // RTS-586: an item saved as "Dairy" (from the store's category list) is
+  // folded into the built-in "Dairy" option, so it must still match.
+  it('matches a category saved in a different case than the filter option', async () => {
+    mockGetStoreInventoryItems.mockResolvedValue([
+      inventoryItem({ id: 101, name: 'Milk', category: 'Dairy' }),
+      inventoryItem({ id: 102, name: 'Bread', category: 'INGREDIENTS' }),
+      inventoryItem({ id: 103, name: 'Cleaning Spray', category: 'CLEANING' }),
+    ]);
+    const user = userEvent.setup();
+    render(<OrderList storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByLabelText('Category'));
+    expect(screen.getAllByRole('option', { name: 'Dairy' })).toHaveLength(1);
+    await user.click(screen.getByRole('option', { name: 'Dairy' }));
+
+    expect(screen.getByText('Milk')).toBeInTheDocument();
+    expect(screen.queryByText('Bread')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cleaning Spray')).not.toBeInTheDocument();
+  });
+
   it('filters by supplier, including an Unassigned Supplier option', async () => {
     const user = userEvent.setup();
     render(<OrderList storeName="Downtown" />);

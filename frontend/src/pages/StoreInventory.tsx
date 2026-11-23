@@ -12,7 +12,7 @@ import {
 import { ApiError } from '../api/client';
 import { getOwnerSuppliers } from '../api/suppliers';
 import { getOwnerInventoryCategories } from '../api/inventoryCategories';
-import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import { categoryLabel, categoryMatches, distinctCategories as distinctCategoriesOf, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
@@ -252,9 +252,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
   const outOfStockCount = useMemo(() => items.filter((i) => getStockStatus(i) === 'out').length, [items]);
 
   const distinctCategories = useMemo(
-    () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
-      categoryLabel(a).localeCompare(categoryLabel(b)),
-    ),
+    () => distinctCategoriesOf(items.map((i) => i.category)),
     [items],
   );
 
@@ -278,7 +276,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
         item.name.toLowerCase().includes(term) ||
         (item.category ? categoryLabel(item.category).toLowerCase().includes(term) : false) ||
         (item.preferredSupplierName?.toLowerCase().includes(term) ?? false);
-      if (!matchesSearch || (categoryFilter && item.category !== categoryFilter)) return false;
+      if (!matchesSearch || (categoryFilter && !categoryMatches(item.category, categoryFilter))) return false;
       if (supplierFilter === 'UNASSIGNED') return item.preferredSupplierId == null;
       if (supplierFilter !== 'all') return String(item.preferredSupplierId) === supplierFilter;
       return true;

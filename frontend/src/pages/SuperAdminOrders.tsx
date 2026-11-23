@@ -13,7 +13,7 @@ import {
 import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
 import type { InventoryCountRow, InventoryItemCategory } from '../types/storeInventory';
-import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
+import { buildCategoryOptions, categoryLabel as categoryLabelOf, categoryMatches } from '../types/storeInventory';
 import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
 import { isToday } from '../utils/checklistHistoryOptions';
@@ -406,7 +406,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     return entries.filter((entry) => {
       if (!matchesStatusFilter(entry)) return false;
       if (normalizedSearch && !entry.itemName.toLowerCase().includes(normalizedSearch)) return false;
-      if (categoryFilter !== 'all' && categoryByItemId.get(entry.storeInventoryItemId) !== categoryFilter) return false;
+      if (categoryFilter !== 'all' && !categoryMatches(categoryByItemId.get(entry.storeInventoryItemId), categoryFilter)) return false;
       if (supplierFilter === 'UNASSIGNED' && entry.supplierId != null) return false;
       if (supplierFilter !== 'all' && supplierFilter !== 'UNASSIGNED' && String(entry.supplierId) !== supplierFilter) return false;
       return true;

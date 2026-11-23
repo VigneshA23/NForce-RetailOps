@@ -28,7 +28,7 @@ import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
 import FilterClearButton from '../components/FilterClearButton';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
+import { buildCategoryOptions, categoryLabel as categoryLabelOf, categoryMatches } from '../types/storeInventory';
 import './OrderList.css';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import TableScroll from '../components/TableScroll';
@@ -326,7 +326,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
     return entries.filter((entry) => {
       if (!matchesStatusFilter(entry)) return false;
       if (normalizedSearch && !entry.itemName.toLowerCase().includes(normalizedSearch)) return false;
-      if (categoryFilter !== 'all' && categoryByItemId.get(entry.storeInventoryItemId) !== categoryFilter) return false;
+      if (categoryFilter !== 'all' && !categoryMatches(categoryByItemId.get(entry.storeInventoryItemId), categoryFilter)) return false;
       if (supplierFilter === 'UNASSIGNED' && entry.supplierId != null) return false;
       if (supplierFilter !== 'all' && supplierFilter !== 'UNASSIGNED' && String(entry.supplierId) !== supplierFilter) return false;
       return true;

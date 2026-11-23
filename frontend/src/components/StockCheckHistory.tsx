@@ -12,7 +12,7 @@ import ButtonDots from './ButtonDots';
 import ExportButton from './ExportButton';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { correctStockCheck, getStockCheckHistory } from '../api/storeInventory';
-import { categoryLabel } from '../types/storeInventory';
+import { categoryLabel, categoryMatches, distinctCategories as distinctCategoriesOf } from '../types/storeInventory';
 import type { StockCheckResponse, StockCheckSnapshotKey, StockCheckStatusCounts } from '../types/stockCheck';
 import {
   EMPTY_STATUS_COUNTS,
@@ -76,7 +76,7 @@ function matchesFilters(row: StockCheckHistoryRowView, search: string, categoryF
     !term ||
     row.itemName.toLowerCase().includes(term) ||
     recordedBy.toLowerCase().includes(term);
-  const matchesCategory = !categoryFilter || row.category === categoryFilter;
+  const matchesCategory = !categoryFilter || categoryMatches(row.category, categoryFilter);
   return matchesSearch && matchesCategory;
 }
 
@@ -194,9 +194,7 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
   }, [dateRange, page, statusFilter]);
 
   const distinctCategories = useMemo(
-    () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
-      categoryLabel(a).localeCompare(categoryLabel(b)),
-    ),
+    () => distinctCategoriesOf(items.map((i) => i.category)),
     [items],
   );
 

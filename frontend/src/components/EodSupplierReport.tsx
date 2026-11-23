@@ -7,7 +7,7 @@ import SearchInput from './SearchInput';
 import FilterClearButton from './FilterClearButton';
 import { getEodSupplierReport } from '../api/storeInventory';
 import type { EodReportRow, EodReportStatus, EodSupplierReport as EodSupplierReportData } from '../types/stockCheck';
-import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
+import { buildCategoryOptions, categoryLabel as categoryLabelOf, categoryMatches } from '../types/storeInventory';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { formatDateLabel, formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
 import { buildEodReportText, usableStock } from '../utils/orderListExport';
@@ -187,7 +187,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
     const normalizedSearch = search.trim().toLowerCase();
     return allRows.filter((row) => {
       if (normalizedSearch && !row.item.itemName.toLowerCase().includes(normalizedSearch)) return false;
-      if (categoryFilter !== 'all' && row.item.category !== categoryFilter) return false;
+      if (categoryFilter !== 'all' && !categoryMatches(row.item.category, categoryFilter)) return false;
       if (supplierFilter === 'UNASSIGNED' && row.supplierId != null) return false;
       if (supplierFilter !== 'all' && supplierFilter !== 'UNASSIGNED' && String(row.supplierId) !== supplierFilter) return false;
       if (statusFilter !== 'all' && row.item.status !== statusFilter) return false;
