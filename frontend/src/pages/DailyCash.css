@@ -61,6 +61,15 @@
   color: var(--color-text-secondary);
 }
 
+/* The read-only notice ("Submitted by … This entry is read-only.") sits
+   directly above the first section title, which has no top margin of its
+   own -- without this gap the two lines run into each other (RTS-573).
+   12px matches the gap above it, under the "Entered" status pill
+   (.cash-flag's bottom margin in CashEntryFlagSection.css). */
+.daily-cash-page__status--read-only {
+  margin-bottom: 12px;
+}
+
 .daily-cash-page__fieldset {
   margin: 0;
   padding: 0;
@@ -290,6 +299,19 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xl, 32px);
+}
+
+/* Employee view (RTS-573): 24px between the two sections whether or not
+   they are editable -- editable, from the Save Entry button to the next
+   section title. Owner/Admin and Super Admin keep the wider gap above. */
+.daily-cash-page__forms--employee {
+  gap: 24px;
+}
+
+/* Read-only (employees only) has no Save button row, so the last field's own
+   16px bottom margin is already part of the gap; 8px more makes the same 24px. */
+.daily-cash-page__forms--employee.daily-cash-page__forms--read-only {
+  gap: var(--space-sm);
 }
 
 .daily-cash-page__form-title {

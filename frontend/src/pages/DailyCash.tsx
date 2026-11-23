@@ -567,7 +567,7 @@ function DailyCash({
         )}
 
         {readOnly && !loadError && !dateIsFuture && (
-          <p className="daily-cash-page__status" role="note">
+          <p className="daily-cash-page__status daily-cash-page__status--read-only" role="note">
             {entry
               ? entry.flag
                 ? 'This entry was flagged for the employee who entered it. Only they can correct it.'
@@ -590,7 +590,7 @@ function DailyCash({
             </button>
           </div>
         ) : (
-          <div className="daily-cash-page__forms">
+          <div className={`daily-cash-page__forms${isEmployee ? ' daily-cash-page__forms--employee' : ''}${readOnly ? ' daily-cash-page__forms--read-only' : ''}`}>
             {groups.map((keys, groupIndex) => {
               const isLastGroup = groupIndex === groups.length - 1;
               const hasRecorded = entry !== null && keys.some((key) => entry[key] !== null && !(key === 'otherAdjustments' && entry[key] === 0));
