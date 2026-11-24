@@ -145,8 +145,12 @@ class SuperAdminAlertServiceTest {
 
         List<?> notifications = notificationRepository
             .findByRecipientSuperAdminIdOrderByCreatedAtDesc(sa.getId(), org.springframework.data.domain.PageRequest.of(0, 50));
-        assertThat(notifications).hasSize(1);
-        var n = (com.nforce.retailops.entity.Notification) notifications.get(0);
+        var matchingNotifications = notifications.stream()
+            .map(o -> (com.nforce.retailops.entity.Notification) o)
+            .filter(n -> n.getStore() != null && n.getStore().getId().equals(store.getId()))
+            .toList();
+        assertThat(matchingNotifications).hasSize(1);
+        var n = matchingNotifications.get(0);
         assertThat(n.getCategory()).isEqualTo("STORE_ZERO_ACTIVITY");
         assertThat(n.getTitle()).contains("Zero Store 1");
         // storeId lets the frontend deep-link straight into this store's

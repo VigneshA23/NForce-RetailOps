@@ -23,7 +23,7 @@ function emptyHistory(storeId: number, date: string): ShiftHistory {
 // formats "short month" differently from en-US (e.g. "2 Sept 2026" instead
 // of "Sep 2, 2026"), so the two must be computed the same way.
 function formatDateLabel(date: string): string {
-  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+  return new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

@@ -61,7 +61,7 @@ function localDraftKey(storeId: number, unitKey: string, date: string): string {
 // date (see types/task.ts's originalDueDate / checklistUnitKey).
 function dueBadgeLabel(originalDueDate: string): string {
   const [year, month, day] = originalDueDate.split('-').map(Number)
-  return `Due ${new Date(year, month - 1, day).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
+  return `Due ${new Date(year, month - 1, day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
 }
 
 interface MultiSelectDropdownProps {
