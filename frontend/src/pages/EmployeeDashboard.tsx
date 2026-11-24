@@ -199,6 +199,8 @@ const TASK_REMOVED_ERROR = 'This task is no longer available. An admin removed i
 // silently refetches and drops the task's card -- long enough to read, short
 // enough not to feel stuck.
 const TASK_REMOVED_REFRESH_DELAY_MS = 2500
+// Same 60s cadence as every other live view in the app (see CLAUDE.md).
+const CHECKLIST_POLL_INTERVAL_MS = 60_000
 
 function ownResponse(task: ChecklistTask, employeeId: number | null): TaskResponseSummary | undefined {
   if (employeeId == null) return undefined
@@ -321,7 +323,11 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   // needs to quietly drop out (e.g. after the employee has seen a "this task
   // is no longer available" message) rather than visibly reloading the whole
   // checklist out from under them.
-  function loadChecklist({ silent = false, onSettled }: { silent?: boolean; onSettled?: () => void } = {}) {
+  //
+  // `isStale`: checked when the response lands; a background poll uses it to
+  // drop a result that started before the employee's own submit/undo (or a
+  // store switch) and would otherwise briefly paint over it.
+  function loadChecklist({ silent = false, onSettled, isStale }: { silent?: boolean; onSettled?: () => void; isStale?: () => boolean } = {}) {
     let active = true
     if (!silent) {
       setLoading(true)
@@ -329,6 +335,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
     }
     getDailyChecklist(store.id)
       .then((result) => {
+        if (active && isStale?.()) return
         if (active) {
           setCategories(result)
           const today = todayDateKey()
@@ -341,7 +348,11 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
               if (saved) seeded[unitKey] = saved
             }
           }
-          if (Object.keys(seeded).length > 0) setDrafts(seeded)
+          // A background refresh must not overwrite what the employee is
+          // typing (saved drafts lag the input by 500ms), so on-screen text wins.
+          if (Object.keys(seeded).length > 0) {
+            setDrafts(silent ? (current) => ({ ...seeded, ...current }) : seeded)
+          }
           setLoading(false)
           onSettled?.()
         }
@@ -361,6 +372,31 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   }
 
   useEffect(() => loadChecklist(), [store.id])
+
+  // Live checklist: other employees' answers and admin corrections appear
+  // without a reload, on the app's standard 60-second poll. A poll is skipped
+  // while this employee's own save/undo is in flight, and its result is
+  // dropped if one started (or the store changed) before it came back.
+  const busyRef = useRef(false)
+  const mutationSeq = useRef(0)
+  const storeIdRef = useRef(store.id)
+  storeIdRef.current = store.id
+  useEffect(() => {
+    busyRef.current = pendingUnitKey !== null || undoingUnitKey !== null
+    mutationSeq.current += 1
+  }, [pendingUnitKey, undoingUnitKey])
+  useEffect(() => {
+    const pollStoreId = store.id
+    const id = window.setInterval(() => {
+      if (busyRef.current || document.visibilityState === 'hidden') return
+      const seqAtStart = mutationSeq.current
+      loadChecklist({
+        silent: true,
+        isStale: () => mutationSeq.current !== seqAtStart || storeIdRef.current !== pollStoreId,
+      })
+    }, CHECKLIST_POLL_INTERVAL_MS)
+    return () => window.clearInterval(id)
+  }, [store.id])
 
   useEffect(() => {
     const today = todayDateKey()

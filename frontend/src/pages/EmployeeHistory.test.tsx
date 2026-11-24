@@ -336,3 +336,43 @@ describe('EmployeeHistory raised issues', () => {
     expect(screen.getByText('Store Owner · 10:00 AM')).toBeInTheDocument()
   })
 })
+
+// There is no router, so a refresh remounts the page: the picked date must
+// come back from storage for the rest of the day, and not on the next day.
+describe('EmployeeHistory date across a refresh', () => {
+  it('keeps the picked date when the page is remounted the same day', async () => {
+    vi.setSystemTime(new Date(2026, 8, 3, 10, 0, 0))
+    const first = render(<EmployeeHistory store={STORE} />)
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-02'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Choose a date' })
+    fireEvent.click(within(dialog).getByRole('button', { name: '1' }))
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-01'))
+
+    first.unmount()
+    mockGetShiftHistory.mockClear()
+    render(<EmployeeHistory store={STORE} />)
+
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
+    expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-01')
+    expect(mockGetShiftHistory).not.toHaveBeenCalledWith(1, '2026-09-02')
+  })
+
+  it('goes back to the default (yesterday) on the next day', async () => {
+    vi.setSystemTime(new Date(2026, 8, 3, 10, 0, 0))
+    const first = render(<EmployeeHistory store={STORE} />)
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-02'))
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Choose a date' })
+    fireEvent.click(within(dialog).getByRole('button', { name: '1' }))
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-01'))
+    first.unmount()
+
+    vi.setSystemTime(new Date(2026, 8, 4, 9, 0, 0))
+    mockGetShiftHistory.mockClear()
+    render(<EmployeeHistory store={STORE} />)
+
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-03'))
+  })
+})

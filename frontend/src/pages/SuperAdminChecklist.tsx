@@ -27,7 +27,7 @@ import { matchesSearch } from '../utils/search';
 import { getAllStores } from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import './SuperAdminChecklist.css';
-import { usePersistedState, nullableNumber } from '../hooks/usePersistedState';
+import { usePersistedState, nullableNumber, nullablePastRange, pastOrTodayDate, useDayScopedState } from '../hooks/usePersistedState';
 
 // No 'OPEN' filter option -- open (no-response) tasks are already surfaced
 // in the Outstanding/Incomplete Tasks section above, so the table below only
@@ -60,14 +60,15 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [selectedStoreId, setSelectedStoreId] = usePersistedState<number | null>('sa-checklist-store', nav?.storeId ?? null, nullableNumber);
   const [appliedNavTs, setAppliedNavTs] = usePersistedState<number | null>('sa-checklist-nav-ts', null, nullableNumber);
 
-  const [date, setDate] = useState(todayDate);
+  // Kept for the day across a refresh (see useDayScopedState).
+  const [date, setDate] = useDayScopedState('sa-checklist-date', todayDate(), pastOrTodayDate);
   const [pickerOpen, setPickerOpen] = useState(false);
   const dateTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Non-null while "Last Week" is the active filter -- single-day navigation
   // (arrows, calendar, Today/Yesterday) always clears this. See
   // StoreDetail.tsx for the full rationale behind this range mode.
-  const [weekRange, setWeekRange] = useState<DateRange | null>(null);
+  const [weekRange, setWeekRange] = useDayScopedState<DateRange | null>('sa-checklist-week', null, nullablePastRange);
   const [weeklyDays, setWeeklyDays] = useState<WeeklyDay[]>([]);
 
   const [detail, setDetail] = useState<ChecklistHistoryDetail | null>(null);

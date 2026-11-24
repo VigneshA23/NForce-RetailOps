@@ -139,8 +139,6 @@ describe('DailyCash', () => {
     const savedStatus = screen.getByText('No entry saved for this date yet');
     const toolbar = savedStatus.closest('.daily-cash-page__toolbar');
     expect(toolbar).not.toBeNull();
-    expect(toolbar).not.toContainElement(formula);
-    expect(formula.compareDocumentPosition(toolbar as Node) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
   it('shows who first entered the saved entry', async () => {

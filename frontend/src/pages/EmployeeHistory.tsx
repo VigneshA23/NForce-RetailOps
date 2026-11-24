@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getCorrectionHistory, getShiftHistory } from '../api/history'
 import type { StoreSummary } from '../types/store'
+import { pastOrTodayDate, useDayScopedState } from '../hooks/usePersistedState'
 import type { ShiftHistory } from '../types/history'
 import ChecklistDayHistoryView from '../components/ChecklistDayHistoryView'
 
@@ -42,7 +43,8 @@ function EmployeeHistory({ store, dateSeed, focusTaskId }: EmployeeHistoryProps)
   // wrapped up (and worth reviewing) once the day is over, so that's the more
   // useful starting point than an in-progress "today". Overridden below when
   // arriving here from a notification click (dateSeed).
-  const [selectedDate, setSelectedDate] = useState(yesterdayDate)
+  // The chosen date survives a refresh for the rest of the day.
+  const [selectedDate, setSelectedDate] = useDayScopedState('employee-history-date', yesterdayDate(), pastOrTodayDate)
   const [history, setHistory] = useState<ShiftHistory | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import EmployeeDashboard from './EmployeeDashboard'
 import * as tasksApi from '../api/tasks'
 import { ApiError } from '../api/client'
@@ -302,5 +302,55 @@ describe('EmployeeDashboard TEXT/NUMERIC submit button', () => {
     const textInput = await screen.findByDisplayValue('Wrong value')
     expect(textInput).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument()
+  })
+})
+
+// Live checklist: another employee's answer must show up without a reload.
+describe('EmployeeDashboard live refresh', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("refetches the checklist every 60 seconds and shows another employee's answer", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockGetDailyChecklist.mockResolvedValueOnce([category([task()])])
+    render(<EmployeeDashboard store={STORE} onLogout={vi.fn()} employeeId={7} />)
+    await screen.findByText('Sweep the floor')
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(1)
+
+    mockGetDailyChecklist.mockResolvedValue([
+      category([task({
+        responses: [{
+          id: 900,
+          employeeUserId: 8,
+          employeeFullName: 'Other Person',
+          booleanValue: true,
+          numericValue: null,
+          textValue: null,
+          respondedAt: new Date().toISOString(),
+          flaggedNeedsCorrection: false,
+          flagReason: null,
+        } as ChecklistTask['responses'][number]],
+        completedByCount: 1,
+        completedByNames: ['Other Person'],
+      })]),
+    ])
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(2)
+    expect(mockGetDailyChecklist).toHaveBeenLastCalledWith(STORE.id)
+    // The only task is now answered by someone else, so the page flips to
+    // the finished state without the employee reloading.
+    expect(await screen.findByText('All Done for Today')).toBeInTheDocument()
+  })
+
+  it('does not poll before 60 seconds have passed', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockGetDailyChecklist.mockResolvedValue([category([task()])])
+    render(<EmployeeDashboard store={STORE} onLogout={vi.fn()} employeeId={7} />)
+    await screen.findByText('Sweep the floor')
+
+    await vi.advanceTimersByTimeAsync(59_000)
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(1)
   })
 })

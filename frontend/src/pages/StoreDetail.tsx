@@ -19,6 +19,7 @@ import {
   type InactiveTaskWithHistory, formatTimeLabel, formatResponseEntryValue,
 } from '../utils/checklistHistoryOptions';
 import { matchesSearch } from '../utils/search';
+import { nullablePastRange, pastOrTodayDate, useDayScopedState } from '../hooks/usePersistedState';
 import './StoreDetail.css';
 
 // No 'OPEN' filter option -- open (no-response) tasks are already surfaced
@@ -44,7 +45,9 @@ interface WeeklyDay {
 }
 
 function StoreDetail({ storeId, storeName }: StoreDetailProps) {
-  const [date, setDate] = useState(todayDate);
+  // Kept for the day across a refresh (see useDayScopedState); a new day
+  // starts from today again.
+  const [date, setDate] = useDayScopedState('owner-history-date', todayDate(), pastOrTodayDate);
   const [pickerOpen, setPickerOpen] = useState(false);
   const dateTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -52,7 +55,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   // (arrows, calendar, Today/Yesterday) always clears this and falls back to
   // the plain `date` behavior below, unchanged from before this range mode
   // existed.
-  const [weekRange, setWeekRange] = useState<DateRange | null>(null);
+  const [weekRange, setWeekRange] = useDayScopedState<DateRange | null>('owner-history-week', null, nullablePastRange);
   const [weeklyDays, setWeeklyDays] = useState<WeeklyDay[]>([]);
 
   const [detail, setDetail] = useState<ChecklistHistoryDetail | null>(null);
