@@ -135,8 +135,7 @@ describe('DailyCash', () => {
 
     expect(screen.queryByLabelText('Help for Business date')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Help for Expected Cash on Hand')).not.toBeInTheDocument();
-    const formula = screen.getByText(/Daily expected cash = Cash remaining ± Other adjustments/);
-    expect(formula).toHaveClass('daily-cash-page__formula-banner');
+    expect(screen.queryByText(/Daily expected cash = Cash remaining ± Other adjustments/)).not.toBeInTheDocument();
     const savedStatus = screen.getByText('No entry saved for this date yet');
     const toolbar = savedStatus.closest('.daily-cash-page__toolbar');
     expect(toolbar).not.toBeNull();
