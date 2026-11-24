@@ -100,10 +100,6 @@ const GROUP_TITLES: Record<string, string> = {
   cashRemoved: 'Cash removed, cash remaining and adjustments',
 };
 
-// Shown to Owner/Admin and Super Admin only (employees never see expected cash).
-const EXPECTED_CASH_FORMULA =
-  "Daily expected cash = Cash remaining ± Other adjustments. Expected Cash on Hand adds up every day's figure. Opening drawer cash and Cash removed are recorded only.";
-
 type Values = Record<CashAmountField, string>;
 type Errors = Partial<Record<CashAmountField, string>>;
 
@@ -547,12 +543,6 @@ function DailyCash({
             )}
           </div>
         </div>
-
-        {storeId !== null && !isEmployee && (
-          <div className="daily-cash-page__formula-banner">
-            {EXPECTED_CASH_FORMULA}
-          </div>
-        )}
 
         {storeId !== null && !isLoading && !loadError && !dateIsFuture && entry && (
           <CashEntryFlagSection
